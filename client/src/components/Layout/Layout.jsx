@@ -7,6 +7,8 @@ import Main from '../Main/Main'
 const pageConfig = {
   dashboard: { path: '/dashboard', title: 'Dashboard', subtitle: 'Overview' },
   employees: { path: '/employees', title: 'All Employees', subtitle: 'List of employees' },
+  addEmployee: { path: '/employee/add', title: 'Add Employee', subtitle: 'Manage employee details' },
+  editEmployee: { path: '/employee/:id/edit', title: 'Edit Employee', subtitle: 'Manage employee details' },
   attReport: { path: '/attReport', title: 'Attendance', subtitle: 'Attendance report' },
   liveattend: { path: '/liveattend', title: 'Live Attendance', subtitle: 'Current attendance' },
   manageAdvance: { path: '/advance', title: 'Manage Advance', subtitle: 'Manage advance' },
