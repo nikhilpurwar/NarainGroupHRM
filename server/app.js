@@ -13,8 +13,9 @@ import employeeRoutes from "./src/routes/employee.route.js";
 // Security
 app.use(helmet());
 
-// middleware to parse json
-app.use(express.json());
+// middleware to parse json with increased limits for file uploads (avatars, barcodes, QR)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/employees", employeeRoutes);

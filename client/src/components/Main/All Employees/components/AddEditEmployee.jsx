@@ -3,42 +3,42 @@ import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
-const API = 'http://localhost:3001/api/employees'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API = `${API_URL}/api/employees`
 
 const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (
-  <div>
-    <label className="block font-medium mb-1">{label}</label>
-    <input
-      type={type}
-      name={name}
-      value={value}
-      onChange={onChange}
-      readOnly={readOnly}
-      className={`w-full border p-3 rounded-lg ${
-        error ? "border-red-500" : ""
-      } ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""}`}
-    />
-    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-  </div>
+    <div>
+        <label className="block font-medium mb-1">{label}</label>
+        <input
+            type={type}
+            name={name}
+            value={value}
+            onChange={onChange}
+            readOnly={readOnly}
+            className={`w-full border p-3 rounded-lg ${error ? "border-red-500" : ""
+                } ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""}`}
+        />
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    </div>
 )
 
 
 const Select = ({ label, name, value, onChange, options, error }) => (
-  <div>
-    <label className="block font-medium mb-1">{label}</label>
-    <select
-      name={name}
-      value={value}
-      onChange={onChange}
-      className={`w-full border p-3 rounded-lg ${error ? "border-red-500" : ""}`}
-    >
-      <option value="">Select</option>
-      {options.map((op) => (
-        <option key={op} value={op}>{op}</option>
-      ))}
-    </select>
-    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-  </div>
+    <div>
+        <label className="block font-medium mb-1">{label}</label>
+        <select
+            name={name}
+            value={value}
+            onChange={onChange}
+            className={`w-full border p-3 rounded-lg ${error ? "border-red-500" : ""}`}
+        >
+            <option value="">Select</option>
+            {options.map((op) => (
+                <option key={op} value={op}>{op}</option>
+            ))}
+        </select>
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    </div>
 )
 
 
@@ -61,7 +61,7 @@ const defaultForm = {
     headDepartment: '',
     subDepartment: '',
     group: '',
-    deductions: [],
+    deductions: [], //which deductions applied
     empId: '',
     status: 'active',
     avatar: null,
@@ -103,7 +103,7 @@ const AddEditEmployee = () => {
                     salaryPerHour: emp.salaryPerHour || '',
                     empType: emp.empType || '',
                     shift: emp.shift || '',
-                    headDepartment: emp.department || '',
+                    headDepartment: emp.headDepartment || emp.department || '',
                     subDepartment: emp.subDepartment || '',
                     group: emp.group || '',
                     deductions: emp.deductions || [],
@@ -116,7 +116,7 @@ const AddEditEmployee = () => {
                 console.error(err)
                 const msg = err?.message || ''
                 if (err.code === 'ECONNREFUSED' || msg.toLowerCase().includes('network')) {
-                    setFormError('Cannot connect to backend (http://localhost:3001). Start the server and try again.')
+                    setFormError(`Cannot connect to backend (${API_URL}). Start the server and try again.`)
                 } else {
                     setFormError('Failed to load employee')
                 }
@@ -171,20 +171,20 @@ const AddEditEmployee = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-            const err = validate()
-            if (Object.keys(err).length) {
-                setErrors(err)
-                // scroll to first error field
-                const firstKey = Object.keys(err)[0]
-                setTimeout(() => {
-                    const el = document.querySelector(`[name="${firstKey}"]`)
-                    if (el && typeof el.scrollIntoView === 'function') {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                        el.focus && el.focus()
-                    }
-                }, 50)
-                return
-            }
+        const err = validate()
+        if (Object.keys(err).length) {
+            setErrors(err)
+            // scroll to first error field
+            const firstKey = Object.keys(err)[0]
+            setTimeout(() => {
+                const el = document.querySelector(`[name="${firstKey}"]`)
+                if (el && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    el.focus && el.focus()
+                }
+            }, 50)
+            return
+        }
 
         try {
             const payload = {
@@ -199,9 +199,10 @@ const AddEditEmployee = () => {
                 maritalStatus: form.maritalStatus,
                 salary: Number(form.salary) || 0,
                 workHours: Number(form.workHours) || 0,
-                salaryPerHour: Number(form.salaryPerHour) || 0,
+                salaryPerHour: Number(form.salaryPerHour || computedSalaryPerHour) || 0,
                 empType: form.empType,
                 shift: form.shift,
+                headDepartment: form.headDepartment,
                 department: form.headDepartment,
                 subDepartment: form.subDepartment,
                 group: form.group,
@@ -245,7 +246,7 @@ const AddEditEmployee = () => {
             const msg = err?.response?.data?.message || err?.message || 'Save failed'
             // network/backend unreachable
             if (err.code === 'ECONNREFUSED' || (err.message && err.message.toLowerCase().includes('network'))) {
-                setFormError('Cannot connect to backend (http://localhost:3001). Start the server and try again.')
+                setFormError(`Cannot connect to backend (${API_URL}). Start the server and try again.`)
             } else if (err.response && err.response.data && err.response.data.errors) {
                 // server-side validation errors
                 setErrors(err.response.data.errors)
@@ -274,26 +275,11 @@ const AddEditEmployee = () => {
             <form onSubmit={handleSubmit} className="space-y-8">
 
                 {/* ERROR BANNER */}
-                {formError && (
+                {/* {formError && (
                     <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
                         {formError}
                     </div>
-                )}
-
-                {/* AVATAR */}
-                <div className="bg-gray-50 p-6 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                        Profile Image
-                    </h3>
-
-                    <input type="file" accept="image/*" onChange={handleChange} name="avatar" />
-                    {preview && (
-                        <img
-                            src={preview}
-                            className="mt-4 w-28 h-28 rounded-full border object-cover"
-                        />
-                    )}
-                </div>
+                )} */}
 
                 {/* PERSONAL INFO */}
                 <div className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">
@@ -302,6 +288,41 @@ const AddEditEmployee = () => {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+                        {/* AVATAR */}
+                        <div className="row-span-2">
+                            <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                                Profile Image
+                            </h3>
+
+                            <div className="flex items-center justify-center gap-6">
+                                {preview ? (
+                                    <img                                 
+                                        src={preview}
+                                        alt="Profile Preview"
+                                        className="w-30 h-30 rounded-full border-2 border-gray-300 shadow-sm object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-30 h-30 flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400">
+                                        <span className="text-sm">No Image</span>
+                                    </div>
+                                )}
+
+                                <label
+                                    htmlFor="avatar"
+                                    className="cursor-pointer px-4 py-2 bg-gray-900 text-white rounded-md shadow hover:bg-gray-700 transition"
+                                >
+                                    Upload Image
+                                </label>
+                                <input
+                                    id="avatar"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleChange}
+                                    name="avatar"
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
                         <Input label="First Name*" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} />
                         <Input label="Last Name*" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} />
                         <Input label="Mobile*" name="mobile" value={form.mobile} onChange={handleChange} error={errors.mobile} />
@@ -392,7 +413,7 @@ const AddEditEmployee = () => {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                             {["pf", "lwf", "ptax", "esi", "tds", "insurance"].map((d) => (
                                 <label key={d} className="flex items-center gap-2">
-                                    <input type="checkbox" name="deductions" value={d} onChange={handleChange} />
+                                    <input type="checkbox" name="deductions" value={d} onChange={handleChange} checked={form.deductions.includes(d)} />
                                     {d.toUpperCase()}
                                 </label>
                             ))}

@@ -7,6 +7,8 @@ import Login from './components/Login'
 import Layout from './components/Layout/Layout'
 import Dashboard from './components/Main/Dashboard/Dashboard'
 import AllEmployees from './components/Main/All Employees/AllEmployees'
+import Profile from './components/Main/All Employees/components/Profile'
+import Barcodes from './components/Main/All Employees/components/Barcodes'
 import Attendance from './components/Main/Attendance/Attendance'
 import LiveAttendance from './components/Main/Live Attendance/LiveAttendance'
 import ManageAdvance from './components/Main/Manage Advance/ManageAdvance'
@@ -31,9 +33,10 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/employees" element={<AllEmployees />} />
-          {/* <Route path='/addEditEmployees' element={<AddEditEmployee />} /> */}
           <Route path="/employee/add" element={<AddEditEmployee />} />
           <Route path="/employee/:id/edit" element={<AddEditEmployee />} />
+          <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/barcodes" element={<Barcodes />} />
           <Route path="/attReport" element={<Attendance />} />
           <Route path="/liveattend" element={<LiveAttendance />} />
           <Route path="/advance" element={<ManageAdvance />} />

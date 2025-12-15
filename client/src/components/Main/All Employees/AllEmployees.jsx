@@ -3,6 +3,9 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { FiEdit } from "react-icons/fi";
+import { MdDeleteOutline } from "react-icons/md";
+import { IoIosAddCircle } from "react-icons/io";
 
 const AllEmployees = () => {
   const [employees, setEmployees] = useState([]);
@@ -18,7 +21,8 @@ const AllEmployees = () => {
 
   const rowsPerPage = 8;
 
-  const API_BASE = "http://localhost:3001/api/employees";
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_BASE = `${API_URL}/api/employees`;
 
   // Fetch API
   useEffect(() => {
@@ -102,13 +106,14 @@ const AllEmployees = () => {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">All Employees</h1>
 
+      {/* Header */}
+      <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
+        Charges List
         <div className="flex items-center gap-3">
           <button
-            className="bg-indigo-600 p-2 text-white rounded-full hover:bg-indigo-700 transition cursor-pointer"
+            onClick={() => navigate('/barcodes')}
+            className="bg-gray-700 p-2 text-white rounded-full hover:bg-gray-400 transition cursor-pointer"
           >
             <i className="fas fa-barcode"></i>
           </button>
@@ -116,15 +121,16 @@ const AllEmployees = () => {
           <button
             title="Add Employee"
             onClick={handleAddEmployee}
-            className="bg-green-600 p-2 text-white rounded-full hover:bg-green-700 transition cursor-pointer"
+            className="flex items-center gap-2 bg-white text-gray-900 rounded-full px-4 py-2 hover:bg-gray-200"
           >
-            <i className="fas fa-user-plus"></i>
+            <IoIosAddCircle size={22} />
+            Add Employees
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-5 rounded-xl shadow mb-6">
+      <div className="bg-white p-5 rounded-b-xl shadow mb-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
           {/* Search */}
@@ -175,13 +181,13 @@ const AllEmployees = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white py-4 rounded-xl shadow-md overflow-hidden">
+      <div className="bg-white py-4 rounded-xl shadow-md overflow-x-auto">
         {loading ? (
           <p className="text-center py-6 text-gray-500">Loading employees...</p>
         ) : (
-          <table className="w-full table-auto overflow-y-auto">
+          <table className="w-full table-auto">
             <thead>
-              <tr className="bg-gray-900 text-white text-left">
+              <tr className="bg-gray-100 text-gray-800 text-left">
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Father Name</th>
@@ -207,11 +213,11 @@ const AllEmployees = () => {
 
                     {/* Name + Avatar */}
                     <td className="px-4 py-3 flex items-center gap-3">
-                        <img
-                          src={emp.avatar || DEFAULT_AVATAR}
-                          alt="Profile"
-                          className="w-10 h-10 rounded-full border"
-                        />
+                      <img
+                        src={emp.avatar || DEFAULT_AVATAR}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full border"
+                      />
                       <Link
                         to={`/profile/${emp._id}`}
                         className="font-medium text-indigo-600 hover:underline"
@@ -224,7 +230,7 @@ const AllEmployees = () => {
                     <td className="px-4 py-3">{emp.mobile}</td>
                     <td className="px-4 py-3">₹{emp.salary}</td>
                     <td className="px-4 py-3">{emp.empId}</td>
-                    <td className="px-4 py-3">{emp.department}</td>
+                    <td className="px-4 py-3">{emp.headDepartment}</td>
                     <td className="px-4 py-3">{emp.subDepartment}</td>
                     <td className="px-4 py-3">{emp.group}</td>
 
@@ -237,20 +243,20 @@ const AllEmployees = () => {
                       </button>
                     </td>
 
-                    <td className="px-4 py-3 text-right flex justify-end items-center gap-3">
-                      <Link
-                        to={`/employee/${emp._id}/edit`}
+                    <td className="text-center flex justify-center items-center gap-3">
+                      <button
+                        onClick={() => navigate(`/employee/${emp._id}/edit`)}
                         className="text-blue-600 hover:text-blue-800"
                       >
-                        <i className="fa-solid fa-pencil"></i>
-                      </Link>
+                        <FiEdit />
+                      </button>
 
                       <button
                         onClick={() => handleDelete(emp._id)}
                         className="text-red-600 hover:text-red-800"
                         title="Delete"
                       >
-                        <i className="fa-solid fa-trash"></i>
+                        <MdDeleteOutline size={20} />
                       </button>
                     </td>
                   </tr>
@@ -258,7 +264,16 @@ const AllEmployees = () => {
               ) : (
                 <tr>
                   <td colSpan="11" className="text-center py-6 text-gray-500">
-                    No employees found
+                    <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
+                      No employees found
+                      <button
+                        onClick={handleAddEmployee}
+                        className="flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
+                      >
+                        <IoIosAddCircle size={22} />
+                        Add Employees
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )}
