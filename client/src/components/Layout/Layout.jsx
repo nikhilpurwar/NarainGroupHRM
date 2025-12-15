@@ -24,7 +24,7 @@ const pageConfig = {
 }
 
 const Layout = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const location = useLocation();
   const pathname = location?.pathname || '';
   const match = Object.values(pageConfig).find(cfg => pathname === cfg.path || pathname.startsWith(cfg.path));

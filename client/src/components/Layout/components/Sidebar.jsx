@@ -5,6 +5,10 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
     const [isReportsOpen, setReportsOpen] = useState(false);
     const [isDeptOpen, setDeptOpen] = useState(false);
     const [isSettingsOpen, setSettingsOpen] = useState(false);
+    const [isHovered, setHovered] = useState(false);
+
+    // when collapsed but hovered, treat as expanded visually
+    const effectiveCollapsed = Boolean(isCollapsed) && !isHovered;
 
     const menuItems = [
         { id: "dashboard", icon: "fa-gauge", label: "Dashboard", title: "Dashboard" },
@@ -22,17 +26,20 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
     };
 
     return (
-        <div className={`${isCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen`}>
+        <div
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen`}>
 
             {/* Logo Section */}
             <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
                 <img
-                    src={isCollapsed
-                        ? "http://iudo.in/hrm/public/uploads/1759751401_favicon.jpg"
-                        : "http://iudo.in/hrm/public/uploads/1759752543_logo.png"
+                    src={effectiveCollapsed
+                        ? "/logo1.png"
+                        : "/logo2.png"
                     }
                     alt="logo"
-                    className={isCollapsed ? "h-18 w-18 object-contain" : "h-12 object-contain"}
+                    className={effectiveCollapsed ? "h-18 w-18 object-contain" : "h-12 object-contain"}
                 />
             </div>
 
@@ -43,11 +50,12 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                         <li key={item.id}>
                             <Link
                                 to={`/${item.id}`}
+                                title={item.label}
                                 onClick={() => handleItemClick(item)}
-                                className="flex items-center gap-3 px-3 py-3 rounded hover:bg-gray-800"
+                                className={`flex items-center gap-3 px-3 py-3 rounded hover:bg-gray-800 ${effectiveCollapsed && "justify-center px-0"}`}
                             >
                                 <i className={`fa-solid ${item.icon} text-lg`}></i>
-                                {!isCollapsed && <span>{item.label}</span>}
+                                {!effectiveCollapsed && <span className="text-sm text-white">{item.label}</span>}
                             </Link>
                         </li>
                     ))}
@@ -56,16 +64,19 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                 {/* REPORTS DROPDOWN */}
                 <div className="border-t border-gray-700 mt-3 pt-3">
                     <div
-                        className="px-3 py-2 cursor-pointer flex items-center justify-between"
+                        className={`px-3 py-2 cursor-pointer flex items-center ${effectiveCollapsed ? "justify-center" : "justify-between"
+                            }`}
+                        title="Reports"
                         onClick={() => setReportsOpen(!isReportsOpen)}
                     >
-                        {!isCollapsed && <p className="text-sm font-semibold">Reports</p>}
-                        {!isCollapsed && (
+                        {!effectiveCollapsed && <p className="text-sm font-semibold text-white">Reports</p>}
+                        {!effectiveCollapsed && (
                             <i className={`fa-solid fa-chevron-${isReportsOpen ? "down" : "right"}`}></i>
                         )}
+                        {effectiveCollapsed && <i className="fa-solid fa-file text-lg " aria-hidden />}
                     </div>
 
-                    {isReportsOpen && !isCollapsed && (
+                    {isReportsOpen && !effectiveCollapsed && (
                         <ul className="space-y-1 mt-2 pl-6">
                             <li>
                                 <Link
@@ -119,16 +130,18 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                 {/* DEPARTMENTS DROPDOWN */}
                 <div className="border-t border-gray-700 mt-3 pt-3">
                     <div
-                        className="px-3 py-2 cursor-pointer flex items-center justify-between"
+                        className={`px-3 py-2 cursor-pointer flex items-center ${effectiveCollapsed ? "justify-center" : "justify-between"
+                            }`} title="Departments"
                         onClick={() => setDeptOpen(!isDeptOpen)}
                     >
-                        {!isCollapsed && <p className="text-sm font-semibold">Departments</p>}
-                        {!isCollapsed && (
+                        {!effectiveCollapsed && <p className="text-sm font-semibold text-white">Departments</p>}
+                        {!effectiveCollapsed && (
                             <i className={`fa-solid fa-chevron-${isDeptOpen ? "down" : "right"}`}></i>
                         )}
+                        {effectiveCollapsed && <i className="fa-solid fa-building text-lg" aria-hidden />}
                     </div>
 
-                    {isDeptOpen && !isCollapsed && (
+                    {isDeptOpen && !effectiveCollapsed && (
                         <ul className="space-y-1 mt-2 pl-6">
                             <li>
                                 <Link
@@ -163,16 +176,19 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                 {/* SETTINGS DROPDOWN */}
                 <div className="border-t border-gray-700 mt-3 pt-3">
                     <div
-                        className="px-3 py-2 cursor-pointer flex items-center justify-between"
+                        className={`px-3 py-2 cursor-pointer flex items-center ${effectiveCollapsed ? "justify-center" : "justify-between"
+                            }`} 
+                        title="Settings"
                         onClick={() => setSettingsOpen(!isSettingsOpen)}
                     >
-                        {!isCollapsed && <p className="text-sm font-semibold">Settings</p>}
-                        {!isCollapsed && (
+                        {!effectiveCollapsed && <p className="text-sm font-semibold text-white">Settings</p>}
+                        {!effectiveCollapsed && (
                             <i className={`fa-solid fa-chevron-${isSettingsOpen ? "down" : "right"}`}></i>
                         )}
+                        {effectiveCollapsed && <i className="fa-solid fa-cog text-lg" aria-hidden />}
                     </div>
 
-                    {isSettingsOpen && !isCollapsed && (
+                    {isSettingsOpen && !effectiveCollapsed && (
                         <ul className="space-y-1 mt-2 pl-6">
                             <li>
                                 <Link

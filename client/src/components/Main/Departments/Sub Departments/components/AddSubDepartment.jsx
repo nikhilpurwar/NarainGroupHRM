@@ -3,7 +3,8 @@ import { IoCloseSharp } from "react-icons/io5";
 import { toast } from "react-toastify";
 import axios from "axios";
 
-const API_URL = "http://localhost:3001/api/holidays";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API = `${API_URL}/api/holidays`;
 
 const AddSubDepartment = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
   const [formData, setFormData] = useState({

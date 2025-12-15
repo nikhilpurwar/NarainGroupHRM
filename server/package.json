@@ -19,6 +19,8 @@
     "helmet": "^8.1.0",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.1",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "bwip-js": "^2.0.10",
+    "qrcode": "^1.5.1"
   }
 }

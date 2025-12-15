@@ -6,7 +6,8 @@ import { toast } from "react-toastify";
 import AddFestival from "./components/AddFestival";
 import axios from "axios";
 
-const API_URL = "http://localhost:3001/api/holidays";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API = `${API_URL}/api/holidays`
 
 const Holidays = () => {
   const [modal, setModal] = useState(false);
@@ -67,9 +68,9 @@ const Holidays = () => {
   return (
     <div className="p-6">
       <div className="border border-gray-300 rounded-xl shadow-lg overflow-hidden">
-        
+
         {/* Header */}
-        <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
+        <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-xl rounded-t-xl">
           Festival List
 
           <button
@@ -97,9 +98,16 @@ const Holidays = () => {
 
         {/* Empty State */}
         {!loading && festivalList.length === 0 && (
-          <p className="text-center py-6 text-gray-500">
-            No festivals found. Click <strong>Add Festival</strong>.
-          </p>
+          <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 my-6 gap-4">
+            No Festival Found
+            <button
+              onClick={handleAddFestival}
+              className="flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
+            >
+              <IoIosAddCircle size={22} />
+              Add Festivals
+            </button>
+          </div>
         )}
 
         {/* Table */}
@@ -107,12 +115,12 @@ const Holidays = () => {
           <table className="table-auto w-full border-collapse">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <th className="px-4 py-2 text-left">S.No.</th>
-                <th className="px-4 py-2 text-left">Festival Name</th>
-                <th className="px-4 py-2 text-left">Festival Date</th>
-                <th className="px-4 py-2 text-left">Description</th>
-                <th className="px-4 py-2 text-left">Created On</th>
-                <th className="px-4 py-2 text-left">Action</th>
+                <th className="px-4 py-4 text-left">S.No.</th>
+                <th className="px-4 py-4 text-left">Festival Name</th>
+                <th className="px-4 py-4 text-left">Festival Date</th>
+                <th className="px-4 py-4 text-left">Description</th>
+                <th className="px-4 py-4 text-left">Created On</th>
+                <th className="px-4 py-4 text-left">Action</th>
               </tr>
             </thead>
 
@@ -133,13 +141,13 @@ const Holidays = () => {
                     <FiEdit
                       onClick={() => handleEdit(item)}
                       size={16}
-                      className="text-blue-700 cursor-pointer hover:scale-105"
+                      className="text-blue-700 cursor-pointer hover:scale-115"
                     />
 
                     <MdDeleteOutline
                       onClick={() => handleDelete(item._id)}
                       size={20}
-                      className="text-red-600 cursor-pointer hover:scale-105"
+                      className="text-red-600 cursor-pointer hover:scale-115"
                     />
                   </td>
                 </tr>
