@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { MdOutlineRemoveRedEye } from "react-icons/md";
+import { IoMdEyeOff } from "react-icons/io";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -7,97 +9,114 @@ const Login = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Validate inputs
   const validate = () => {
-    const err = {};
+    let newErrors = {};
 
-    if (!formData.email.trim()) {
-      err.email = "Email is required";
-    } else if (
-      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
-    ) {
-      err.email = "Invalid email address";
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Enter a valid email";
     }
 
-    if (!formData.password.trim()) {
-      err.password = "Password is required";
+    if (!formData.password) {
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
-      err.password = "Password must be at least 6 characters";
+      newErrors.password = "Password must be at least 6 characters";
     }
 
-    setErrors(err);
-    return Object.keys(err).length === 0;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
-      console.log("Login successful with data:", formData);
-      // Call your API here
-    }
-  };
+    if (!validate()) return;
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    alert("Login Successful!");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-semibold mb-2 text-gray-800">Welcome Back</h2>
-        <p className="mb-6 text-gray-600">Log in to your account</p>
+      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
+        {/* Title */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
+          <p className="text-gray-500">Login to your account</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-gray-700 font-medium mb-1">
+            <label className="block font-medium text-gray-700 mb-1">
               Email
             </label>
             <input
               type="email"
-              id="email"
-              name="email"
               placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded ${
+              className={`w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none ${
                 errors.email ? "border-red-500" : "border-gray-300"
               }`}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit(e)}
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
             />
-            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            )}
           </div>
 
           {/* Password */}
           <div>
-            <label htmlFor="password" className="block text-gray-700 font-medium mb-1">
+            <label className="block font-medium text-gray-700 mb-1">
               Password
             </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              }`}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit(e)}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                className={`w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                  errors.password ? "border-red-500" : "border-gray-300"
+                }`}
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+              />
+
+              {/* Show/Hide Password Toggle */}
+              <span
+                className="absolute right-3 top-2.5 cursor-pointer text-gray-500"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <IoMdEyeOff size={20} /> : <MdOutlineRemoveRedEye size={20} />}
+              </span>
+            </div>
+
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password}</p>
             )}
           </div>
 
-          {/* Submit */}
+          {/* Login Button */}
           <button
             type="submit"
-            className="bg-gray-900 text-white py-2 rounded-lg hover:bg-gray-800 font-medium"
+            className="w-full bg-gray-900 text-white py-2 rounded-lg text-lg font-semibold hover:bg-gray-700 transition-all"
           >
-            Log In
+            Login
           </button>
+
+          {/* Footer */}
+          {/* <p className="text-center text-sm text-gray-600 mt-4">
+            Don’t have an account?
+            <span className="text-blue-600 font-semibold cursor-pointer">
+              {" "}
+              Sign Up
+            </span>
+          </p> */}
         </form>
       </div>
     </div>

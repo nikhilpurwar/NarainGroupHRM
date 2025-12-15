@@ -19,6 +19,7 @@ import ManageUsers from './components/Main/Settings/Manage Users/ManageUsers'
 import WorkingHours from './components/Main/Settings/Working Hours/WorkingHours'
 import Holidays from './components/Main/Settings/Holidays/Holidays'
 import Charges from './components/Main/Settings/Charges/Charges'
+import AddEditEmployee from './components/Main/All Employees/components/AddEditEmployee'
 
 function App() {
   return (
@@ -30,6 +31,9 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/employees" element={<AllEmployees />} />
+          {/* <Route path='/addEditEmployees' element={<AddEditEmployee />} /> */}
+          <Route path="/employee/add" element={<AddEditEmployee />} />
+          <Route path="/employee/:id/edit" element={<AddEditEmployee />} />
           <Route path="/attReport" element={<Attendance />} />
           <Route path="/liveattend" element={<LiveAttendance />} />
           <Route path="/advance" element={<ManageAdvance />} />

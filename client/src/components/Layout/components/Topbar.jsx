@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { CgMenuLeft } from "react-icons/cg";
 
 const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     const [open, setOpen] = useState(false);
@@ -13,7 +14,7 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                         className="p-2 rounded transition"
                         title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                     >
-                        <i className={`fa-solid ${isSidebarCollapsed ? "fa-chevron-right" : "fa-chevron-left"}`}></i>
+                        <CgMenuLeft size={24} />
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold text-white">{title}</h1>

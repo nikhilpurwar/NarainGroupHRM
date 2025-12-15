@@ -17,8 +17,8 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className='flex flex-col gap-6'>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4">
+    <div className='flex flex-col gap-6 p-6'>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 ">
         {CardData1.map((card, index) => {
           return (
             <div className='flex justify-between items-center bg-gray-200 shadow-md p-4 rounded-lg'>
