@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { MdKeyboardBackspace } from "react-icons/md"
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -292,6 +293,14 @@ const AddEditEmployee = () => {
                 <h2 className="text-2xl font-semibold">{isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
                 <button className="text-sm text-gray-600" onClick={() => navigate(-1)}>✕</button>
             </div> */}
+             {/* Back Button */}
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
+                  >
+                    <MdKeyboardBackspace size={26} />
+                    <span className="text-sm font-medium">Back</span>
+                  </button>
 
             <form onSubmit={handleSubmit} className="space-y-8">
 

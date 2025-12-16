@@ -14,6 +14,7 @@ import breakRoutes from "./src/routes/breaktime.route.js";
 import authRoutes from "./src/routes/auth.route.js";
 import userRoutes from "./src/routes/user.route.js";
 import settingRoutes from "./src/routes/setting.route.js";
+import attendanceRoutes from "./src/routes/attendance.route.js";
 
 // Security
 app.use(helmet());
@@ -29,5 +30,6 @@ app.use("/api/break-times", breakRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/settings", settingRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/attendance-report", attendanceRoutes);
 
 export default app;

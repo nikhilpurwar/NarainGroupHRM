@@ -2,14 +2,14 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
-const API = `${API_URL}/api/holidays`;
+const API = `${API_URL}/api/holidays`
 
 const FestivalList = () => {
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
 
   const fetchUpcoming = async () => {
     try {
-      const res = await axios.get(API_URL);
+      const res = await axios.get(API);
       const holidays = res.data.data;
 
       const today = new Date();

@@ -20,7 +20,7 @@ const Holidays = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_URL);
+      const res = await axios.get(API);
       setFestivalList(res.data?.data || []);
     } catch (error) {
       console.error("Fetch error:", error);
@@ -53,7 +53,7 @@ const Holidays = () => {
     if (!window.confirm("Are you sure you want to delete this?")) return;
 
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await axios.delete(`${API}/${id}`);
       toast.success("Festival deleted successfully!");
       fetchData();
     } catch (error) {

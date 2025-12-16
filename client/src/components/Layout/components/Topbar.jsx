@@ -17,8 +17,8 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     }
 
     return (
-        <div className="bg-gray-900 text-white border-b shadow-sm">
-            <div className="min-h-20 flex justify-between items-center pr-6 py-3">
+        <div className="w-full bg-gray-900 text-white border-b shadow-sm">
+            <div className="w-full min-h-20 flex justify-between items-center pr-6 py-3">
                 {/* Left side with title and toggle */}
                 <div className="flex items-center gap-8">
                     <button
