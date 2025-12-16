@@ -1,8 +1,20 @@
 import React, { useState } from "react";
 import { CgMenuLeft } from "react-icons/cg";
+import { useNavigate } from 'react-router-dom'
 
 const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     const [open, setOpen] = useState(false);
+
+    const navigate = useNavigate()
+
+    const doLogout = () => {
+        try {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            try { window.axios && (window.axios.defaults.headers.common.Authorization = '') } catch {}
+            navigate('/login')
+        } catch (e) { console.error(e) }
+    }
 
     return (
         <div className="bg-gray-900 text-white border-b shadow-sm">
@@ -50,12 +62,12 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                                 >
                                     My Profile
                                 </a>
-                                <a
-                                    href="http://iudo.in/hrm/logout"
-                                    className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                <button
+                                    onClick={doLogout}
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                                 >
                                     Logout
-                                </a>
+                                </button>
                             </div>
                         </div>
                     )}

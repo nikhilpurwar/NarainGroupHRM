@@ -3,28 +3,28 @@ import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
 import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
-import AddFestival from "./components/AddHeadDepartment";
+import AddHeadDepartment from "./components/AddHeadDepartment";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-const API = `${API_URL}/api/holidays`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API = `${API_URL}/api/settings/head-departments`;
 
 const HeadDepartments = () => {
   const [modal, setModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-  const [selectedFestival, setSelectedFestival] = useState(null);
-  const [festivalList, setFestivalList] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [departmentList, setDepartmentList] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch all holidays
+  // Fetch head departments
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_URL);
-      setFestivalList(res.data?.data || []);
+      const res = await axios.get(API);
+      setDepartmentList(res.data?.data || []);
     } catch (error) {
       console.error("Fetch error:", error);
-      toast.error("Failed to load holidays. Check server!");
+      toast.error("Failed to load head departments. Check server!");
     } finally {
       setLoading(false);
     }
@@ -35,15 +35,15 @@ const HeadDepartments = () => {
   }, []);
 
   // Add Modal
-  const handleAddFestival = () => {
+  const handleAddDepartment = () => {
     setIsEdit(false);
-    setSelectedFestival(null);
+    setSelectedDepartment(null);
     setModal(true);
   };
 
   // Edit Modal
   const handleEdit = (item) => {
-    setSelectedFestival(item);
+    setSelectedDepartment(item);
     setIsEdit(true);
     setModal(true);
   };
@@ -53,17 +53,17 @@ const HeadDepartments = () => {
     if (!window.confirm("Are you sure you want to delete this?")) return;
 
     try {
-      await axios.delete(`${API_URL}/${id}`);
-      toast.success("Festival deleted successfully!");
+      await axios.delete(`${API}/${id}`);
+      toast.success("Head department deleted successfully!");
       fetchData();
     } catch (error) {
       console.error("Delete error:", error);
-      toast.error("Failed to delete festival.");
+      toast.error("Failed to delete head department.");
     }
   };
 
-  const formatDate = (date) =>
-    date ? new Date(date).toISOString().split("T")[0] : "-";
+  // const formatDate = (date) =>
+  //   date ? new Date(date).toISOString().split("T")[0] : "-";
 
   return (
     <div className="p-6">
@@ -71,64 +71,56 @@ const HeadDepartments = () => {
         
         {/* Header */}
         <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
-          Head Department List
+          Head Departments
 
           <button
-            onClick={handleAddFestival}
+            onClick={handleAddDepartment}
             className="flex items-center justify-center gap-2 bg-white text-gray-900 rounded-full px-4 py-2 cursor-pointer hover:bg-gray-200"
           >
             <IoIosAddCircle size={22} />
-            <p>Add Festival</p>
+            <p>Add Head Department</p>
           </button>
         </div>
 
         {/* Modal */}
-        <AddFestival
+        <AddHeadDepartment
           isOpen={modal}
           onClose={() => setModal(false)}
           isEdit={isEdit}
-          festival={selectedFestival}
+          department={selectedDepartment}
           refreshList={fetchData}
         />
 
         {/* Loading State */}
         {loading && (
-          <p className="text-center py-6 text-gray-600">Loading festivals...</p>
+          <p className="text-center py-6 text-gray-600">Loading head departments...</p>
         )}
 
         {/* Empty State */}
-        {!loading && festivalList.length === 0 && (
+        {!loading && departmentList.length === 0 && (
           <p className="text-center py-6 text-gray-500">
-            No festivals found. Click <strong>Add Festival</strong>.
+            No head departments found. Click <strong>Add Head Department</strong>.
           </p>
         )}
 
         {/* Table */}
-        {!loading && festivalList.length > 0 && (
+        {!loading && departmentList.length > 0 && (
           <table className="table-auto w-full border-collapse">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 <th className="px-4 py-2 text-left">S.No.</th>
-                <th className="px-4 py-2 text-left">Festival Name</th>
-                <th className="px-4 py-2 text-left">Festival Date</th>
-                <th className="px-4 py-2 text-left">Description</th>
-                <th className="px-4 py-2 text-left">Created On</th>
+                <th className="px-4 py-2 text-left">Head Department</th>
+                <th className="px-4 py-2 text-left">HOD Name</th>
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
 
             <tbody>
-              {festivalList.map((item, index) => (
+              {departmentList.map((item, index) => (
                 <tr key={item._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
-                  <td className="px-4 py-3 border-t">{formatDate(item.date)}</td>
-                  <td className="px-4 py-3 border-t">
-                    {item.description || "-"}
-                  </td>
-                  <td className="px-4 py-3 border-t">
-                    {formatDate(item.createdAt)}
-                  </td>
+                  <td className="px-4 py-3 border-t">{item.hod}</td>
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">
                     <FiEdit

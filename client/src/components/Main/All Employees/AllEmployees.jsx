@@ -21,7 +21,7 @@ const AllEmployees = () => {
 
   const rowsPerPage = 8;
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
   const API_BASE = `${API_URL}/api/employees`;
 
   // Fetch API
@@ -109,7 +109,7 @@ const AllEmployees = () => {
 
       {/* Header */}
       <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
-        Charges List
+        Our Employees
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/barcodes')}

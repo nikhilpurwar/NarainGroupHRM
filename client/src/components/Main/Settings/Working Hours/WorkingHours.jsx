@@ -6,12 +6,14 @@ import { IoIosAddCircle } from "react-icons/io"
 import { toast } from "react-toastify"
 import AddEditTimings from "./components/AddEditTimings"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/break-times`
 
 const WorkingHours = () => {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(false)
+  const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null
+  const role = storedUser?.role
   const [showModal, setShowModal] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [selectedTiming, setSelectedTiming] = useState(null)
@@ -21,7 +23,7 @@ const WorkingHours = () => {
     try {
       setLoading(true)
       const res = await axios.get(API)
-      setList(res.data)
+      setList(res.data?.data || [])
     } catch {
       toast.error("Failed to load timings")
     } finally {
@@ -65,23 +67,27 @@ const WorkingHours = () => {
         {/* Header */}
         <div className="flex justify-between items-center p-4 bg-gray-900 text-white text-xl font-semibold">
           Break Time
-          <button
-            onClick={handleAdd}
-            className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-full hover:bg-gray-200"
-          >
-            <IoIosAddCircle size={22} />
-            Add Break
-          </button>
+          {role === 'admin' && (
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-full hover:bg-gray-200"
+            >
+              <IoIosAddCircle size={22} />
+              Add Break
+            </button>
+          )}
         </div>
 
         {/* Modal */}
-        <AddEditTimings
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          isEdit={isEdit}
-          timing={selectedTiming}
-          refreshList={fetchData}
-        />
+        {role === 'admin' && (
+          <AddEditTimings
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            isEdit={isEdit}
+            timing={selectedTiming}
+            refreshList={fetchData}
+          />
+        )}
 
         {/* Loader */}
         {loading && (
@@ -134,16 +140,22 @@ const WorkingHours = () => {
                   <td>{item.nightIn}</td>
                   <td>{item.nightOut}</td>
                   <td className="flex justify-center gap-3 py-3">
-                    <FiEdit
-                      size={16}
-                      onClick={() => handleEdit(item)}
-                      className="text-blue-700 cursor-pointer hover:scale-110"
-                    />
-                    <MdDeleteOutline
-                      size={16}
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-600 cursor-pointer hover:scale-110"
-                    />
+                    {role === 'admin' ? (
+                      <>
+                        <FiEdit
+                          size={16}
+                          onClick={() => handleEdit(item)}
+                          className="text-blue-700 cursor-pointer hover:scale-110"
+                        />
+                        <MdDeleteOutline
+                          size={16}
+                          onClick={() => handleDelete(item._id || item.id)}
+                          className="text-red-600 cursor-pointer hover:scale-110"
+                        />
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-500">No actions</span>
+                    )}
                   </td>
                 </tr>
               ))}

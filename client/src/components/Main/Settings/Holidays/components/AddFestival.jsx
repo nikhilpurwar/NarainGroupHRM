@@ -3,7 +3,7 @@ import { IoCloseSharp } from "react-icons/io5";
 import { toast } from "react-toastify";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/holidays`
 
 const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
@@ -49,13 +49,10 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
 
       if (isEdit) {
         // ---------- UPDATE HOLIDAY ----------
-        await axios.put(
-          `${API_URL}/${festival._id}`,
-          formData
-        );
+        await axios.put(`${API}/${festival._id}`, formData);
       } else {
         // ---------- ADD NEW HOLIDAY ----------
-        await axios.post(API_URL, formData);
+        await axios.post(API, formData);
       }
 
       refreshList();

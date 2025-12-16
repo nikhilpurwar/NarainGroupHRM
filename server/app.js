@@ -9,6 +9,11 @@ app.use(cors());
 // importing routes 
 import holidayRoutes from "./src/routes/holiday.route.js";
 import employeeRoutes from "./src/routes/employee.route.js";
+import chargeRoutes from "./src/routes/charge.route.js";
+import breakRoutes from "./src/routes/breaktime.route.js";
+import authRoutes from "./src/routes/auth.route.js";
+import userRoutes from "./src/routes/user.route.js";
+import settingRoutes from "./src/routes/setting.route.js";
 
 // Security
 app.use(helmet());
@@ -19,5 +24,10 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/charges", chargeRoutes);
+app.use("/api/break-times", breakRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/settings", settingRoutes);
+app.use("/api/users", userRoutes);
 
 export default app;

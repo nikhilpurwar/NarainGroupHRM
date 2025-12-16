@@ -30,11 +30,29 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-
-    alert("Login Successful!");
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Login failed')
+      // store token and user
+      localStorage.setItem('token', data.data.token)
+      localStorage.setItem('user', JSON.stringify(data.data.user))
+      // set default axios header
+      try { const axios = (await import('axios')).default; axios.defaults.headers.common['Authorization'] = `Bearer ${data.data.token}` } catch (e) {}
+      // redirect
+      window.location.href = '/'
+    } catch (err) {
+      setErrors({ form: err.message })
+    }
   };
 
   return (

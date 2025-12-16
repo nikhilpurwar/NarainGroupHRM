@@ -3,7 +3,7 @@ import { IoCloseSharp } from "react-icons/io5"
 import axios from "axios"
 import { toast } from "react-toastify"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/break-times`
 
 const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
@@ -51,7 +51,8 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
     try {
       setLoading(true)
       if (isEdit) {
-        await axios.put(`${API}/${timing.id}`, form)
+        const id = timing?._id || timing?.id
+        await axios.put(`${API}/${id}`, form)
         toast.success("Break updated successfully")
       } else {
         await axios.post(API, form)
@@ -59,8 +60,10 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
       }
       refreshList()
       onClose()
-    } catch {
-      toast.error("Something went wrong")
+    } catch (err) {
+      console.error('Break save error', err)
+      const msg = err?.response?.data?.message || err?.message || 'Something went wrong'
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
