@@ -21,7 +21,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 ">
         {CardData1.map((card, index) => {
           return (
-            <div className='flex justify-between items-center bg-gray-200 shadow-md p-4 rounded-lg'>
+            <div key={card.title || index} className='flex justify-between items-center bg-gray-200 shadow-md p-4 rounded-lg'>
               <div className="flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full">
                 <i className={`fas ${card.icon} text-2xl text-gray-700`}></i>
               </div>

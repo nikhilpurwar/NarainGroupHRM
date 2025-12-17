@@ -42,9 +42,9 @@ const AddHeadDepartment = ({
       err.departmentName = "Department name is required";
     }
 
-    if (!formData.hod.trim()) {
-      err.hod = "HOD name is required";
-    }
+    // if (!formData.hod.trim()) {
+    //   err.hod = "HOD name is required";
+    // }
 
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -102,7 +102,8 @@ const AddHeadDepartment = ({
           {/* Department Name */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Department Name <span className="text-red-500">*</span>
+              Department Name 
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -125,7 +126,8 @@ const AddHeadDepartment = ({
           {/* HOD */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              HOD <span className="text-red-500">*</span>
+              HOD 
+              {/* <span className="text-red-500">*</span> */}
             </label>
             <input
               type="text"
@@ -136,7 +138,7 @@ const AddHeadDepartment = ({
               onChange={(e) =>
                 setFormData({ ...formData, hod: e.target.value })
               }
-              placeholder="e.g. Rahul Sharma"
+              placeholder="e.g. Rahul Sharma (Optional)"
             />
             {errors.hod && (
               <p className="text-red-500 text-xs mt-1">{errors.hod}</p>

@@ -30,15 +30,15 @@ const EmployeeSummary = ({ emp, isMobile }) => {
           <div className="flex items-start gap-2">
             <Building2 size={14} className="text-gray-500 mt-0.5 flex-shrink-0" />
             <div>
-              <div className="font-medium text-gray-700">{emp.headDepartment || 'N/A'}</div>
-              <div className="text-xs text-gray-500">{emp.subDepartment || 'N/A'}</div>
+              <div className="font-medium text-gray-700">{emp.headDepartment?.name || emp.headDepartment || 'N/A'}</div>
+              <div className="text-xs text-gray-500">{emp.subDepartment?.name || emp.subDepartment || 'N/A'}</div>
             </div>
           </div>
 
           <div className="flex items-start gap-2">
             <Users size={14} className="text-gray-500 mt-0.5 flex-shrink-0" />
             <div>
-              <div className="font-medium text-gray-700">{emp.group || 'N/A'}</div>
+              <div className="font-medium text-gray-700">{emp.group?.name || emp.group || 'N/A'}</div>
               <div className="text-xs text-gray-500">Group</div>
             </div>
           </div>
@@ -87,8 +87,8 @@ const EmployeeSummary = ({ emp, isMobile }) => {
             <Building2 size={14} className="text-green-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Department</span>
           </div>
-          <div className="text-sm font-bold text-gray-800 truncate">{emp.headDepartment || 'N/A'}</div>
-          <div className="text-xs text-gray-500 mt-1 truncate">Sub: {emp.subDepartment || 'N/A'}</div>
+          <div className="text-sm font-bold text-gray-800 truncate">{emp.headDepartment?.name || emp.headDepartment || 'N/A'}</div>
+          <div className="text-xs text-gray-500 mt-1 truncate">Sub: {emp.subDepartment?.name || emp.subDepartment || 'N/A'}</div>
         </div>
 
         {/* Group & Status Card */}
@@ -97,7 +97,7 @@ const EmployeeSummary = ({ emp, isMobile }) => {
             <Users size={14} className="text-indigo-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Group</span>
           </div>
-          <div className="text-sm font-bold text-gray-800 truncate">{emp.group || 'N/A'}</div>
+          <div className="text-sm font-bold text-gray-800 truncate">{emp.group?.name || emp.group || 'N/A'}</div>
           <div className={`text-xs font-semibold px-2 py-1 rounded mt-2 w-fit flex items-center gap-1 ${statusColor}`}>
             <CheckCircle size={12} />
             {emp.status || 'N/A'}

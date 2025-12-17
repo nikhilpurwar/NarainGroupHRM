@@ -4,6 +4,7 @@ import AttendanceFilter from "./components/AttendanceFilter"
 import EmployeeSummary from "./components/EmployeeSummary"
 import AttendanceTable from "./components/AttendanceTable"
 import EmployeeTable from "../commonComponents/EmployeeTable"
+import BarcodeScanner from "./components/BarcodeScanner"
 import { toast } from "react-toastify"
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
@@ -29,6 +30,7 @@ const Attendance = () => {
   const [empsLoading, setEmpsLoading] = useState(false)
   const [viewMode, setViewMode] = useState("list") // list | report
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   /* ------------------ Resize Handler ------------------ */
   useEffect(() => {
@@ -204,7 +206,11 @@ const Attendance = () => {
               )
             })()
           ) : (
-            <button className="bg-gray-700 p-2 rounded-full hover:bg-gray-600">
+            <button 
+              onClick={() => setScannerOpen(true)}
+              title="Scan Barcode"
+              className="bg-gray-700 p-2 rounded-full hover:bg-indigo-600 cursor-pointer transition"
+            >
               <MdOutlineQrCodeScanner size={24} />
             </button>
           )}
@@ -279,6 +285,31 @@ const Attendance = () => {
           </>
         )}
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner 
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onAttendanceMarked={(empData) => {
+          // Refresh employees list to show updated attendance status
+          const updatedEmployees = employees.map(emp => {
+            if (emp._id === empData._id || emp.empId === empData.empId) {
+              return {
+                ...emp,
+                attendanceMarked: true,
+                attendanceStatus: 'present'
+              }
+            }
+            return emp
+          })
+          setEmployees(updatedEmployees)
+          
+          // Close scanner after a brief delay
+          setTimeout(() => {
+            setScannerOpen(false)
+          }, 2500)
+        }}
+      />
     </div>
   )
 }

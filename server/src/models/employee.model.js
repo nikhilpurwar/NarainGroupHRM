@@ -3,8 +3,19 @@ import mongoose from "mongoose";
 const attendanceSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   status: { type: String, enum: ["present", "absent"], default: "absent" },
-  inTime: { type: String },
-  outTime: { type: String },
+  inTime: { type: String }, // HH:mm:ss format
+  outTime: { type: String }, // HH:mm:ss format
+  totalHours: { type: Number, default: 0 }, // Total hours worked
+  regularHours: { type: Number, default: 0 }, // Regular shift hours
+  overtimeHours: { type: Number, default: 0 }, // Overtime hours (if any)
+  breakMinutes: { type: Number, default: 0 }, // Break duration in minutes
+  isWeekend: { type: Boolean, default: false }, // Sunday/Saturday flag
+  isHoliday: { type: Boolean, default: false }, // Holiday flag
+  punchLogs: [{ // Track individual punches for detailed records
+    punchType: { type: String, enum: ["IN", "OUT"], required: true },
+    punchTime: { type: Date, required: true },
+    _id: false
+  }],
   note: { type: String }
 }, { _id: false });
 
@@ -23,9 +34,11 @@ const employeeSchema = new mongoose.Schema({
     salaryPerHour: { type: Number },
     empType: { type: String },
     shift: { type: String },
-    headDepartment: { type: String },
-    subDepartment: { type: String },
-    group: { type: String },
+    headDepartment: { type: mongoose.Schema.Types.ObjectId, ref: 'HeadDepartment' },
+    subDepartment: { type: mongoose.Schema.Types.ObjectId, ref: 'SubDepartment' },
+    group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group' },
+    designation: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation' },
+    reportsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
     deductions: [{ type: String }],
     empId: { type: String, index: true },
     status: { type: String, enum: ["active", "inactive"], default: "active" },

@@ -3,6 +3,7 @@ import './App.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { HierarchyProvider } from './context/HierarchyContext'
 import Login from './components/Login'
 import SignUp from './components/SignUp'
 import Layout from './components/Layout/Layout'
@@ -26,7 +27,7 @@ import AddEditEmployee from './components/Main/All Employees/components/AddEditE
 
 function App() {
   return (
-    <>
+    <HierarchyProvider>
       <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/login" element={<Login />}></Route>
@@ -59,7 +60,7 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
-    </>
+    </HierarchyProvider>
   )
 }
 

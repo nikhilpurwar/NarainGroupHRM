@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import axios from 'axios'
 // import { Link, useNavigate } from 'react-router-dom'
 import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
@@ -24,12 +25,49 @@ const EmployeeTable = ({
     const [subDepartment, setSubDepartment] = useState('')
     const [group, setGroup] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
+    
+    // Schema options states
+    const [departments, setDepartments] = useState([])
+    const [subDepartments, setSubDepartments] = useState([])
+    const [groups, setGroups] = useState([])
+    const [schemaLoading, setSchemaLoading] = useState(true)
+
+    // Fetch all schema options from backend
+    useEffect(() => {
+        const fetchSchemaOptions = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+                
+                const [deptsRes, subDeptsRes, groupsRes] = await Promise.all([
+                    axios.get(`${apiUrl}/api/settings/head-departments`),
+                    axios.get(`${apiUrl}/api/settings/sub-departments`),
+                    axios.get(`${apiUrl}/api/settings/groups`)
+                ])
+                
+                setDepartments(deptsRes.data.data || [])
+                setSubDepartments(subDeptsRes.data.data || [])
+                setGroups(groupsRes.data.data || [])
+                setSchemaLoading(false)
+            } catch (error) {
+                console.error('Error fetching schema options:', error)
+                setSchemaLoading(false)
+            }
+        }
+        
+        fetchSchemaOptions()
+    }, [])
 
     useEffect(() => setFiltered(employees || []), [employees])
 
     useEffect(() => {
         let temp = [...employees]
-        if (nameSearch.trim()) temp = temp.filter(e => e.name?.toLowerCase().includes(nameSearch.toLowerCase()))
+        if (nameSearch.trim()) {
+            const search = nameSearch.toLowerCase()
+            temp = temp.filter(e =>
+                e.name?.toLowerCase().includes(search) ||
+                e.empId?.toLowerCase().includes(search)
+            )
+        }
         if (department) temp = temp.filter(e => e.department === department)
         if (subDepartment) temp = temp.filter(e => e.subDepartment === subDepartment)
         if (group) temp = temp.filter(e => e.group === group)
@@ -47,13 +85,21 @@ const EmployeeTable = ({
     const goNext = () => setCurrentPage(p => (p < totalPages ? p + 1 : p))
     const goPrev = () => setCurrentPage(p => (p > 1 ? p - 1 : p))
 
+    const clearFilters = () => {
+        setNameSearch('')
+        setDepartment('')
+        setSubDepartment('')
+        setGroup('')
+        setCurrentPage(1)
+    }
+
 
     return (
         <div>
             {showFilters && (
                 <div className="bg-white p-5 rounded-b-xl shadow mb-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="relative">
+                    <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
+                        <div className="relative col-span-2">
                             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                             <input
                                 type="text"
@@ -64,21 +110,35 @@ const EmployeeTable = ({
                             />
                         </div>
 
-                        <select className="w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={department} onChange={e => setDepartment(e.target.value)}>
+                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={department} onChange={e => setDepartment(e.target.value)} disabled={schemaLoading}>
                             <option value="">Select Department</option>
-                            {(filtersOptions.departments || []).map(d => <option key={d} value={d}>{d}</option>)}
+                            {departments.map(d => (
+                                <option key={d._id} value={d._id}>{d.name}</option>
+                            ))}
                         </select>
 
-                        <select className="w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={subDepartment} onChange={e => setSubDepartment(e.target.value)}>
+                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={subDepartment} onChange={e => setSubDepartment(e.target.value)} disabled={schemaLoading}>
                             <option value="">Select Sub Department</option>
-                            {(filtersOptions.subDepartments || []).map(d => <option key={d} value={d}>{d}</option>)}
+                            {subDepartments.map(d => (
+                                <option key={d._id} value={d._id}>{d.name}</option>
+                            ))}
                         </select>
 
-                        <select className="w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={group} onChange={e => setGroup(e.target.value)}>
+                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={group} onChange={e => setGroup(e.target.value)} disabled={schemaLoading}>
                             <option value="">Select Group</option>
-                            {(filtersOptions.groups || []).map(d => <option key={d} value={d}>{d}</option>)}
+                            {groups.map(d => (
+                                <option key={d._id} value={d._id}>{d.name}</option>
+                            ))}
                         </select>
+                        <button
+                            title='Clear Filters'
+                            onClick={clearFilters}
+                            className="flex items-center justify-center gap-2 w-full md:w-auto px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition"
+                        >
+                            <RotateCcw size={18}/><span>Clear</span>
+                        </button>
                     </div>
+
                 </div>
             )}
 
@@ -118,9 +178,9 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{emp.mobile}</td>
                                             <td className="px-4 py-3">₹{emp.salary}</td>
                                             <td className="px-4 py-3">{emp.empId}</td>
-                                            <td className="px-4 py-3">{emp.headDepartment}</td>
-                                            <td className="px-4 py-3">{emp.subDepartment}</td>
-                                            <td className="px-4 py-3">{emp.group}</td>
+                                            <td className="px-4 py-3">{emp.headDepartment?.name || emp.headDepartment || ''}</td>
+                                            <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
+                                            <td className="px-4 py-3">{emp.group?.name || emp.group || ''}</td>
                                             <td className="px-4 py-3">
                                                 <button onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }} className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`} title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>{emp.status === 'active' ? 'Active' : 'Inactive'}</button>
                                             </td>
@@ -128,7 +188,7 @@ const EmployeeTable = ({
                                                 {renderActions ? (<div className='flex justify-start items-center'>{renderActions(emp)}</div>) : (
                                                     <div className='flex justify-center items-center gap-3'>
                                                         <button onClick={(e) => { e.stopPropagation(); onEdit(emp) }} className="text-blue-600 hover:text-blue-800">
-                                                            <FiEdit size={18}/>
+                                                            <FiEdit size={18} />
                                                         </button>
                                                         <button onClick={(e) => { e.stopPropagation(); onDelete(emp._id || emp.id) }} className="text-red-600 hover:text-red-800" title="Delete">
                                                             <MdDeleteOutline size={22} />
@@ -152,7 +212,7 @@ const EmployeeTable = ({
                     </table>
                 )}
 
-                    {filtered.length > 0 && (
+                {filtered.length > 0 && (
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6 pb- px-6">
                         <div className="flex items-center gap-4">
                             <div className="text-sm text-gray-600">Showing {filtered.length === 0 ? 0 : indexOfFirst + 1} to {Math.min(indexOfLast, filtered.length)} of {filtered.length}</div>

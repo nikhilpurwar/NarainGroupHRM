@@ -31,5 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/settings", settingRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
+// Barcode attendance - also available at direct /api/store-emp-attend path
+app.use("/api", attendanceRoutes);
 
 export default app;
