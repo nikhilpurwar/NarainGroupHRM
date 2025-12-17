@@ -2,9 +2,22 @@ import express from "express";
 const app = express();
 import helmet from "helmet"
 import cors from "cors";
+import path from 'path'
 
-// Allow all origins
-app.use(cors());
+// CORS configuration: allow all in development, restrict in production via CORS_ORIGINS env
+const corsOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+if (corsOrigins.length) {
+	app.use(cors({
+		origin: function(origin, cb) {
+			// allow non-browser requests (e.g., server-to-server) when origin is undefined
+			if (!origin) return cb(null, true)
+			if (corsOrigins.indexOf(origin) !== -1) return cb(null, true)
+			return cb(new Error('Not allowed by CORS'))
+		}
+	}))
+} else {
+	app.use(cors())
+}
 
 // importing routes 
 import holidayRoutes from "./src/routes/holiday.route.js";
@@ -33,5 +46,14 @@ app.use("/api/users", userRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
 // Barcode attendance - also available at direct /api/store-emp-attend path
 app.use("/api", attendanceRoutes);
+
+// Serve client in production if built
+if (process.env.NODE_ENV === 'production') {
+	const clientBuildPath = path.join(process.cwd(), 'client', 'dist')
+	app.use(express.static(clientBuildPath))
+	app.get('*', (req, res) => {
+		res.sendFile(path.join(clientBuildPath, 'index.html'))
+	})
+}
 
 export default app;

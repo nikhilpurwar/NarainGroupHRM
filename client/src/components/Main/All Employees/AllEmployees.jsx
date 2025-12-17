@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
-import EmployeeTable from "../commonComponents/EmployeeTable";
+import EmployeeTable from "../commonComponents/employeeTable"
 
 const AllEmployees = () => {
   const [employees, setEmployees] = useState([]);
