@@ -57,7 +57,7 @@ const EmployeeTable = ({
                             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search by Name"
+                                placeholder="Search by Name/Emp ID..."
                                 className="w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500"
                                 value={nameSearch}
                                 onChange={e => setNameSearch(e.target.value)}
@@ -106,7 +106,7 @@ const EmployeeTable = ({
                         <tbody>
                             {currentData.length ? (
                                 currentData.map((emp, i) => {
-                                    const statusClass = emp.attendanceStatus === 'present' ? 'bg-green-200' : (emp.attendanceStatus === 'absent' ? 'bg-red-100' : '')
+                                    const statusClass = emp.attendanceStatus === 'present' ? 'bg-green-100' : (emp.attendanceStatus === 'absent' ? 'bg-red-100' : '')
                                     return (
                                         <tr key={emp.id || emp._id} className={`border-b transition ${statusClass}`}>
                                             <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
@@ -122,7 +122,7 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{emp.subDepartment}</td>
                                             <td className="px-4 py-3">{emp.group}</td>
                                             <td className="px-4 py-3">
-                                                <button onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }} className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`} title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>{emp.status === 'active' ? 'Active' : 'Inactive'}</button>
+                                                <button onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }} className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`} title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>{emp.status === 'active' ? 'Active' : 'Inactive'}</button>
                                             </td>
                                             <td className="text-center">
                                                 {renderActions ? (<div className='flex justify-start items-center'>{renderActions(emp)}</div>) : (
@@ -159,7 +159,7 @@ const EmployeeTable = ({
 
                             <label className="text-sm text-gray-600">Rows:</label>
                             <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded px-2 py-1">
-                                <option value={2}>2</option>
+                                {/* <option value={2}>2</option> */}
                                 <option value={5}>5</option>
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>

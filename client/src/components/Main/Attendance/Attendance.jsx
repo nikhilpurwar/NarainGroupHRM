@@ -5,17 +5,17 @@ import EmployeeSummary from "./components/EmployeeSummary"
 import AttendanceTable from "./components/AttendanceTable"
 import EmployeeTable from "../commonComponents/EmployeeTable"
 import { toast } from "react-toastify"
-import { MdOutlineQrCodeScanner } from "react-icons/md";
-import { FaUserCheck } from "react-icons/fa";
-import { MdKeyboardBackspace } from "react-icons/md"
+import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
+import { FaUserCheck } from "react-icons/fa"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
 
 const Attendance = () => {
   const now = new Date()
-  const currentMonth = String(now.getMonth() + 1)
+  const currentMonth = String(now.getMonth() + 1).padStart(2, "0")
   const currentYear = String(now.getFullYear())
+  const todayIso = new Date().toISOString().slice(0, 10)
 
   const [filters, setFilters] = useState({
     search: "",
@@ -27,43 +27,60 @@ const Attendance = () => {
   const [loading, setLoading] = useState(false)
   const [employees, setEmployees] = useState([])
   const [empsLoading, setEmpsLoading] = useState(false)
-  const [viewMode, setViewMode] = useState('list') // 'list' or 'report'
+  const [viewMode, setViewMode] = useState("list") // list | report
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
-  // Load employees list on mount
+  /* ------------------ Resize Handler ------------------ */
   useEffect(() => {
-    // load employees list for quick marking
-    const loadEmps = async () => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  /* ------------------ Load Employees ------------------ */
+  useEffect(() => {
+    const loadEmployees = async () => {
       try {
         setEmpsLoading(true)
         const res = await axios.get(`${API_URL}/api/employees`)
         const todayIso = new Date().toISOString().slice(0, 10)
+
         const enriched = (res.data?.data || []).map(emp => {
-          const rec = (emp.attendance || []).find(a => a.date === todayIso || (a.date && a.date.startsWith && a.date.startsWith(todayIso)))
-          return { ...emp, attendanceMarked: !!rec, attendanceStatus: rec?.status || null }
+          const rec = (emp.attendance || []).find(
+            a => a.date === todayIso || a?.date?.startsWith?.(todayIso)
+          )
+          return {
+            ...emp,
+            attendanceMarked: !!rec,
+            attendanceStatus: rec?.status || null,
+          }
         })
+
         setEmployees(enriched)
       } catch (err) {
-        console.error('Failed to load employees', err)
+        console.error("Failed to load employees", err)
       } finally {
         setEmpsLoading(false)
       }
     }
-    loadEmps()
+
+    loadEmployees()
   }, [])
 
-  const fetchReport = async (params) => {
+  /* ------------------ Fetch Report ------------------ */
+  const fetchReport = async params => {
     try {
       setLoading(true)
       const res = await axios.get(API, { params })
-      // Handle response structure: { success, data: { employee, days, table } }
+
       if (res.data?.data) {
         setReport(res.data.data)
-        setViewMode('report') // Switch to report view
+        setViewMode("report")
       } else {
         setReport(null)
       }
     } catch (err) {
-      console.error('Failed to load report', err)
+      console.error("Failed to load report", err)
       toast.error("Failed to load report")
       setReport(null)
     } finally {
@@ -71,116 +88,198 @@ const Attendance = () => {
     }
   }
 
-  const handleBackToList = () => {
-    setViewMode('list')
-    setReport(null)
-  }
-
-  const handleSearch = () => {
-    fetchReport(filters)
-  }
-
-  const markAttendance = async (emp) => {
+  /* ------------------ Mark Attendance ------------------ */
+  const markAttendance = async emp => {
     try {
       const today = new Date().toISOString().slice(0, 10)
-      await axios.post(`${API_URL}/api/employees/${emp._id}/attendance`, { date: today, status: 'present' })
+
+      await axios.post(
+        `${API_URL}/api/employees/${emp._id}/attendance`,
+        { date: today, status: "present" }
+      )
+
       toast.success(`Marked attendance for ${emp.name}`)
-      // if currently viewing this employee report, refresh
-      if (report?.employee && (report.employee._id === emp._id || report.employee === emp._id)) {
-        fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year })
-      }
-      // update local list to reflect marked status
-      setEmployees(prev => prev.map(e => (e._id === emp._id ? { ...e, attendanceMarked: true, attendanceStatus: 'present' } : e)))
+
+      // Update employee list
+      setEmployees(prev =>
+        prev.map(e =>
+          e._id === emp._id
+            ? { ...e, attendanceMarked: true, attendanceStatus: "present" }
+            : e
+        )
+      )
+
+      // Update report view if open
+      setReport(prev =>
+        prev
+          ? {
+              ...prev,
+              employee: {
+                ...prev.employee,
+                attendanceMarked: true,
+                attendanceStatus: "present",
+              },
+            }
+          : prev
+      )
     } catch (err) {
-      console.error('Mark failed', err)
-      toast.error('Failed to mark attendance')
+      console.error("Mark attendance failed", err)
+      toast.error("Failed to mark attendance")
     }
   }
 
-  return (
-    <div className="w-full flex flex-col">
+  const handleBackToList = () => {
+    setViewMode("list")
+    setReport(null)
+  }
 
-      {/* Back Button */}
-      {viewMode === "report" && (
+  const handleSearch = () => fetchReport(filters)
+
+  /* ===================== RENDER ===================== */
+  return (
+    <div className="w-full flex flex-col min-h-screen mb-6">
+      {/* Mobile Header */}
+      {isMobile && viewMode === "report" && (
+        <div className="sticky top-0 z-50 bg-white border-b p-4 flex items-center gap-3">
+          <button onClick={handleBackToList}>
+            <MdKeyboardBackspace size={24} />
+          </button>
+          <h1 className="text-lg font-semibold truncate">
+            {report?.employee?.name
+              ? `${report.employee.name}'s Report`
+              : "Attendance Report"}
+          </h1>
+        </div>
+      )}
+
+      {/* Desktop Back Button */}
+      {!isMobile && viewMode === "report" && (
         <div className="p-6 pb-0">
           <button
             onClick={handleBackToList}
             className="flex items-center gap-2 text-gray-600 hover:text-black"
           >
-            <MdKeyboardBackspace size={26} />
-            <span className="text-sm font-medium">Back</span>
+            <MdKeyboardBackspace size={24} />
+            <span>Back to List</span>
           </button>
         </div>
       )}
 
       {/* Header */}
-      <div className="px-6 pt-6">
-        <div className="flex justify-between items-center py-4 px-6 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
-          {viewMode === "report"
-            ? `Attendance Report - ${report?.employee?.name}`
-            : "Mark/See Attendance"}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <div className="flex justify-between items-center py-4 px-6 text-white bg-gray-900 rounded-t-xl">
+          <div className="text-lg font-semibold">
+            {viewMode === "report"
+              ? `Attendance Report - ${report?.employee?.name}`
+              : "Mark / See Attendance"}
+          </div>
 
-          <button className="bg-gray-700 p-2 rounded-full hover:bg-gray-400">
-            <MdOutlineQrCodeScanner size={28} />
-          </button>
+          {viewMode === "report" ? (
+            (() => {
+              const emp = report?.employee
+              const reportAttendanceMarked = emp
+                ? !!(
+                    (emp.attendance || []).find(
+                      a => a.date === todayIso || a?.date?.startsWith?.(todayIso)
+                    ) || emp.attendanceMarked
+                  )
+                : false
+
+              return !reportAttendanceMarked ? (
+                <button
+                  title="Mark Attendance"
+                  onClick={() => markAttendance(report.employee)}
+                  className="bg-gray-700 p-2 rounded-full hover:bg-green-600 cursor-pointer"
+                >
+                  <FaUserCheck size={24} />
+                </button>
+              ) : (
+                <button
+                  title="Attendance Marked"
+                  className="bg-green-600 p-2 rounded-full cursor-not-allowed"
+                  disabled
+                >
+                  <FaUserCheck size={24} />
+                </button>
+              )
+            })()
+          ) : (
+            <button className="bg-gray-700 p-2 rounded-full hover:bg-gray-600">
+              <MdOutlineQrCodeScanner size={24} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* SCROLLABLE CONTENT */}
-      <div className="p-6 pt-0">
+      {/* Content */}
+      <div className="sm:px-6 flex-1">
         {viewMode === "list" ? (
           <EmployeeTable
             employees={employees}
-            rowsPerPage={6}
             loading={empsLoading}
-            onNameClick={(emp) =>
+            rowsPerPage={isMobile ? 4 : 6}
+            onNameClick={emp =>
               fetchReport({
                 employeeId: emp._id,
                 month: filters.month,
                 year: filters.year,
               })
             }
-            renderActions={(emp) =>
+            renderActions={emp =>
               emp.attendanceMarked ? (
-                <button className="bg-gray-300 text-gray-700 px-3 py-1 rounded-full" disabled>
-                  Marked
+                <button
+                  disabled
+                  className="bg-gray-200 text-green-600 px-5 py-1 rounded-full cursor-not-allowed"
+                >
+                  <FaUserCheck size={20} />
                 </button>
               ) : (
                 <button
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation()
                     markAttendance(emp)
                   }}
-                  className="flex items-center gap-2 bg-gray-600 text-white px-3 py-1 rounded-full"
+                  className="flex items-center gap-2 mr-3 bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-800"
                 >
-                  <FaUserCheck /> Mark
+                  <FaUserCheck size={14} /> Mark
                 </button>
               )
             }
           />
         ) : (
-          <div className="max-w-[1520px] flex flex-col">
-            {loading && <div className="text-center py-10">Loading...</div>}
+          <>
+            {loading && (
+              <div className="text-center py-10">
+                <div className="animate-spin h-8 w-8 border-b-2 border-gray-900 mx-auto" />
+                <p className="mt-2">Loading report...</p>
+              </div>
+            )}
 
             {!loading && report && (
-              <div className="mt-6 w-full">
-                <EmployeeSummary emp={report.employee} />
+              <div className="space-y-6">
+                <EmployeeSummary emp={report.employee} isMobile={isMobile} />
 
                 <AttendanceFilter
                   filters={filters}
                   setFilters={setFilters}
                   onSearch={handleSearch}
                   reportData={report}
+                  isMobile={isMobile}
                 />
 
-                <AttendanceTable days={report.days} data={report.table} />
+                <div className="max-w-[calc(100vw-10vw)] overflow-auto main-scroll">
+                  <AttendanceTable
+                    days={report.days}
+                    data={report.table}
+                    isMobile={isMobile}
+                  />
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
-
   )
 }
 
