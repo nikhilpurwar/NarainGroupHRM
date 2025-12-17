@@ -53,7 +53,7 @@ if (process.env.NODE_ENV === 'production') {
 	app.use(express.static(clientBuildPath))
 	// SPA fallback: serve index.html for all non-API routes
 	// This must be AFTER all other routes, so React Router can handle navigation
-	app.get('*', (req, res) => {
+	app.use((req, res, next) => {
 		// Don't serve index.html for API requests that weren't caught by routes
 		if (req.path.startsWith('/api')) {
 			res.status(404).json({ success: false, message: 'API endpoint not found' })
