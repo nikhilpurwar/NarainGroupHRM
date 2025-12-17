@@ -104,9 +104,10 @@ const Profile = () => {
             </h3>
 
             <div className="space-y-2 text-sm text-gray-700">
-              <p><span className="font-medium">Department:</span> {emp.headDepartment || emp.department}</p>
-              <p><span className="font-medium">Sub Department:</span> {emp.subDepartment}</p>
-              <p><span className="font-medium">Group:</span> {emp.group}</p>
+              <p><span className="font-medium">Department:</span> {emp.headDepartment?.name || emp.headDepartment || emp.department || 'N/A'}</p>
+              <p><span className="font-medium">Sub Department:</span> {emp.subDepartment?.name || emp.subDepartment || 'N/A'}</p>
+              <p><span className="font-medium">Group:</span> {emp.group?.name || emp.group || 'N/A'}</p>
+              <p><span className="font-medium">Designation:</span> {emp.designation?.name || 'N/A'}</p>
               <p><span className="font-medium">Shift:</span> {emp.shift}</p>
               <p><span className="font-medium">Salary:</span> ₹{emp.salary}</p>
             </div>

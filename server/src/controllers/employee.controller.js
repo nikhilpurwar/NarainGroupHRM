@@ -48,7 +48,13 @@ export const createEmployee = async (req, res) => {
 
 export const getEmployees = async (req, res) => {
   try {
-    const emps = await Employee.find().sort({ createdAt: -1 });
+    const emps = await Employee.find()
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('group')
+      .populate('designation')
+      .populate('reportsTo', 'name empId')
+      .sort({ createdAt: -1 });
     res.json({ success: true, data: emps });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -57,7 +63,12 @@ export const getEmployees = async (req, res) => {
 
 export const getEmployeeById = async (req, res) => {
   try {
-    const emp = await Employee.findById(req.params.id);
+    const emp = await Employee.findById(req.params.id)
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('group')
+      .populate('designation')
+      .populate('reportsTo', 'name empId');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: emp });
   } catch (err) {
@@ -69,12 +80,93 @@ export const addAttendance = async (req, res) => {
   try {
     const { date, status, inTime, outTime, note } = req.body;
     if (!date) return res.status(400).json({ success: false, message: "date is required" });
-    const emp = await Employee.findById(req.params.id);
+    
+    const emp = await Employee.findById(req.params.id)
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('group')
+      .populate('designation')
+      .populate('reportsTo', 'name empId');
+    
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
-    // push attendance record
-    emp.attendance.push({ date, status: status || "present", inTime, outTime, note });
+    
+    // Check for duplicate attendance on same date
+    const dateObj = new Date(date);
+    const dateIso = dateObj.toISOString().slice(0, 10);
+    
+    const existingAttendance = (emp.attendance || []).find(a => {
+      const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+      return aDate === dateIso;
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({ success: false, message: "Attendance already marked for this date" });
+    }
+
+    // Calculate hours if both inTime and outTime provided
+    let totalHours = 0;
+    let regularHours = 0;
+    let overtimeHours = 0;
+
+    if (inTime && outTime) {
+      const [inHours, inMinutes] = inTime.split(':').map(Number);
+      const [outHours, outMinutes] = outTime.split(':').map(Number);
+
+      const inTotalMinutes = inHours * 60 + inMinutes;
+      const outTotalMinutes = outHours * 60 + outMinutes;
+      
+      let totalMinutes = outTotalMinutes - inTotalMinutes;
+      
+      // Handle day boundary
+      if (totalMinutes < 0) {
+        totalMinutes += 24 * 60;
+      }
+
+      totalHours = parseFloat((totalMinutes / 60).toFixed(2));
+      const shiftHours = emp.workHours ? parseInt(emp.workHours) : 8;
+
+      if (totalHours <= shiftHours) {
+        regularHours = totalHours;
+        overtimeHours = 0;
+      } else {
+        regularHours = shiftHours;
+        overtimeHours = parseFloat((totalHours - shiftHours).toFixed(2));
+      }
+    }
+
+    // Check for weekend
+    const dayOfWeek = new Date(date).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    // Push attendance record with calculated hours
+    emp.attendance.push({
+      date: new Date(date),
+      status: status || "present",
+      inTime,
+      outTime,
+      totalHours,
+      regularHours,
+      overtimeHours,
+      breakMinutes: 0,
+      isWeekend,
+      isHoliday: false,
+      punchLogs: [
+        ...(inTime ? [{ punchType: 'IN', punchTime: new Date(`${date}T${inTime}`) }] : []),
+        ...(outTime ? [{ punchType: 'OUT', punchTime: new Date(`${date}T${outTime}`) }] : [])
+      ],
+      note: note || 'Marked manually'
+    });
+
     await emp.save();
-    res.json({ success: true, data: emp.attendance });
+    
+    res.json({ 
+      success: true, 
+      message: 'Attendance marked successfully',
+      data: {
+        employee: emp,
+        attendanceRecord: emp.attendance[emp.attendance.length - 1]
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -110,7 +202,12 @@ export const getQRCodes = async (req, res) => {
 
 export const getEmployeeProfile = async (req, res) => {
   try {
-    const emp = await Employee.findById(req.params.id);
+    const emp = await Employee.findById(req.params.id)
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('group')
+      .populate('designation')
+      .populate('reportsTo', 'name empId');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: emp });
   } catch (err) {

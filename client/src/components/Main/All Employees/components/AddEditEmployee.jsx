@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { MdKeyboardBackspace } from "react-icons/md"
+import { useHierarchy } from '../../../../context/HierarchyContext'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -62,6 +63,8 @@ const defaultForm = {
     headDepartment: '',
     subDepartment: '',
     group: '',
+    designation: '',
+    reportsTo: '',
     deductions: [], //which deductions applied
     empId: '',
     status: 'active',
@@ -72,33 +75,34 @@ const AddEditEmployee = () => {
     const navigate = useNavigate()
     const { id } = useParams()
     const isEdit = Boolean(id)
+    const { headDepartments, getSubDepartmentsByHead, groups, getDesignationsByGroup, designations } = useHierarchy()
 
     const [form, setForm] = useState(defaultForm)
-    const [headDepartments, setHeadDepartments] = useState([])
-    const [subDepartmentsList, setSubDepartmentsList] = useState([])
-    const [groupsList, setGroupsList] = useState([])
+    const [employees, setEmployees] = useState([])
     const [errors, setErrors] = useState({})
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
 
+    // Filter lists based on hierarchy
+    const filteredSubDepts = form.headDepartment
+        ? getSubDepartmentsByHead(form.headDepartment)
+        : []
+
+    const filteredDesignations = form.group
+        ? getDesignationsByGroup(form.group)
+        : []
+
     useEffect(() => {
-        // fetch settings lists
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5100'
-        const fetchSettings = async () => {
+        // fetch employees for "reportsTo" dropdown
+        const fetchEmployees = async () => {
             try {
-                const [h, s, g] = await Promise.all([
-                    axios.get(`${apiBase}/api/settings/head-departments`),
-                    axios.get(`${apiBase}/api/settings/sub-departments`),
-                    axios.get(`${apiBase}/api/settings/groups`),
-                ])
-                setHeadDepartments(h.data.data || [])
-                setSubDepartmentsList(s.data.data || [])
-                setGroupsList(g.data.data || [])
+                const res = await axios.get(API)
+                setEmployees(res.data?.data || [])
             } catch (e) {
-                // ignore
+                console.error('Failed to fetch employees:', e)
             }
         }
-        fetchSettings()
+        fetchEmployees()
 
         if (!isEdit) return
         const fetchEmployee = async () => {
@@ -125,9 +129,11 @@ const AddEditEmployee = () => {
                     salaryPerHour: emp.salaryPerHour || '',
                     empType: emp.empType || '',
                     shift: emp.shift || '',
-                    headDepartment: emp.headDepartment || emp.department || '',
-                    subDepartment: emp.subDepartment || '',
-                    group: emp.group || '',
+                    headDepartment: emp.headDepartment?._id || emp.headDepartment || '',
+                    subDepartment: emp.subDepartment?._id || emp.subDepartment || '',
+                    group: emp.group?._id || emp.group || '',
+                    designation: emp.designation?._id || emp.designation || '',
+                    reportsTo: emp.reportsTo?._id || emp.reportsTo || '',
                     deductions: emp.deductions || [],
                     empId: emp.empId || '',
                     status: emp.status || 'active',
@@ -228,6 +234,8 @@ const AddEditEmployee = () => {
                 department: form.headDepartment,
                 subDepartment: form.subDepartment,
                 group: form.group,
+                designation: form.designation,
+                reportsTo: form.reportsTo,
                 deductions: form.deductions,
                 empId: form.empId,
                 status: form.status,
@@ -375,32 +383,102 @@ const AddEditEmployee = () => {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                        {/* <Input label="Employee ID" name="empId" /> */}
+                        {/* Head Department */}
+                        <div>
+                            <label className="block font-medium mb-1">Head Department*</label>
+                            <select
+                                name="headDepartment"
+                                value={form.headDepartment}
+                                onChange={(e) => {
+                                    handleChange(e)
+                                    // Reset dependent fields
+                                    setForm(f => ({ ...f, subDepartment: '', group: '', designation: '' }))
+                                }}
+                                className={`w-full border p-3 rounded-lg ${errors.headDepartment ? 'border-red-500' : ''}`}
+                                required
+                            >
+                                <option value="">Select Head Department</option>
+                                {headDepartments.map(h => (
+                                    <option key={h._id} value={h._id}>{h.name} ({h.code})</option>
+                                ))}
+                            </select>
+                            {errors.headDepartment && <p className="text-red-500 text-sm mt-1">{errors.headDepartment}</p>}
+                        </div>
 
-                        <Select
-                            label="Head Department*"
-                            name="headDepartment"
-                            value={form.headDepartment}
-                            onChange={handleChange}
-                            options={headDepartments.map(h => h.name)}
-                            error={errors.headDepartment}
-                        />
+                        {/* Sub Department - Cascaded */}
+                        <div>
+                            <label className="block font-medium mb-1">Sub Department</label>
+                            <select
+                                name="subDepartment"
+                                value={form.subDepartment}
+                                onChange={handleChange}
+                                disabled={!form.headDepartment}
+                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"
+                            >
+                                <option value="">Select Sub Department</option>
+                                {filteredSubDepts.map(s => (
+                                    <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
+                                ))}
+                            </select>
+                        </div>
 
-                        <Select
-                            label="Sub Department"
-                            name="subDepartment"
-                            value={form.subDepartment}
-                            onChange={handleChange}
-                            options={subDepartmentsList.map(s => s.name)}
-                        />
+                        {/* Group */}
+                        <div>
+                            <label className="block font-medium mb-1">Group</label>
+                            <select
+                                name="group"
+                                value={form.group}
+                                onChange={(e) => {
+                                    handleChange(e)
+                                    // Reset designation when group changes
+                                    setForm(f => ({ ...f, designation: '' }))
+                                }}
+                                className="w-full border p-3 rounded-lg"
+                            >
+                                <option value="">Select Group</option>
+                                {groups.map(g => (
+                                    <option key={g._id} value={g._id}>{g.name} - {g.section}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                        <Select
-                            label="Employee Group"
-                            name="group"
-                            value={form.group}
-                            onChange={handleChange}
-                            options={groupsList.map(g => g.name)}
-                        />
+                        {/* Designation - Cascaded */}
+                        <div>
+                            <label className="block font-medium mb-1">Designation</label>
+                            <select
+                                name="designation"
+                                value={form.designation}
+                                onChange={handleChange}
+                                disabled={!form.group}
+                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"
+                            >
+                                <option value="">Select Designation</option>
+                                {filteredDesignations.map(d => (
+                                    <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Reports To */}
+                        <div>
+                            <label className="block font-medium mb-1">Reports To</label>
+                            <select
+                                name="reportsTo"
+                                value={form.reportsTo}
+                                onChange={handleChange}
+                                className="w-full border p-3 rounded-lg"
+                            >
+                                <option value="">No Manager</option>
+                                {employees
+                                    .filter(e => e._id !== id)
+                                    .map(e => (
+                                        <option key={e._id} value={e._id}>
+                                            {e.name} - {e.designation?.name || 'N/A'}
+                                        </option>
+                                    ))
+                                }
+                            </select>
+                        </div>
 
                         <Select
                             label="Shift"
