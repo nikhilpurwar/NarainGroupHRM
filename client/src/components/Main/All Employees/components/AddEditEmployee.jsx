@@ -5,7 +5,7 @@ import { toast } from 'react-toastify'
 import { MdKeyboardBackspace } from "react-icons/md"
 import { useHierarchy } from '../../../../context/HierarchyContext'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
 
 const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (

@@ -11,7 +11,7 @@ const AllEmployees = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
+  const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
   const API_BASE = `${API_URL}/api/employees`;
 
   useEffect(() => {

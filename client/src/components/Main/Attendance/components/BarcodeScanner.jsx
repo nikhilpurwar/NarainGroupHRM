@@ -3,7 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { MdClose, MdCheckCircle } from 'react-icons/md'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 
 const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
   const inputRef = useRef(null)

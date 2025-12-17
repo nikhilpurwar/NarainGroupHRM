@@ -3,7 +3,7 @@ import { IoCloseSharp } from "react-icons/io5";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/charges`;
 
 const AddEditCharges = ({

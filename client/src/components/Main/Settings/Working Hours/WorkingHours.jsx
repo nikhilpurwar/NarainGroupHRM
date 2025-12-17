@@ -6,7 +6,7 @@ import { IoIosAddCircle } from "react-icons/io"
 import { toast } from "react-toastify"
 import AddEditTimings from "./components/AddEditTimings"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/break-times`
 
 const WorkingHours = () => {

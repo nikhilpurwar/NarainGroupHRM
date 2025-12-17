@@ -4,7 +4,7 @@ import axios from 'axios'
 import { MdKeyboardBackspace } from "react-icons/md"
 import { FiPhone, FiMail, FiUser, FiBriefcase, FiUsers } from "react-icons/fi"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
 
 const Profile = () => {
