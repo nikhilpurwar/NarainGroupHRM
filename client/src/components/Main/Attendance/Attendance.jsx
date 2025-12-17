@@ -9,7 +9,7 @@ import { toast } from "react-toastify"
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5100"
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
 
 const Attendance = () => {

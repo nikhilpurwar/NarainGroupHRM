@@ -4,7 +4,7 @@ import axios from 'axios'
 const HierarchyContext = createContext()
 
 export const HierarchyProvider = ({ children }) => {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+  const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
   
   const [headDepartments, setHeadDepartments] = useState([])
   const [subDepartments, setSubDepartments] = useState([])

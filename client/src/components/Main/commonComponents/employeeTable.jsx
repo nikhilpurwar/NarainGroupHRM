@@ -36,7 +36,7 @@ const EmployeeTable = ({
     useEffect(() => {
         const fetchSchemaOptions = async () => {
             try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+                const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
                 
                 const [deptsRes, subDeptsRes, groupsRes] = await Promise.all([
                     axios.get(`${apiUrl}/api/settings/head-departments`),
