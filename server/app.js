@@ -36,7 +36,7 @@ const corsOptionsDelegate = function (req, callback) {
 }
 
 app.use(cors(corsOptionsDelegate))
-app.options('*', cors(corsOptionsDelegate))
+app.options('/*', cors(corsOptionsDelegate))
 
 // importing routes 
 import holidayRoutes from "./src/routes/holiday.route.js";
