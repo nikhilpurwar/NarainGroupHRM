@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Sidebar = ({ onItemClick, isCollapsed }) => {
     const [isReportsOpen, setReportsOpen] = useState(false);
@@ -10,13 +10,26 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
     // when collapsed but hovered, treat as expanded visually
     const effectiveCollapsed = Boolean(isCollapsed) && !isHovered;
 
-    const menuItems = [
-        { id: "dashboard", icon: "fa-gauge", label: "Dashboard", title: "Dashboard" },
-        { id: "employees", icon: "fa-user", label: "All Employees", title: "Employees" },
-        { id: "attReport", icon: "fa-file-lines", label: "Attendance", title: "Attendance" },
-        { id: "liveattend", icon: "fa-chart-line", label: "Live Attendance", title: "Live Attendance" },
-        { id: "advance", icon: "fa-money-bill-wave", label: "Manage Advance", title: "Advance" },
-    ];
+    const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null
+    const role = storedUser?.role
+
+    // Build menu based on role
+    let menuItems = []
+    if (role === 'gate') {
+        menuItems = [
+            { id: "attReport", icon: "fa-file-lines", label: "Attendance", title: "Attendance" },
+            { id: "liveattend", icon: "fa-chart-line", label: "Live Attendance", title: "Live Attendance" },
+        ]
+    } else {
+        // admin and accounts see standard items
+        menuItems = [
+            { id: "dashboard", icon: "fa-gauge", label: "Dashboard", title: "Dashboard" },
+            { id: "employees", icon: "fa-user", label: "All Employees", title: "Employees" },
+            { id: "attReport", icon: "fa-file-lines", label: "Attendance", title: "Attendance" },
+            { id: "liveattend", icon: "fa-chart-line", label: "Live Attendance", title: "Live Attendance" },
+            { id: "advance", icon: "fa-money-bill-wave", label: "Manage Advance", title: "Advance" },
+        ]
+    }
 
     const handleItemClick = (item) => {
         onItemClick({
@@ -25,11 +38,23 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
         });
     };
 
+    const navigate = useNavigate()
+
+    const doLogout = () => {
+        try {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            // clear axios header if used globally
+            try { window.axios && (window.axios.defaults.headers.common.Authorization = '') } catch {}
+            navigate('/login')
+        } catch (e) { console.error(e) }
+    }
+
     return (
         <div
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen`}>
+            className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen absolute left-0 top-0 z-50`}>
 
             {/* Logo Section */}
             <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
@@ -249,10 +274,10 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
 
             {/* Logout */}
             <div className="border-t border-gray-700 p-3">
-                <Link to="/logout" className="flex items-center gap-3 px-3 py-3 hover:bg-red-600">
+                <button onClick={doLogout} className="w-full text-left flex items-center gap-3 px-3 py-3 hover:bg-red-600">
                     <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                    {!isCollapsed && <span>Logout</span>}
-                </Link>
+                    {!effectiveCollapsed && <span className="text-white">Logout</span>}
+                </button>
             </div>
         </div>
     );

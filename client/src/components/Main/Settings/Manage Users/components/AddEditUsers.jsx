@@ -3,7 +3,7 @@ import axios from "axios"
 import { IoCloseSharp } from "react-icons/io5"
 import { toast } from "react-toastify"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/users`
 
 const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
@@ -39,7 +39,7 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
       setLoading(true)
 
       if (isEdit) {
-        await axios.put(`${API}/${user.id}`, form)
+        await axios.put(`${API}/${user._id || user.id}`, form)
         toast.success("User updated")
       } else {
         await axios.post(API, form)

@@ -6,7 +6,7 @@ import { MdDeleteOutline } from "react-icons/md"
 import { toast } from "react-toastify"
 import AddEditUsers from "./components/AddEditUsers"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/users`
 
 const badgeStyles = {
@@ -26,7 +26,7 @@ const ManageUsers = () => {
     try {
       setLoading(true)
       const res = await axios.get(API)
-      setUsers(res.data)
+      setUsers(res.data?.data || [])
     } catch {
       toast.error("Failed to load users")
     } finally {
@@ -136,7 +136,7 @@ const ManageUsers = () => {
                         <FiEdit size={16} />
                       </button>
                       <button
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => handleDelete(user._id || user.id)}
                         className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
                       >
                         <MdDeleteOutline size={16} />

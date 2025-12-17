@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { MdKeyboardBackspace } from "react-icons/md"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
 
 const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (
@@ -73,11 +74,32 @@ const AddEditEmployee = () => {
     const isEdit = Boolean(id)
 
     const [form, setForm] = useState(defaultForm)
+    const [headDepartments, setHeadDepartments] = useState([])
+    const [subDepartmentsList, setSubDepartmentsList] = useState([])
+    const [groupsList, setGroupsList] = useState([])
     const [errors, setErrors] = useState({})
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
 
     useEffect(() => {
+        // fetch settings lists
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+        const fetchSettings = async () => {
+            try {
+                const [h, s, g] = await Promise.all([
+                    axios.get(`${apiBase}/api/settings/head-departments`),
+                    axios.get(`${apiBase}/api/settings/sub-departments`),
+                    axios.get(`${apiBase}/api/settings/groups`),
+                ])
+                setHeadDepartments(h.data.data || [])
+                setSubDepartmentsList(s.data.data || [])
+                setGroupsList(g.data.data || [])
+            } catch (e) {
+                // ignore
+            }
+        }
+        fetchSettings()
+
         if (!isEdit) return
         const fetchEmployee = async () => {
             try {
@@ -271,6 +293,14 @@ const AddEditEmployee = () => {
                 <h2 className="text-2xl font-semibold">{isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
                 <button className="text-sm text-gray-600" onClick={() => navigate(-1)}>✕</button>
             </div> */}
+             {/* Back Button */}
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
+                  >
+                    <MdKeyboardBackspace size={26} />
+                    <span className="text-sm font-medium">Back</span>
+                  </button>
 
             <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -352,7 +382,7 @@ const AddEditEmployee = () => {
                             name="headDepartment"
                             value={form.headDepartment}
                             onChange={handleChange}
-                            options={["OFFICE STAFF", "PLANT"]}
+                            options={headDepartments.map(h => h.name)}
                             error={errors.headDepartment}
                         />
 
@@ -361,7 +391,7 @@ const AddEditEmployee = () => {
                             name="subDepartment"
                             value={form.subDepartment}
                             onChange={handleChange}
-                            options={["GENERAL MANAGER", "OPRATION MANAGER"]}
+                            options={subDepartmentsList.map(s => s.name)}
                         />
 
                         <Select
@@ -369,7 +399,7 @@ const AddEditEmployee = () => {
                             name="group"
                             value={form.group}
                             onChange={handleChange}
-                            options={["senior-staff", "junior-staff"]}
+                            options={groupsList.map(g => g.name)}
                         />
 
                         <Select

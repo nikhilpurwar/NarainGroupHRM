@@ -3,43 +3,54 @@ import { IoCloseSharp } from "react-icons/io5";
 import { toast } from "react-toastify";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-const API = `${API_URL}/api/holidays`;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
+const API = `${API_URL}/api/settings/head-departments`;
 
-const AddHeadDepartment = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
+const AddHeadDepartment = ({
+  isOpen,
+  onClose,
+  isEdit,
+  department,
+  refreshList,
+}) => {
   const [formData, setFormData] = useState({
-    name: "",
-    date: "",
-    description: "",
+    departmentName: "",
+    hod: "",
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Load data in edit mode
+  /* ================= LOAD DATA (EDIT MODE) ================= */
   useEffect(() => {
-    if (isEdit && festival) {
+    if (isEdit && department) {
       setFormData({
-        name: festival.name || "",
-        date: festival.date?.split("T")[0] || "", // Format date for input
-        description: festival.description || "",
+        departmentName: department.name || "",
+        hod: department.hod || "",
       });
     } else {
-      setFormData({ name: "", date: "", description: "" });
+      setFormData({ departmentName: "", hod: "" });
     }
     setErrors({});
-  }, [isOpen, isEdit, festival]);
+  }, [isOpen, isEdit, department]);
 
-  // Validation
+  /* ================= VALIDATION ================= */
   const validate = () => {
     const err = {};
-    if (!formData.name.trim()) err.name = "Festival name is required";
-    if (!formData.date.trim()) err.date = "Festival date is required";
+
+    if (!formData.departmentName.trim()) {
+      err.departmentName = "Department name is required";
+    }
+
+    if (!formData.hod.trim()) {
+      err.hod = "HOD name is required";
+    }
+
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
-  // Submit Handler (API)
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -47,24 +58,22 @@ const AddHeadDepartment = ({ isOpen, onClose, isEdit, festival, refreshList }) =
     try {
       setLoading(true);
 
+      const payload = { name: formData.departmentName }
+      if (formData.hod) payload.hod = formData.hod
+
       if (isEdit) {
-        // ---------- UPDATE HOLIDAY ----------
-        await axios.put(
-          `${API_URL}/${festival._id}`,
-          formData
-        );
+        await axios.put(`${API}/${department._id}`, payload);
+        toast.success("Department updated successfully");
       } else {
-        // ---------- ADD NEW HOLIDAY ----------
-        await axios.post(API_URL, formData);
+        await axios.post(API, payload);
+        toast.success("Department added successfully");
       }
 
       refreshList();
       onClose();
-      toast.success(isEdit ? "Festival updated successfully!" : "Festival added successfully!");
-
     } catch (error) {
-      console.error("Error saving festival:", error);
-      toast.error("Something went wrong. Check console.");
+      console.error(error);
+      toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -72,70 +81,69 @@ const AddHeadDepartment = ({ isOpen, onClose, isEdit, festival, refreshList }) =
 
   if (!isOpen) return null;
 
+  /* ================= UI ================= */
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-4 relative">
+      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-5 relative">
 
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-3">
           <h2 className="text-lg font-semibold">
-            {isEdit ? "Edit Head Department" : "Add Head Department"}
+            {isEdit ? "Edit Department" : "Add Department"}
           </h2>
-          <button onClick={onClose} className="text-gray-700">
+          <button onClick={onClose} className="text-gray-700 hover:text-black">
             <IoCloseSharp size={24} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
 
-          {/* Name */}
+          {/* Department Name */}
           <div>
-            <label className="block text-sm font-medium mb-1">Festival Name *</label>
+            <label className="block text-sm font-medium mb-1">
+              Department Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              className={`w-full px-3 py-2 border rounded ${
-                errors.name ? "border-red-500" : "border-gray-300"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
+                errors.departmentName ? "border-red-500" : "border-gray-300"
               }`}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Diwali, Holi"
-            />
-            {errors.name && (
-              <p className="text-red-500 text-xs">{errors.name}</p>
-            )}
-          </div>
-
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Festival Date *</label>
-            <input
-              type="date"
-              className={`w-full px-3 py-2 border rounded ${
-                errors.date ? "border-red-500" : "border-gray-300"
-              }`}
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            />
-            {errors.date && (
-              <p className="text-red-500 text-xs">{errors.date}</p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded resize-none h-24"
-              value={formData.description}
+              value={formData.departmentName}
               onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
+                setFormData({ ...formData, departmentName: e.target.value })
               }
-              placeholder="Optional festival details..."
-            ></textarea>
+              placeholder="e.g. Human Resources"
+            />
+            {errors.departmentName && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.departmentName}
+              </p>
+            )}
           </div>
 
-          {/* Save Button */}
+          {/* HOD */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              HOD <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
+                errors.hod ? "border-red-500" : "border-gray-300"
+              }`}
+              value={formData.hod}
+              onChange={(e) =>
+                setFormData({ ...formData, hod: e.target.value })
+              }
+              placeholder="e.g. Rahul Sharma"
+            />
+            {errors.hod && (
+              <p className="text-red-500 text-xs mt-1">{errors.hod}</p>
+            )}
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -144,10 +152,9 @@ const AddHeadDepartment = ({ isOpen, onClose, isEdit, festival, refreshList }) =
             {loading
               ? "Saving..."
               : isEdit
-              ? "Update Festival"
-              : "Add Festival"}
+              ? "Update Department"
+              : "Add Department"}
           </button>
-
         </form>
       </div>
     </div>

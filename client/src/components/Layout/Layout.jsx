@@ -9,6 +9,8 @@ const pageConfig = {
   employees: { path: '/employees', title: 'All Employees', subtitle: 'List of employees' },
   addEmployee: { path: '/employee/add', title: 'Add Employee', subtitle: 'Manage employee details' },
   editEmployee: { path: '/employee/:id/edit', title: 'Edit Employee', subtitle: 'Manage employee details' },
+  barcode: { path: '/barcode', title: 'Barcode', subtitle: 'Barcode of All Employees' },
+  profile: { path: '/profile', title: 'Profile', subtitle: 'User Profile' },
   attReport: { path: '/attReport', title: 'Attendance', subtitle: 'Attendance report' },
   liveattend: { path: '/liveattend', title: 'Live Attendance', subtitle: 'Current attendance' },
   manageAdvance: { path: '/advance', title: 'Manage Advance', subtitle: 'Manage advance' },
@@ -39,20 +41,24 @@ const Layout = () => {
   };
 
   return (
-    <div className='flex bg-gray-100 h-screen overflow-hidden'>
-      <Sidebar 
+    <div className='flex bg-gray-100 h-screen overflow-hidden relative'>
+      <Sidebar
         onItemClick={handleSidebarClick}
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={toggleSidebar}
       />
-      <div className={`flex flex-col flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-0' : 'ml-0'}`}>
-        <Topbar 
-          title={currentTopbar.title}
-          subtitle={currentTopbar.subtitle}
-          isSidebarCollapsed={isSidebarCollapsed}
-          toggleSidebar={toggleSidebar}
-        />
-        <Main />
+      <div className={`flex flex-col flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-0'}`}>
+        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'ml-0' : 'ml-64'}`}>
+          <Topbar
+            title={currentTopbar.title}
+            subtitle={currentTopbar.subtitle}
+            isSidebarCollapsed={isSidebarCollapsed}
+            toggleSidebar={toggleSidebar}
+          />
+        </div>
+        <div className={`transition-all duration-300 overflow-auto main-scroll ${isSidebarCollapsed ? 'ml-0' : 'ml-64'}`}>
+          <Main />
+        </div>
       </div>
     </div>
   )

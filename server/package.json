@@ -22,5 +22,7 @@
     "nodemon": "^3.1.11",
     "bwip-js": "^2.0.10",
     "qrcode": "^1.5.1"
+    ,"bcrypt": "^5.1.0",
+    "jsonwebtoken": "^9.0.0"
   }
 }

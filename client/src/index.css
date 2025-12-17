@@ -16,3 +16,21 @@
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: #6b7280; /* gray-500 */
 }
+
+
+.main-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-scroll::-webkit-scrollbar-track {
+  background: rgb(197, 197, 197); /* gray-800 */
+}
+
+.main-scroll::-webkit-scrollbar-thumb {
+  background: #5a5a5c; /* gray-600 */
+  border-radius: 10px;
+}
+
+.main-scroll::-webkit-scrollbar-thumb:hover {
+  background: #1f2937 ; /* gray-500 */
+}
