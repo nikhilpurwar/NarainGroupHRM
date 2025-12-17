@@ -6,18 +6,37 @@ import path from 'path'
 
 // CORS configuration: allow all in development, restrict in production via CORS_ORIGINS env
 const corsOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
-if (corsOrigins.length) {
-	app.use(cors({
-		origin: function(origin, cb) {
-			// allow non-browser requests (e.g., server-to-server) when origin is undefined
-			if (!origin) return cb(null, true)
-			if (corsOrigins.indexOf(origin) !== -1) return cb(null, true)
-			return cb(new Error('Not allowed by CORS'))
+const allowAllCors = corsOrigins.includes('*') || corsOrigins.length === 0
+
+// corsOptionsDelegate supports:
+// - empty origin (non-browser requests) => allow
+// - exact origin match
+// - wildcard entries like '*.example.com'
+// - '*' to allow all
+const corsOptionsDelegate = function (req, callback) {
+	const origin = req.header('Origin')
+	if (!origin) {
+		// allow non-browser or same-host requests
+		return callback(null, { origin: true, credentials: true })
+	}
+	if (allowAllCors) {
+		return callback(null, { origin: true, credentials: true })
+	}
+	const allowed = corsOrigins.some(o => {
+		if (!o) return false
+		if (o === origin) return true
+		if (o.startsWith('*.')) {
+			const domain = o.slice(2)
+			return origin.endsWith(domain)
 		}
-	}))
-} else {
-	app.use(cors())
+		return false
+	})
+	if (allowed) return callback(null, { origin: true, credentials: true })
+	return callback(null, { origin: false })
 }
+
+app.use(cors(corsOptionsDelegate))
+app.options('*', cors(corsOptionsDelegate))
 
 // importing routes 
 import holidayRoutes from "./src/routes/holiday.route.js";
