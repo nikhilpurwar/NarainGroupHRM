@@ -4,8 +4,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
-const DEPT_API = `${API_URL}/api/settings/head-departments`;
-const SUB_API = `${API_URL}/api/settings/sub-departments`;
+const DEPT_API = `${API_URL}/api/department/head-departments`;
+const SUB_API = `${API_URL}/api/department/sub-departments`;
 
 const AddSubDepartment = ({
   isOpen,

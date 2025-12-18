@@ -1,4 +1,4 @@
-import BreakTime from '../models/breaktime.model.js'
+import BreakTime from '../../models/setting.model/breaktime.model.js'
 
 export const createBreak = async (req, res) => {
   try {

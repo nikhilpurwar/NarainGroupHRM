@@ -112,18 +112,25 @@ const Attendance = () => {
       )
 
       // Update report view if open
-      setReport(prev =>
-        prev
-          ? {
-              ...prev,
-              employee: {
-                ...prev.employee,
-                attendanceMarked: true,
-                attendanceStatus: "present",
-              },
-            }
-          : prev
-      )
+      setReport(prev => {
+        if (!prev) return prev
+        const todayIdx = prev.days.findIndex(d => d.iso === today)
+        const updatedTable = prev.table ? { ...prev.table } : null
+        if (updatedTable && typeof updatedTable.Status !== 'undefined' && todayIdx !== -1) {
+          const statusArr = [...updatedTable.Status]
+          statusArr[todayIdx] = 'present'
+          updatedTable.Status = statusArr
+        }
+        return {
+          ...prev,
+          employee: {
+            ...prev.employee,
+            attendanceMarked: true,
+            attendanceStatus: 'present'
+          },
+          table: updatedTable
+        }
+      })
     } catch (err) {
       console.error("Mark attendance failed", err)
       toast.error("Failed to mark attendance")

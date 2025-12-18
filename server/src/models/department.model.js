@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 const HeadDeptSchema = new mongoose.Schema({
   name: { type: String, required: true },
   key: { type: String },
-  code: { type: String, unique: true },
+  code: { type: String, unique: true, sparse: true },
   description: { type: String },
   hod: { type: String },
   reportsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'HeadDepartment' },
@@ -12,7 +12,7 @@ const HeadDeptSchema = new mongoose.Schema({
 
 const SubDeptSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  code: { type: String, unique: true },
+  code: { type: String, unique: true, sparse: true },
   headDepartment: { type: mongoose.Schema.Types.ObjectId, ref: 'HeadDepartment', required: true },
   description: { type: String },
   hod: { type: String },
@@ -22,16 +22,19 @@ const SubDeptSchema = new mongoose.Schema({
 
 const GroupSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  code: { type: String, unique: true },
+  code: { type: String, unique: true, sparse: true },
   description: { type: String },
-  section: { type: String, enum: ['PLANT', 'OFFICE', 'FINISH'], required: true },
+  // optional link to HeadDepartment for UI-driven sectioning
+  headDepartment: { type: mongoose.Schema.Types.ObjectId, ref: 'HeadDepartment' },
+  // legacy `section` kept for compatibility; not required
+  section: { type: String, enum: ['PLANT', 'OFFICE', 'FINISH'] },
   reportsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Group' },
   hierarchy: { type: Number, default: 0 }
 }, { timestamps: true })
 
 const DesignationSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
-  code: { type: String, unique: true },
+  code: { type: String, unique: true, sparse: true },
   group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
   reportsToDesignation: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation' },
   shiftHours: { type: Number, default: 8 },

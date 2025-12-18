@@ -159,7 +159,7 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                             }`} title="Departments"
                         onClick={() => setDeptOpen(!isDeptOpen)}
                     >
-                        {!effectiveCollapsed && <p className="text-sm font-semibold text-white">Departments</p>}
+                        {!effectiveCollapsed && <p className="text-sm font-semibold text-white">Departments & Designation</p>}
                         {!effectiveCollapsed && (
                             <i className={`fa-solid fa-chevron-${isDeptOpen ? "down" : "right"}`}></i>
                         )}
@@ -192,6 +192,32 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                                     }
                                     className="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 text-sm">
                                     <i className="fa-solid fa-building"></i> Sub Departments
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    to="/group"
+                                    onClick={() =>
+                                        onItemClick({
+                                            title: "Departments",
+                                            subtitle: "Group",
+                                        })
+                                    }
+                                    className="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 text-sm">
+                                    <i className="fa-solid fa-building"></i> Group
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    to="/designation"
+                                    onClick={() =>
+                                        onItemClick({
+                                            title: "Departments",
+                                            subtitle: "Designation",
+                                        })
+                                    }
+                                    className="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 text-sm">
+                                    <i className="fa-solid fa-building"></i> Designation
                                 </Link>
                             </li>
                         </ul>

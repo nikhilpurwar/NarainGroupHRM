@@ -10,11 +10,13 @@ import {
   deleteSubDepartment,
   listGroups,
   createGroup,
+  updateGroup,
+  deleteGroup,
   listDesignations,
   createDesignation,
   updateDesignation,
   deleteDesignation,
-} from '../controllers/setting.controller.js'
+} from '../controllers/department.controller.js'
 
 const router = express.Router()
 import { authenticate } from '../middleware/auth.middleware.js'
@@ -31,6 +33,8 @@ router.delete('/sub-departments/:id', authenticate, deleteSubDepartment)
 
 router.get('/groups', listGroups)
 router.post('/groups', authenticate, createGroup)
+router.put('/groups/:id', authenticate, updateGroup)
+router.delete('/groups/:id', authenticate, deleteGroup)
 
 router.get('/designations', listDesignations)
 router.post('/designations', authenticate, createDesignation)
