@@ -1,6 +1,6 @@
 import express from 'express'
-import { createBreak, listBreaks, updateBreak, deleteBreak } from '../controllers/breaktime.controller.js'
-import { authenticate, authorize } from '../middleware/auth.middleware.js'
+import { createBreak, listBreaks, updateBreak, deleteBreak } from '../../controllers/setting.controller/breaktime.controller.js'
+import { authenticate, authorize } from '../../middleware/auth.middleware.js'
 
 const router = express.Router()
 

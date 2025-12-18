@@ -1,4 +1,4 @@
-import Charge from '../models/charge.model.js'
+import Charge from '../../models/charge.model.js'
 
 export const createCharge = async (req, res) => {
   try {

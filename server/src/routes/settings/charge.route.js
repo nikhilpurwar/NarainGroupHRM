@@ -5,8 +5,8 @@ import {
   getCharge,
   updateCharge,
   deleteCharge,
-} from '../controllers/charge.controller.js'
-import { authenticate, authorize } from '../middleware/auth.middleware.js'
+} from '../../controllers/setting.controller/charge.controller.js'
+import { authenticate, authorize } from '../../middleware/auth.middleware.js'
 
 const router = express.Router()
 

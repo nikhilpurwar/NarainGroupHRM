@@ -38,13 +38,19 @@ const corsOptionsDelegate = function (req, callback) {
 app.use(cors(corsOptionsDelegate))
 
 // importing routes 
-import holidayRoutes from "./src/routes/holiday.route.js";
-import employeeRoutes from "./src/routes/employee.route.js";
-import chargeRoutes from "./src/routes/charge.route.js";
-import breakRoutes from "./src/routes/breaktime.route.js";
 import authRoutes from "./src/routes/auth.route.js";
-import userRoutes from "./src/routes/user.route.js";
-import settingRoutes from "./src/routes/setting.route.js";
+import employeeRoutes from "./src/routes/employee.route.js";
+
+// department imports
+import departmentRoutes from "./src/routes/department.route.js";
+
+// setting imports
+import holidayRoutes from "./src/routes/settings/holiday.route.js";
+import chargeRoutes from "./src/routes/settings/charge.route.js";
+import breakRoutes from "./src/routes/settings/breaktime.route.js";
+import userRoutes from "./src/routes/settings/user.route.js";
+
+// attendance imports
 import attendanceRoutes from "./src/routes/attendance.route.js";
 
 // Security
@@ -59,7 +65,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/charges", chargeRoutes);
 app.use("/api/break-times", breakRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/settings", settingRoutes);
+app.use("/api/department", departmentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
 // Barcode attendance - also available at direct /api/store-emp-attend path

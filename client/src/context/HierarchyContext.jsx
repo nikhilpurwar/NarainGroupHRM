@@ -20,10 +20,10 @@ export const HierarchyProvider = ({ children }) => {
     try {
       setLoading(true)
       const [hdRes, sdRes, gRes, dRes] = await Promise.all([
-        axios.get(`${API_URL}/api/settings/head-departments`),
-        axios.get(`${API_URL}/api/settings/sub-departments`),
-        axios.get(`${API_URL}/api/settings/groups`),
-        axios.get(`${API_URL}/api/settings/designations`),
+        axios.get(`${API_URL}/api/department/head-departments`),
+        axios.get(`${API_URL}/api/department/sub-departments`),
+        axios.get(`${API_URL}/api/department/groups`),
+        axios.get(`${API_URL}/api/department/designations`),
       ])
 
       setHeadDepartments(hdRes.data?.data || [])

@@ -2,20 +2,23 @@ import React, { useState, useEffect } from "react";
 import { IoCloseSharp } from "react-icons/io5";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { useHierarchy } from "../../../../../context/HierarchyContext";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
-const API = `${API_URL}/api/department/head-departments`;
+const API = `${API_URL}/api/department/designations`;
 
-const AddHeadDepartment = ({
+const AddEditDesignation = ({
   isOpen,
   onClose,
   isEdit,
-  department,
+  designation,
   refreshList,
 }) => {
+  const { groups } = useHierarchy();
   const [formData, setFormData] = useState({
-    departmentName: "",
-    hod: "",
+    designationName: "",
+    group: "",
+    code: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -23,28 +26,29 @@ const AddHeadDepartment = ({
 
   /* ================= LOAD DATA (EDIT MODE) ================= */
   useEffect(() => {
-    if (isEdit && department) {
+    if (isEdit && designation) {
       setFormData({
-        departmentName: department.name || "",
-        hod: department.hod || "",
+        designationName: designation.name || "",
+        group: designation.group?._id || designation.group || "",
+        code: designation.code || "",
       });
     } else {
-      setFormData({ departmentName: "", hod: "" });
+      setFormData({ designationName: "", group: "", code: "" });
     }
     setErrors({});
-  }, [isOpen, isEdit, department]);
+  }, [isOpen, isEdit, designation]);
 
   /* ================= VALIDATION ================= */
   const validate = () => {
     const err = {};
 
-    if (!formData.departmentName.trim()) {
-      err.departmentName = "Department name is required";
+    if (!formData.designationName.trim()) {
+      err.designationName = "Designation name is required";
     }
 
-    // if (!formData.hod.trim()) {
-    //   err.hod = "HOD name is required";
-    // }
+    if (!formData.group) {
+      err.group = "Group is required";
+    }
 
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -58,15 +62,18 @@ const AddHeadDepartment = ({
     try {
       setLoading(true);
 
-      const payload = { name: formData.departmentName }
-      if (formData.hod) payload.hod = formData.hod
+      const payload = { 
+        name: formData.designationName,
+        group: formData.group,
+      }
+      if (formData.code) payload.code = formData.code
 
       if (isEdit) {
-        await axios.put(`${API}/${department._id}`, payload);
-        toast.success("Department updated successfully");
+        await axios.put(`${API}/${designation._id}`, payload);
+        toast.success("Designation updated successfully");
       } else {
         await axios.post(API, payload);
-        toast.success("Department added successfully");
+        toast.success("Designation added successfully");
       }
 
       refreshList();
@@ -89,7 +96,7 @@ const AddHeadDepartment = ({
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-3">
           <h2 className="text-lg font-semibold">
-            {isEdit ? "Edit Department" : "Add Department"}
+            {isEdit ? "Edit Designation" : "Add Designation"}
           </h2>
           <button onClick={onClose} className="text-gray-700 hover:text-black">
             <IoCloseSharp size={24} />
@@ -99,49 +106,75 @@ const AddHeadDepartment = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
 
-          {/* Department Name */}
+          {/* Designation Name */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Department Name 
+              Designation Name 
               <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
-                errors.departmentName ? "border-red-500" : "border-gray-300"
+                errors.designationName ? "border-red-500" : "border-gray-300"
               }`}
-              value={formData.departmentName}
+              value={formData.designationName}
               onChange={(e) =>
-                setFormData({ ...formData, departmentName: e.target.value })
+                setFormData({ ...formData, designationName: e.target.value })
               }
-              placeholder="e.g. Human Resources"
+              placeholder="e.g. Senior Manager"
             />
-            {errors.departmentName && (
+            {errors.designationName && (
               <p className="text-red-500 text-xs mt-1">
-                {errors.departmentName}
+                {errors.designationName}
               </p>
             )}
           </div>
 
-          {/* HOD */}
+          {/* Group */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              HOD 
-              {/* <span className="text-red-500">*</span> */}
+              Group 
+              <span className="text-red-500">*</span>
+            </label>
+            <select
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
+                errors.group ? "border-red-500" : "border-gray-300"
+              }`}
+              value={formData.group}
+              onChange={(e) =>
+                setFormData({ ...formData, group: e.target.value })
+              }
+            >
+              <option value="">Select Group</option>
+              {groups.map((g) => (
+                <option key={g._id} value={g._id}>
+                  {g.name} - {g.section}
+                </option>
+              ))}
+            </select>
+            {errors.group && (
+              <p className="text-red-500 text-xs mt-1">{errors.group}</p>
+            )}
+          </div>
+
+          {/* Code */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Code
             </label>
             <input
               type="text"
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
-                errors.hod ? "border-red-500" : "border-gray-300"
+                errors.code ? "border-red-500" : "border-gray-300"
               }`}
-              value={formData.hod}
+              value={formData.code}
               onChange={(e) =>
-                setFormData({ ...formData, hod: e.target.value })
+                setFormData({ ...formData, code: e.target.value })
               }
-              placeholder="e.g. Rahul Sharma (Optional)"
+              placeholder="e.g. SM001 (Optional)"
             />
-            {errors.hod && (
-              <p className="text-red-500 text-xs mt-1">{errors.hod}</p>
+            {errors.code && (
+              <p className="text-red-500 text-xs mt-1">{errors.code}</p>
             )}
           </div>
 
@@ -154,8 +187,8 @@ const AddHeadDepartment = ({
             {loading
               ? "Saving..."
               : isEdit
-              ? "Update Department"
-              : "Add Department"}
+              ? "Update Designation"
+              : "Add Designation"}
           </button>
         </form>
       </div>
@@ -163,4 +196,4 @@ const AddHeadDepartment = ({
   );
 };
 
-export default AddHeadDepartment;
+export default AddEditDesignation;

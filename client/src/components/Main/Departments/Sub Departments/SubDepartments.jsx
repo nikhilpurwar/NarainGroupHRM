@@ -7,7 +7,7 @@ import AddSubDepartment from "./components/AddSubDepartment";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
-const API = `${API_URL}/api/settings/sub-departments`;
+const API = `${API_URL}/api/department/sub-departments`;
 
 const SubDepartments = () => {
   const [modal, setModal] = useState(false);

@@ -1,4 +1,4 @@
-import Holiday from "../models/setting.model/holidays.model.js";
+import Holiday from "../../models/setting.model/holidays.model.js";
 
 // Create a new Holiday
 export const createHoliday = async (req, res) => {

@@ -3,28 +3,28 @@ import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
 import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
-import AddHeadDepartment from "./components/AddHeadDepartment";
+import AddEditDesignation from "./component/AddEditDesignation";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
-const API = `${API_URL}/api/department/head-departments`;
+const API = `${API_URL}/api/department/designations`;
 
-const HeadDepartments = () => {
+const Designation = () => {
   const [modal, setModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [departmentList, setDepartmentList] = useState([]);
+  const [selectedDesignation, setSelectedDesignation] = useState(null);
+  const [designationList, setDesignationList] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch head departments
+  // Fetch designations
   const fetchData = async () => {
     try {
       setLoading(true);
       const res = await axios.get(API);
-      setDepartmentList(res.data?.data || []);
+      setDesignationList(res.data?.data || []);
     } catch (error) {
       console.error("Fetch error:", error);
-      toast.error("Failed to load head departments. Check server!");
+      toast.error("Failed to load designations. Check server!");
     } finally {
       setLoading(false);
     }
@@ -35,35 +35,32 @@ const HeadDepartments = () => {
   }, []);
 
   // Add Modal
-  const handleAddDepartment = () => {
+  const handleAddDesignation = () => {
     setIsEdit(false);
-    setSelectedDepartment(null);
+    setSelectedDesignation(null);
     setModal(true);
   };
 
   // Edit Modal
   const handleEdit = (item) => {
-    setSelectedDepartment(item);
+    setSelectedDesignation(item);
     setIsEdit(true);
     setModal(true);
   };
 
-  // Delete Festival
+  // Delete Designation
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this?")) return;
+    if (!window.confirm("Are you sure you want to delete this designation?")) return;
 
     try {
       await axios.delete(`${API}/${id}`);
-      toast.success("Head department deleted successfully!");
+      toast.success("Designation deleted successfully!");
       fetchData();
     } catch (error) {
       console.error("Delete error:", error);
-      toast.error("Failed to delete head department.");
+      toast.error("Failed to delete designation.");
     }
   };
-
-  // const formatDate = (date) =>
-  //   date ? new Date(date).toISOString().split("T")[0] : "-";
 
   return (
     <div className="p-6">
@@ -71,56 +68,58 @@ const HeadDepartments = () => {
         
         {/* Header */}
         <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
-          Head Departments
+          Designations
 
           <button
-            onClick={handleAddDepartment}
+            onClick={handleAddDesignation}
             className="flex items-center justify-center gap-2 bg-white text-gray-900 rounded-full px-4 py-2 cursor-pointer hover:bg-gray-200"
           >
             <IoIosAddCircle size={22} />
-            <p>Add Head Department</p>
+            <p>Add Designation</p>
           </button>
         </div>
 
         {/* Modal */}
-        <AddHeadDepartment
+        <AddEditDesignation
           isOpen={modal}
           onClose={() => setModal(false)}
           isEdit={isEdit}
-          department={selectedDepartment}
+          designation={selectedDesignation}
           refreshList={fetchData}
         />
 
         {/* Loading State */}
         {loading && (
-          <p className="text-center py-6 text-gray-600">Loading head departments...</p>
+          <p className="text-center py-6 text-gray-600">Loading designations...</p>
         )}
 
         {/* Empty State */}
-        {!loading && departmentList.length === 0 && (
+        {!loading && designationList.length === 0 && (
           <p className="text-center py-6 text-gray-500">
-            No head departments found. Click <strong>Add Head Department</strong>.
+            No designations found. Click <strong>Add Designation</strong>.
           </p>
         )}
 
         {/* Table */}
-        {!loading && departmentList.length > 0 && (
+        {!loading && designationList.length > 0 && (
           <table className="table-auto w-full border-collapse">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 <th className="px-4 py-2 text-left">S.No.</th>
-                <th className="px-4 py-2 text-left">Head Department</th>
-                <th className="px-4 py-2 text-left">HOD Name</th>
+                <th className="px-4 py-2 text-left">Designation Name</th>
+                <th className="px-4 py-2 text-left">Group</th>
+                <th className="px-4 py-2 text-left">Code</th>
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
 
             <tbody>
-              {departmentList.map((item, index) => (
+              {designationList.map((item, index) => (
                 <tr key={item._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
-                  <td className="px-4 py-3 border-t">{item.hod}</td>
+                  <td className="px-4 py-3 border-t">{item.group?.name || "-"}</td>
+                  <td className="px-4 py-3 border-t">{item.code || "-"}</td>
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">
                     <FiEdit
@@ -145,4 +144,4 @@ const HeadDepartments = () => {
   );
 };
 
-export default HeadDepartments;
+export default Designation;

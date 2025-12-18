@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import mongoose from "mongoose";
-import { HeadDepartment, SubDepartment, Group, Designation } from "../src/models/setting.model/department.model.js";
+import { HeadDepartment, SubDepartment, Group, Designation } from "../src/models/department.model.js";
 
 const connectDB = async () => {
   try {
