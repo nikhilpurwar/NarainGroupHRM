@@ -8,7 +8,6 @@ export const HierarchyProvider = ({ children }) => {
   
   const [headDepartments, setHeadDepartments] = useState([])
   const [subDepartments, setSubDepartments] = useState([])
-  const [groups, setGroups] = useState([])
   const [designations, setDesignations] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -19,16 +18,14 @@ export const HierarchyProvider = ({ children }) => {
   const fetchHierarchy = async () => {
     try {
       setLoading(true)
-      const [hdRes, sdRes, gRes, dRes] = await Promise.all([
+      const [hdRes, sdRes, dRes] = await Promise.all([
         axios.get(`${API_URL}/api/department/head-departments`),
         axios.get(`${API_URL}/api/department/sub-departments`),
-        axios.get(`${API_URL}/api/department/groups`),
         axios.get(`${API_URL}/api/department/designations`),
       ])
 
       setHeadDepartments(hdRes.data?.data || [])
       setSubDepartments(sdRes.data?.data || [])
-      setGroups(gRes.data?.data || [])
       setDesignations(dRes.data?.data || [])
     } catch (err) {
       console.error('Failed to fetch hierarchy:', err)
@@ -41,12 +38,8 @@ export const HierarchyProvider = ({ children }) => {
     return subDepartments.filter(sd => sd.headDepartment?._id === headId)
   }
 
-  const getDesignationsByGroup = (groupId) => {
-    return designations.filter(d => d.group?._id === groupId)
-  }
-
-  const getGroupsBySection = (section) => {
-    return groups.filter(g => g.section === section)
+  const getDesignationsBySubDepartment = (subDeptId) => {
+    return designations.filter(d => d.subDepartment?._id === subDeptId)
   }
 
   return (
@@ -54,13 +47,11 @@ export const HierarchyProvider = ({ children }) => {
       value={{
         headDepartments,
         subDepartments,
-        groups,
         designations,
         loading,
         fetchHierarchy,
         getSubDepartmentsByHead,
-        getDesignationsByGroup,
-        getGroupsBySection,
+        getDesignationsBySubDepartment,
       }}
     >
       {children}

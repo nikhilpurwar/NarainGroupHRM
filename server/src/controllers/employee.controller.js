@@ -61,9 +61,7 @@ export const getEmployees = async (req, res) => {
     const emps = await Employee.find()
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('group')
       .populate('designation')
-      .populate('reportsTo', 'name empId')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: emps });
   } catch (err) {
@@ -76,9 +74,7 @@ export const getEmployeeById = async (req, res) => {
     const emp = await Employee.findById(req.params.id)
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('group')
-      .populate('designation')
-      .populate('reportsTo', 'name empId');
+      .populate('designation');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: emp });
   } catch (err) {
@@ -94,9 +90,7 @@ export const addAttendance = async (req, res) => {
     const emp = await Employee.findById(req.params.id)
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('group')
-      .populate('designation')
-      .populate('reportsTo', 'name empId');
+      .populate('designation');
 
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
 
@@ -140,8 +134,7 @@ export const addAttendance = async (req, res) => {
       }
 
       totalHours = parseFloat((totalMinutes / 60).toFixed(2));
-      const shiftHours = emp.workHours ? parseInt(emp.workHours) : 8;
-
+      const shiftHours = emp.shift ? parseInt(emp.shift) : 8;
       if (totalHours <= shiftHours) {
         regularHours = totalHours;
         overtimeHours = 0;
@@ -221,9 +214,7 @@ export const getEmployeeProfile = async (req, res) => {
     const emp = await Employee.findById(req.params.id)
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('group')
-      .populate('designation')
-      .populate('reportsTo', 'name empId');
+      .populate('designation');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: emp });
   } catch (err) {

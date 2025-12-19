@@ -23,7 +23,7 @@ const Layout = () => {
     'attendence-report': { path: '/attendence-report', title: 'Attendance Report', subtitle: 'Report' },
     departments: { path: '/departments', title: 'Head Departments', subtitle: 'Departments' },
     subdepartment: { path: '/subdepartment', title: 'Sub Departments', subtitle: 'Departments' },
-    group: { path: '/group', title: 'Group', subtitle: 'Departments' },
+    // group: { path: '/group', title: 'Group', subtitle: 'Departments' },
     designation: { path: '/designation', title: 'Designation', subtitle: 'Departments' },
     'user-list': { path: '/user-list', title: 'Manage Users', subtitle: 'Settings' },
     breaks: { path: '/breaks', title: 'Working Hours', subtitle: 'Settings' },

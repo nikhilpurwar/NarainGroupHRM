@@ -30,9 +30,9 @@ export const attendanceReport = async (req, res) => {
       const emp = await Employee.findById(employeeId)
         .populate('headDepartment')
         .populate('subDepartment')
-        .populate('group')
+        // .populate('group')
         .populate('designation')
-        .populate('reportsTo', 'name empId');
+        // .populate('reportsTo', 'name empId');
       if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
 
       const days = monthDays(queryYear, queryMonth);
@@ -49,7 +49,7 @@ export const attendanceReport = async (req, res) => {
         for (let i = 0; i < atts.length; i++) {
           const a = atts[i];
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
-            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, emp.workHours || 8);
+            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, 8);
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
             a.overtimeHours = computed.overtimeHours;
@@ -148,9 +148,9 @@ export const attendanceReport = async (req, res) => {
     const emp = await Employee.findOne(q)
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('group')
+      // .populate('group')
       .populate('designation')
-      .populate('reportsTo', 'name empId');
+      // .populate('reportsTo', 'name empId');
     if (!emp) return res.json({ success: true, data: null });
 
     const days = monthDays(queryYear, queryMonth);
@@ -374,7 +374,7 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     attendance.punchLogs = attendance.punchLogs || [];
     attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
 
-    const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, emp.workHours || 8);
+        const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, 8);
     const totalHours = computed.totalHours;
     const regularHours = computed.regularHours;
     const overtimeHours = computed.overtimeHours;

@@ -95,10 +95,10 @@ const EmployeeSummary = ({ emp, isMobile }) => {
         <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-indigo-600 shadow-sm hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-indigo-600 flex-shrink-0" />
-            <span className="text-xs text-gray-500 font-semibold uppercase">Group / Shift</span>
+            <span className="text-xs text-gray-500 font-semibold uppercase">Designation / Shift</span>
           </div>
-          <div className="text-sm font-bold text-gray-800 truncate">{emp.group?.name || emp.group || 'N/A'}</div>
-          <div className="text-xs text-gray-500 mt-1">Shift: {emp.workHours || 8}h</div>
+          <div className="text-sm font-bold text-gray-800 truncate">{emp.designation?.name || emp.designation || 'N/A'}</div>
+          <div className="text-xs text-gray-500 mt-1">Shift: 8h</div>
           <div className={`text-xs font-semibold px-2 py-1 rounded mt-2 w-fit flex items-center gap-1 ${statusColor}`}>
             <CheckCircle size={12} />
             {emp.status || 'N/A'}
