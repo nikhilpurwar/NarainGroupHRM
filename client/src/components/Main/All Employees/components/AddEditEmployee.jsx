@@ -56,15 +56,11 @@ const defaultForm = {
     gender: '',
     maritalStatus: '',
     salary: '',
-    workHours: '',
-    salaryPerHour: '',
     empType: '',
     shift: '',
     headDepartment: '',
     subDepartment: '',
-    group: '',
     designation: '',
-    reportsTo: '',
     deductions: [], //which deductions applied
     empId: '',
     status: 'active',
@@ -75,7 +71,7 @@ const AddEditEmployee = () => {
     const navigate = useNavigate()
     const { id } = useParams()
     const isEdit = Boolean(id)
-    const { headDepartments, getSubDepartmentsByHead, groups, getDesignationsByGroup, designations } = useHierarchy()
+    const { headDepartments, getSubDepartmentsByHead, getDesignationsBySubDepartment } = useHierarchy()
 
     const [form, setForm] = useState(defaultForm)
     const [employees, setEmployees] = useState([])
@@ -88,8 +84,8 @@ const AddEditEmployee = () => {
         ? getSubDepartmentsByHead(form.headDepartment)
         : []
 
-    const filteredDesignations = form.group
-        ? getDesignationsByGroup(form.group)
+    const filteredDesignations = form.subDepartment
+        ? getDesignationsBySubDepartment(form.subDepartment)
         : []
 
     useEffect(() => {
@@ -125,15 +121,11 @@ const AddEditEmployee = () => {
                     gender: emp.gender || '',
                     maritalStatus: emp.maritalStatus || '',
                     salary: emp.salary || '',
-                    workHours: emp.workHours || '',
-                    salaryPerHour: emp.salaryPerHour || '',
                     empType: emp.empType || '',
                     shift: emp.shift || '',
                     headDepartment: emp.headDepartment?._id || emp.headDepartment || '',
                     subDepartment: emp.subDepartment?._id || emp.subDepartment || '',
-                    group: emp.group?._id || emp.group || '',
                     designation: emp.designation?._id || emp.designation || '',
-                    reportsTo: emp.reportsTo?._id || emp.reportsTo || '',
                     deductions: emp.deductions || [],
                     empId: emp.empId || '',
                     status: emp.status || 'active',
@@ -184,7 +176,6 @@ const AddEditEmployee = () => {
         if (!form.firstName.trim()) err.firstName = 'First name is required'
         if (!form.lastName.trim()) err.lastName = 'Last name is required'
         if (!form.salary || Number(form.salary) <= 0) err.salary = 'Salary must be a positive number'
-        if (!form.workHours || Number(form.workHours) <= 0) err.workHours = 'Work hours must be a positive number'
         if (!/^[0-9]{10}$/.test(form.mobile || '')) err.mobile = 'Enter a valid 10-digit mobile number'
         if (!form.headDepartment) err.headDepartment = 'Select head department'
         return err
@@ -226,16 +217,11 @@ const AddEditEmployee = () => {
                 gender: form.gender,
                 maritalStatus: form.maritalStatus,
                 salary: Number(form.salary) || 0,
-                workHours: Number(form.workHours) || 0,
-                salaryPerHour: Number(form.salaryPerHour || computedSalaryPerHour) || 0,
                 empType: form.empType,
                 shift: form.shift,
                 headDepartment: form.headDepartment,
-                department: form.headDepartment,
                 subDepartment: form.subDepartment,
-                group: form.group,
                 designation: form.designation,
-                reportsTo: form.reportsTo,
                 deductions: form.deductions,
                 empId: form.empId,
                 status: form.status,
@@ -287,13 +273,6 @@ const AddEditEmployee = () => {
             toast.error(msg)
         }
     }
-
-    const computedSalaryPerHour = (() => {
-        const s = parseFloat(form.salary) || 0
-        const w = parseFloat(form.workHours) || 0
-        if (!form.salaryPerHour && w > 0) return (s / w).toFixed(2)
-        return form.salaryPerHour || ''
-    })()
 
     return (
         <div className="p-6 bg-white">
@@ -407,37 +386,21 @@ const AddEditEmployee = () => {
 
                         {/* Sub Department - Cascaded */}
                         <div>
-                            <label className="block font-medium mb-1">Sub Department</label>
+                            <label className="block font-medium mb-1">Sub Department*</label>
                             <select
                                 name="subDepartment"
                                 value={form.subDepartment}
-                                onChange={handleChange}
+                                onChange={(e) => {
+                                    handleChange(e)
+                                    // Reset designation when sub-dept changes
+                                    setForm(f => ({ ...f, designation: '' }))
+                                }}
                                 disabled={!form.headDepartment}
                                 className="w-full border p-3 rounded-lg disabled:bg-gray-200"
                             >
                                 <option value="">Select Sub Department</option>
                                 {filteredSubDepts.map(s => (
                                     <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Group */}
-                        <div>
-                            <label className="block font-medium mb-1">Group</label>
-                            <select
-                                name="group"
-                                value={form.group}
-                                onChange={(e) => {
-                                    handleChange(e)
-                                    // Reset designation when group changes
-                                    setForm(f => ({ ...f, designation: '' }))
-                                }}
-                                className="w-full border p-3 rounded-lg"
-                            >
-                                <option value="">Select Group</option>
-                                {groups.map(g => (
-                                    <option key={g._id} value={g._id}>{g.name} - {g.section}</option>
                                 ))}
                             </select>
                         </div>
@@ -449,7 +412,7 @@ const AddEditEmployee = () => {
                                 name="designation"
                                 value={form.designation}
                                 onChange={handleChange}
-                                disabled={!form.group}
+                                disabled={!form.subDepartment}
                                 className="w-full border p-3 rounded-lg disabled:bg-gray-200"
                             >
                                 <option value="">Select Designation</option>
@@ -459,42 +422,13 @@ const AddEditEmployee = () => {
                             </select>
                         </div>
 
-                        {/* Reports To */}
-                        <div>
-                            <label className="block font-medium mb-1">Reports To</label>
-                            <select
-                                name="reportsTo"
-                                value={form.reportsTo}
-                                onChange={handleChange}
-                                className="w-full border p-3 rounded-lg"
-                            >
-                                <option value="">No Manager</option>
-                                {employees
-                                    .filter(e => e._id !== id)
-                                    .map(e => (
-                                        <option key={e._id} value={e._id}>
-                                            {e.name} - {e.designation?.name || 'N/A'}
-                                        </option>
-                                    ))
-                                }
-                            </select>
-                        </div>
-
                         <Select
                             label="Shift"
                             name="shift"
                             value={form.shift}
                             onChange={handleChange}
                             options={["8-hour", "9-hour", "10-hour", "12-hour"]}
-                        />
-
-                        <Select
-                            label="Salary Type"
-                            name="empType"
-                            value={form.empType}
-                            onChange={handleChange}
-                            options={["Fixed Salary", "Hourly Salary"]}
-                        />
+                        />                      
                     </div>
                 </div>
 
@@ -505,14 +439,14 @@ const AddEditEmployee = () => {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                        <Input label="Salary*" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} />
-                        <Input label="Work Hours*" name="workHours" value={form.workHours} onChange={handleChange} error={errors.workHours} />
-                        <Input
-                            label="Salary Per Hour"
-                            name="salaryPerHour"
-                            value={computedSalaryPerHour}
-                            readOnly
+                        <Select
+                            label="Salary Type"
+                            name="empType"
+                            value={form.empType}
+                            onChange={handleChange}
+                            options={["Fixed Salary", "Hourly Salary"]}
                         />
+                        <Input label="Salary*" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} />
                     </div>
 
                     {/* DEDUCTIONS */}

@@ -107,7 +107,7 @@ const Designation = () => {
               <tr>
                 <th className="px-4 py-2 text-left">S.No.</th>
                 <th className="px-4 py-2 text-left">Designation Name</th>
-                <th className="px-4 py-2 text-left">Group</th>
+                <th className="px-4 py-2 text-left">Sub Department</th>
                 <th className="px-4 py-2 text-left">Code</th>
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
@@ -118,7 +118,7 @@ const Designation = () => {
                 <tr key={item._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
-                  <td className="px-4 py-3 border-t">{item.group?.name || "-"}</td>
+                  <td className="px-4 py-3 border-t">{item.subDepartment?.name || "-"}</td>
                   <td className="px-4 py-3 border-t">{item.code || "-"}</td>
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">

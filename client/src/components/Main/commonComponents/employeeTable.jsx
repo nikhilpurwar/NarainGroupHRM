@@ -23,13 +23,13 @@ const EmployeeTable = ({
     const [nameSearch, setNameSearch] = useState('')
     const [department, setDepartment] = useState('')
     const [subDepartment, setSubDepartment] = useState('')
-    const [group, setGroup] = useState('')
+    const [designation, setDesignation] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     
     // Schema options states
     const [departments, setDepartments] = useState([])
     const [subDepartments, setSubDepartments] = useState([])
-    const [groups, setGroups] = useState([])
+    const [designations, setDesignations] = useState([])
     const [schemaLoading, setSchemaLoading] = useState(true)
 
     // Fetch all schema options from backend
@@ -38,15 +38,15 @@ const EmployeeTable = ({
             try {
                 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
                 
-                const [deptsRes, subDeptsRes, groupsRes] = await Promise.all([
+                const [deptsRes, subDeptsRes, designationsRes] = await Promise.all([
                     axios.get(`${apiUrl}/api/department/head-departments`),
                     axios.get(`${apiUrl}/api/department/sub-departments`),
-                    axios.get(`${apiUrl}/api/department/groups`)
+                    axios.get(`${apiUrl}/api/department/designations`)
                 ])
                 
                 setDepartments(deptsRes.data.data || [])
                 setSubDepartments(subDeptsRes.data.data || [])
-                setGroups(groupsRes.data.data || [])
+                setDesignations(designationsRes.data.data || [])
                 setSchemaLoading(false)
             } catch (error) {
                 console.error('Error fetching schema options:', error)
@@ -68,12 +68,12 @@ const EmployeeTable = ({
                 e.empId?.toLowerCase().includes(search)
             )
         }
-        if (department) temp = temp.filter(e => e.department === department)
-        if (subDepartment) temp = temp.filter(e => e.subDepartment === subDepartment)
-        if (group) temp = temp.filter(e => e.group === group)
+        if (department) temp = temp.filter(e => e.headDepartment?._id === department)
+        if (subDepartment) temp = temp.filter(e => e.subDepartment?._id === subDepartment)
+        if (designation) temp = temp.filter(e => e.designation?._id === designation)
         setFiltered(temp)
         setCurrentPage(1)
-    }, [nameSearch, department, subDepartment, group, employees])
+    }, [nameSearch, department, subDepartment, designation, employees])
 
     const [pageSize, setPageSize] = useState(rowsPerPage)
 
@@ -89,7 +89,7 @@ const EmployeeTable = ({
         setNameSearch('')
         setDepartment('')
         setSubDepartment('')
-        setGroup('')
+        setDesignation('')
         setCurrentPage(1)
     }
 
@@ -124,9 +124,9 @@ const EmployeeTable = ({
                             ))}
                         </select>
 
-                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={group} onChange={e => setGroup(e.target.value)} disabled={schemaLoading}>
-                            <option value="">Select Group</option>
-                            {groups.map(d => (
+                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={designation} onChange={e => setDesignation(e.target.value)} disabled={schemaLoading}>
+                            <option value="">Select Designation</option>
+                            {designations.map(d => (
                                 <option key={d._id} value={d._id}>{d.name}</option>
                             ))}
                         </select>
@@ -157,7 +157,7 @@ const EmployeeTable = ({
                                 <th className="px-4 py-3">Emp ID</th>
                                 <th className="px-4 py-3">Department</th>
                                 <th className="px-4 py-3">Sub Dept.</th>
-                                <th className="px-4 py-3">Group</th>
+                                <th className="px-4 py-3">Designation</th>
                                 <th className="px-4 py-3">Status</th>
                                 <th className="px-4 py-3 text-right">Action</th>
                             </tr>
@@ -180,7 +180,7 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{emp.empId}</td>
                                             <td className="px-4 py-3">{emp.headDepartment?.name || emp.headDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
-                                            <td className="px-4 py-3">{emp.group?.name || emp.group || ''}</td>
+                                            <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>
                                             <td className="px-4 py-3">
                                                 <button onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }} className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`} title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>{emp.status === 'active' ? 'Active' : 'Inactive'}</button>
                                             </td>

@@ -1,5 +1,5 @@
 const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) => {
-  const getStatusColor = (status, rowType) => {
+  const getStatusColor = (status,  rowType) => {
     if (rowType === 'Status') {
       if (status === 'present') return 'bg-green-100 text-green-900 font-semibold';
       if (status === 'absent') return 'bg-red-100 text-red-900 font-semibold';

@@ -19,7 +19,7 @@ import DailySalary from './components/Main/Reports/Daily Salary/DailySalary'
 import ReportsAttendance from './components/Main/Reports/Attendance/Attendance'
 import HeadDepartments from './components/Main/Departments/Head Departments/HeadDepartments'
 import SubDepartments from './components/Main/Departments/Sub Departments/SubDepartments'
-import Groups from './components/Main/Departments/Group/Group'
+// import Groups from './components/Main/Departments/Group/Group'
 import Designations from './components/Main/Departments/Designation/Designation'
 import ManageUsers from './components/Main/Settings/Manage Users/ManageUsers'
 import WorkingHours from './components/Main/Settings/Working Hours/WorkingHours'
@@ -53,7 +53,7 @@ function App() {
           {/* Department & Designations */}
           <Route path="/departments" element={<HeadDepartments />} />
           <Route path="/subdepartment" element={<SubDepartments />} />
-          <Route path="/group" element={<Groups />} />
+          {/* <Route path="/group" element={<Groups />} /> */}
           <Route path="/designation" element={<Designations />} />
 
           {/* Settings */}

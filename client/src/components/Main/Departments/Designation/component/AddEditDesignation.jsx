@@ -14,10 +14,10 @@ const AddEditDesignation = ({
   designation,
   refreshList,
 }) => {
-  const { groups } = useHierarchy();
+  const { subDepartments } = useHierarchy();
   const [formData, setFormData] = useState({
     designationName: "",
-    group: "",
+    subDepartment: "",
     code: "",
   });
 
@@ -29,11 +29,11 @@ const AddEditDesignation = ({
     if (isEdit && designation) {
       setFormData({
         designationName: designation.name || "",
-        group: designation.group?._id || designation.group || "",
+        subDepartment: designation.subDepartment?._id || designation.subDepartment || "",
         code: designation.code || "",
       });
     } else {
-      setFormData({ designationName: "", group: "", code: "" });
+      setFormData({ designationName: "", subDepartment: "", code: "" });
     }
     setErrors({});
   }, [isOpen, isEdit, designation]);
@@ -46,8 +46,8 @@ const AddEditDesignation = ({
       err.designationName = "Designation name is required";
     }
 
-    if (!formData.group) {
-      err.group = "Group is required";
+    if (!formData.subDepartment) {
+      err.subDepartment = "Sub Department is required";
     }
 
     setErrors(err);
@@ -64,7 +64,7 @@ const AddEditDesignation = ({
 
       const payload = { 
         name: formData.designationName,
-        group: formData.group,
+        subDepartment: formData.subDepartment,
       }
       if (formData.code) payload.code = formData.code
 
@@ -130,30 +130,30 @@ const AddEditDesignation = ({
             )}
           </div>
 
-          {/* Group */}
+          {/* Sub Department */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Group 
+              Sub Department 
               <span className="text-red-500">*</span>
             </label>
             <select
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
-                errors.group ? "border-red-500" : "border-gray-300"
+                errors.subDepartment ? "border-red-500" : "border-gray-300"
               }`}
-              value={formData.group}
+              value={formData.subDepartment}
               onChange={(e) =>
-                setFormData({ ...formData, group: e.target.value })
+                setFormData({ ...formData, subDepartment: e.target.value })
               }
             >
-              <option value="">Select Group</option>
-              {groups.map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.name} - {g.section}
+              <option value="">Select Sub Department</option>
+              {subDepartments.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
                 </option>
               ))}
             </select>
-            {errors.group && (
-              <p className="text-red-500 text-xs mt-1">{errors.group}</p>
+            {errors.subDepartment && (
+              <p className="text-red-500 text-xs mt-1">{errors.subDepartment}</p>
             )}
           </div>
 
