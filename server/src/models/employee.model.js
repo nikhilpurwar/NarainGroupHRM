@@ -45,7 +45,7 @@ const employeeSchema = new mongoose.Schema({
     avatar: { type: String }, // store base64 data URL or file path
     barcode: { type: String }, // base64 image or svg
     qrCode: { type: String }, // base64 image or svg
-    attendance: [attendanceSchema]
+    // Attendance moved to separate collection `Attendance` linked by employee id
 }, { timestamps: true });
 
 const Employee = mongoose.model("Employee", employeeSchema);

@@ -45,7 +45,7 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
             localStorage.removeItem('token')
             localStorage.removeItem('user')
             // clear axios header if used globally
-            try { window.axios && (window.axios.defaults.headers.common.Authorization = '') } catch {}
+            try { window.axios && (window.axios.defaults.headers.common.Authorization = '') } catch { }
             navigate('/login')
         } catch (e) { console.error(e) }
     }
@@ -54,8 +54,7 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
         <div
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen absolute left-0 top-0 z-50`}>
-
+            className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen shrink-0`}>
             {/* Logo Section */}
             <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
                 <img
@@ -228,7 +227,7 @@ const Sidebar = ({ onItemClick, isCollapsed }) => {
                 <div className="border-t border-gray-700 mt-3 pt-3">
                     <div
                         className={`px-3 py-2 cursor-pointer flex items-center ${effectiveCollapsed ? "justify-center" : "justify-between"
-                            }`} 
+                            }`}
                         title="Settings"
                         onClick={() => setSettingsOpen(!isSettingsOpen)}
                     >
