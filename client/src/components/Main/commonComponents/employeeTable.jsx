@@ -39,9 +39,9 @@ const EmployeeTable = ({
                 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
                 
                 const [deptsRes, subDeptsRes, groupsRes] = await Promise.all([
-                    axios.get(`${apiUrl}/api/settings/head-departments`),
-                    axios.get(`${apiUrl}/api/settings/sub-departments`),
-                    axios.get(`${apiUrl}/api/settings/groups`)
+                    axios.get(`${apiUrl}/api/department/head-departments`),
+                    axios.get(`${apiUrl}/api/department/sub-departments`),
+                    axios.get(`${apiUrl}/api/department/groups`)
                 ])
                 
                 setDepartments(deptsRes.data.data || [])

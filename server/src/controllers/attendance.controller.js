@@ -1,4 +1,7 @@
 import Employee from "../models/employee.model.js";
+import Attendance from "../models/attendance.model.js";
+import * as attendanceService from "../services/attendance.service.js";
+import { apiError, handleMongooseError } from "../utils/error.util.js";
 
 const monthDays = (year, month) => {
   // month: 1-12
@@ -20,7 +23,7 @@ export const attendanceReport = async (req, res) => {
     const { employeeId, month, year, search } = req.query;
     // default month/year to current if not provided
     const now = new Date();
-    const queryMonth = month || String(now.getMonth() + 1);
+    const queryMonth = month || String(now.getMonth() + 1); 
     const queryYear = year || String(now.getFullYear());
 
     if (employeeId) {
@@ -34,38 +37,109 @@ export const attendanceReport = async (req, res) => {
 
       const days = monthDays(queryYear, queryMonth);
 
-      // build data rows: Status, InTime, OutTime, Note
+      // Query attendance records for the employee for the current month range
+      const startDate = new Date(`${queryYear}-${String(queryMonth).padStart(2, '0')}-01T00:00:00Z`); 
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setSeconds(endDate.getSeconds() - 1);
+
+        const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
+
+        // Ensure each attendance doc has computed totals and last in/out based on punchLogs
+        for (let i = 0; i < atts.length; i++) {
+          const a = atts[i];
+          if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
+            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, emp.workHours || 8);
+            a.totalHours = computed.totalHours;
+            a.regularHours = computed.regularHours;
+            a.overtimeHours = computed.overtimeHours;
+            a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
+            a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
+            a._computedPairs = computed.pairs;
+          }
+        }
+
+      // Auto-mark absent for past dates (after joining date) if not already marked
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (const d of days) {
+        const dayDate = new Date(d.iso);
+        dayDate.setHours(0, 0, 0, 0);
+
+        if (dayDate < today) {
+          const iso = d.iso;
+          const alreadyMarked = atts.some(a => {
+            const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+            return aDate === iso;
+          });
+
+          if (!alreadyMarked) {
+            const dayOfWeek = dayDate.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            if (!isWeekend) {
+              const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
+              empJoiningDate?.setHours(0, 0, 0, 0);
+              if (!empJoiningDate || dayDate >= empJoiningDate) {
+                // create absent attendance
+                const absentDoc = await Attendance.create({
+                  employee: emp._id,
+                  date: dayDate,
+                  status: 'absent',
+                  inTime: null,
+                  outTime: null,
+                  totalHours: 0,
+                  regularHours: 0,
+                  overtimeHours: 0,
+                  breakMinutes: 0,
+                  isWeekend: false,
+                  isHoliday: false,
+                  punchLogs: [],
+                  note: 'Auto-marked absent (no attendance record)'
+                });
+                atts.push(absentDoc);
+              }
+            }
+          }
+        }
+      }
+
+      // build data rows: Status, InTime, OutTime, Worked Hours, OT (Hours), Note
       const statusRow = [];
       const inRow = [];
       const outRow = [];
+      const workedRow = [];
+      const otRow = [];
       const noteRow = [];
 
-      days.forEach(d => {
-        const rec = (emp.attendance || []).find(a => {
-          const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null
-          return aDate === d.iso
+      for (const d of days) {
+        const rec = atts.find(a => { 
+          const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+          return aDate === d.iso;
         });
         if (rec) {
           statusRow.push(rec.status || 'present');
           inRow.push(rec.inTime || '');
           outRow.push(rec.outTime || '');
+          workedRow.push(typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : '');
+          otRow.push(typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : '');
           noteRow.push(rec.note || '');
         } else {
           statusRow.push(null);
           inRow.push(null);
           outRow.push(null);
+          workedRow.push(null);
+          otRow.push(null);
           noteRow.push(null);
         }
-      });
+      }
 
-      const table = {
-        Status: statusRow,
-        In: inRow,
-        Out: outRow,
-        Note: noteRow,
-      };
+      const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'OT (Hours)': otRow, Note: noteRow };
 
-      return res.json({ success: true, data: { employee: emp, days, table } });
+      const employeeObj = emp.toObject ? emp.toObject() : emp;
+      employeeObj.attendance = atts;
+
+      return res.json({ success: true, data: { employee: employeeObj, days, table } }); 
     }
 
     // if no employeeId: support search to return first matched employee report
@@ -80,29 +154,108 @@ export const attendanceReport = async (req, res) => {
     if (!emp) return res.json({ success: true, data: null });
 
     const days = monthDays(queryYear, queryMonth);
+
+    // Query attendance records for this employee for the month
+    const startDate = new Date(`${queryYear}-${String(queryMonth).padStart(2, '0')}-01T00:00:00Z`); 
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setSeconds(endDate.getSeconds() - 1);
+
+    const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
+    // Ensure each attendance doc has computed totals and last in/out based on punchLogs
+    for (let i = 0; i < atts.length; i++) {
+      const a = atts[i];
+      if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
+        const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, emp.workHours || 8);
+        a.totalHours = computed.totalHours;
+        a.regularHours = computed.regularHours;
+        a.overtimeHours = computed.overtimeHours;
+        a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
+        a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
+        a._computedPairs = computed.pairs;
+      }
+    }
+
+    // Auto-mark absent for past dates (after joining date) if not already marked
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const d of days) {
+      const dayDate = new Date(d.iso);
+      dayDate.setHours(0, 0, 0, 0);
+
+      if (dayDate < today) {
+        const iso = d.iso;
+        const alreadyMarked = atts.some(a => {
+          const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+          return aDate === iso;
+        });
+
+        if (!alreadyMarked) {
+          const dayOfWeek = dayDate.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          if (!isWeekend) {
+            const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
+            empJoiningDate?.setHours(0, 0, 0, 0);
+            if (!empJoiningDate || dayDate >= empJoiningDate) {
+              const absentDoc = await Attendance.create({
+                employee: emp._id,
+                date: dayDate,
+                status: 'absent',
+                inTime: null,
+                outTime: null,
+                totalHours: 0,
+                regularHours: 0,
+                overtimeHours: 0,
+                breakMinutes: 0,
+                isWeekend: false,
+                isHoliday: false,
+                punchLogs: [],
+                note: 'Auto-marked absent (no attendance record)'
+              });
+              atts.push(absentDoc);
+            }
+          }
+        }
+      }
+    }
+
     const statusRow = [];
     const inRow = [];
     const outRow = [];
+    const workedRow = [];
+    const otRow = [];
     const noteRow = [];
-    days.forEach(d => {
-      const rec = (emp.attendance || []).find(a => a.date === d.iso || a.date === d.date || a.date?.startsWith(d.iso));
+
+    for (const d of days) {
+      const rec = atts.find(a => {
+        const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+        return aDate === d.iso;
+      });
       if (rec) {
         statusRow.push(rec.status || 'present');
         inRow.push(rec.inTime || '');
         outRow.push(rec.outTime || '');
+        workedRow.push(typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : '');
+        otRow.push(typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : '');
         noteRow.push(rec.note || '');
       } else {
         statusRow.push(null);
         inRow.push(null);
         outRow.push(null);
+        workedRow.push(null);
+        otRow.push(null);
         noteRow.push(null);
       }
-    });
-    const table = { Status: statusRow, In: inRow, Out: outRow, Note: noteRow };
-    return res.json({ success: true, data: { employee: emp, days, table } });
+    }
+    const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'OT (Hours)': otRow, Note: noteRow };
+    const employeeObj = emp.toObject ? emp.toObject() : emp;
+    employeeObj.attendance = atts;
+    return res.json({ success: true, data: { employee: employeeObj, days, table } });
   } catch (err) {
     console.error('Attendance report error', err);
-    res.status(500).json({ success: false, message: err.message });
+    const e = handleMongooseError(err);
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message));
   }
 };
 // Mark attendance via barcode scanner (matches Laravel 72-hour rule)
@@ -131,31 +284,29 @@ export const scanAttendance = async (req, res) => {
     const currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     // ======== 72-HOUR RULE ========
-    // Find the most recent incomplete attendance (punch IN without punch OUT)
-    let incompleteAttendance = null;
-    let latestIncompleteIndex = -1;
-
-    if (emp.attendance && emp.attendance.length > 0) {
-      for (let i = emp.attendance.length - 1; i >= 0; i--) {
-        const att = emp.attendance[i];
-        if (att.inTime && !att.outTime) {
-          incompleteAttendance = att;
-          latestIncompleteIndex = i;
-          break;
-        }
-      }
-    }
+    // Find the most recent incomplete attendance (punch IN without punch OUT) from Attendance collection
+    let incompleteAttendance = await attendanceService.findIncompleteAttendance(emp._id);
 
     // If incomplete attendance exists, check 72-hour rule
     if (incompleteAttendance) {
-      const punchInTime = new Date(incompleteAttendance.punchLogs?.[0]?.punchTime || incompleteAttendance.date);
+      // find the last IN time from punchLogs
+      let lastIn = null;
+      if (Array.isArray(incompleteAttendance.punchLogs)) {
+        for (let i = incompleteAttendance.punchLogs.length - 1; i >= 0; i--) {
+          if ((incompleteAttendance.punchLogs[i].punchType || '').toUpperCase() === 'IN') {
+            lastIn = new Date(incompleteAttendance.punchLogs[i].punchTime);
+            break;
+          }
+        }
+      }
+      const punchInTime = lastIn || new Date(incompleteAttendance.date);
       const timeDiffHours = (now - punchInTime) / (1000 * 60 * 60);
 
       // If within 72 hours, mark PUNCH OUT
       if (timeDiffHours < 72) {
-        return handlePunchOut(emp, latestIncompleteIndex, now, currentTimeString, res);
+        return handlePunchOut(emp, incompleteAttendance, now, currentTimeString, res);
       }
-      // If > 72 hours, force close that record and create new IN
+      // If > 72 hours, fall through to create a new IN
     }
 
     // ======== PUNCH IN ========
@@ -163,7 +314,8 @@ export const scanAttendance = async (req, res) => {
 
   } catch (err) {
     console.error('Barcode attendance error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
   }
 };
 
@@ -173,9 +325,9 @@ async function handlePunchIn(emp, now, currentTimeString, res) {
     const todayDateObj = new Date(now.toDateString());
     const dayOfWeek = now.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    // Create new attendance record
-    const newAttendance = {
+    // Create new attendance document in Attendance collection
+    const newAttendanceDoc = await Attendance.create({
+      employee: emp._id,
       date: todayDateObj,
       status: 'present',
       inTime: currentTimeString,
@@ -186,19 +338,11 @@ async function handlePunchIn(emp, now, currentTimeString, res) {
       breakMinutes: 0,
       isWeekend,
       isHoliday: false,
-      punchLogs: [
-        {
-          punchType: 'IN',
-          punchTime: now
-        }
-      ],
+      punchLogs: [ { punchType: 'IN', punchTime: now } ],
       note: 'Punch IN via barcode scanner'
-    };
+    });
 
-    emp.attendance.push(newAttendance);
-    await emp.save();
-
-    // Re-populate
+    // Re-populate employee relations for response
     await emp.populate('headDepartment');
     await emp.populate('subDepartment');
     await emp.populate('group');
@@ -209,63 +353,42 @@ async function handlePunchIn(emp, now, currentTimeString, res) {
       success: true,
       type: 'in',
       message: 'Punch IN successful',
+      attendance: newAttendanceDoc,
       employee_id: emp._id,
       time: currentTimeString,
       employee_name: emp.name
     });
   } catch (err) {
     console.error('Punch IN error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
   }
 }
 
 // Handle Punch OUT
-async function handlePunchOut(emp, attendanceIndex, now, currentTimeString, res) {
+async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
   try {
-    const attendance = emp.attendance[attendanceIndex];
-    
-    // Parse in time
-    const [inHours, inMinutes, inSeconds] = attendance.inTime.split(':').map(Number);
-    const [outHours, outMinutes, outSeconds] = currentTimeString.split(':').map(Number);
+    const attendance = attendanceDoc;
 
-    const inTotalMinutes = inHours * 60 + inMinutes;
-    const outTotalMinutes = outHours * 60 + outMinutes;
-    
-    let totalMinutes = outTotalMinutes - inTotalMinutes;
-    
-    // Handle overnight shift (punch out next day)
-    if (totalMinutes < 0) {
-      totalMinutes += 24 * 60;
-    }
+    // Append OUT punch and recompute totals/pairs from punchLogs
+    attendance.punchLogs = attendance.punchLogs || [];
+    attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
 
-    const totalHours = parseFloat((totalMinutes / 60).toFixed(2));
-    const shiftHours = emp.workHours ? parseInt(emp.workHours) : 8;
+    const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, emp.workHours || 8);
+    const totalHours = computed.totalHours;
+    const regularHours = computed.regularHours;
+    const overtimeHours = computed.overtimeHours;
 
-    let regularHours = 0;
-    let overtimeHours = 0;
-
-    if (totalHours <= shiftHours) {
-      regularHours = totalHours;
-      overtimeHours = 0;
-    } else {
-      regularHours = shiftHours;
-      overtimeHours = parseFloat((totalHours - shiftHours).toFixed(2));
-    }
-
-    // Update attendance record
-    attendance.outTime = currentTimeString;
     attendance.totalHours = totalHours;
     attendance.regularHours = regularHours;
     attendance.overtimeHours = overtimeHours;
-    attendance.punchLogs.push({
-      punchType: 'OUT',
-      punchTime: now
-    });
+    attendance.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.inTime;
+    attendance.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.outTime;
     attendance.note = `Punch OUT via barcode scanner | Total: ${totalHours}h | Regular: ${regularHours}h | OT: ${overtimeHours}h`;
 
-    await emp.save();
+    await attendance.save();
 
-    // Re-populate
+    // Re-populate employee relations for response
     await emp.populate('headDepartment');
     await emp.populate('subDepartment');
     await emp.populate('group');
@@ -276,6 +399,7 @@ async function handlePunchOut(emp, attendanceIndex, now, currentTimeString, res)
       success: true,
       type: 'out',
       message: 'Punch OUT successful',
+      attendance,
       employee_id: emp._id,
       time: currentTimeString,
       employee_name: emp.name,
@@ -285,6 +409,7 @@ async function handlePunchOut(emp, attendanceIndex, now, currentTimeString, res)
     });
   } catch (err) {
     console.error('Punch OUT error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
   }
 }

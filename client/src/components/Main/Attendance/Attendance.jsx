@@ -5,9 +5,11 @@ import EmployeeSummary from "./components/EmployeeSummary"
 import AttendanceTable from "./components/AttendanceTable"
 import EmployeeTable from "../commonComponents/employeeTable"
 import BarcodeScanner from "./components/BarcodeScanner"
+import PunchRecordsModal from "./components/PunchRecordsModal"
 import { toast } from "react-toastify"
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
+import { IoMdLogOut } from "react-icons/io";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
@@ -31,6 +33,8 @@ const Attendance = () => {
   const [viewMode, setViewMode] = useState("list") // list | report
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [punchModalOpen, setPunchModalOpen] = useState(false)
+  const [selectedPunchDate, setSelectedPunchDate] = useState(null)
 
   /* ------------------ Resize Handler ------------------ */
   useEffect(() => {
@@ -69,14 +73,55 @@ const Attendance = () => {
     loadEmployees()
   }, [])
 
-  /* ------------------ Fetch Report ------------------ */
+  /* ------------------ Fetch Report with enhanced table data ------------------ */
   const fetchReport = async params => {
     try {
       setLoading(true)
       const res = await axios.get(API, { params })
 
       if (res.data?.data) {
-        setReport(res.data.data)
+        const reportData = res.data.data
+        
+        // Build enhanced table with Worked Hours and OT rows
+        // (In and Out are already provided by backend, but ensure they show "--" for empty cells)
+        if (reportData.employee && reportData.days && reportData.table) {
+          const enhancedTable = { ...reportData.table }
+          
+          // Ensure In and Out rows have "--" for empty strings
+          if (enhancedTable.In) {
+            enhancedTable.In = enhancedTable.In.map(v => (v === '' || v === null) ? null : v)
+          }
+          if (enhancedTable.Out) {
+            enhancedTable.Out = enhancedTable.Out.map(v => (v === '' || v === null) ? null : v)
+          }
+          
+          // Build Worked Hours and OT rows
+          const workedHoursRow = []
+          const otRow = []
+
+          reportData.days.forEach((d, idx) => {
+            const rec = (reportData.employee.attendance || []).find(a => {
+              const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null
+              return aDate === d.iso
+            })
+            
+            if (rec && rec.inTime && rec.outTime) {
+              // Only show worked hours if both in and out are recorded
+              workedHoursRow.push(rec.totalHours ? `${rec.totalHours}h` : null)
+              otRow.push(rec.overtimeHours && rec.overtimeHours > 0 ? `${rec.overtimeHours}h` : null)
+            } else {
+              workedHoursRow.push(null)
+              otRow.push(null)
+            }
+          })
+
+          enhancedTable['Worked Hours'] = workedHoursRow
+          enhancedTable['OT (Hours)'] = otRow
+
+          reportData.table = enhancedTable
+        }
+
+        setReport(reportData)
         setViewMode("report")
       } else {
         setReport(null)
@@ -90,7 +135,7 @@ const Attendance = () => {
     }
   }
 
-  /* ------------------ Mark Attendance ------------------ */
+  /* ------------------ Mark Attendance (Punch IN) ------------------ */
   const markAttendance = async emp => {
     try {
       const today = new Date().toISOString().slice(0, 10)
@@ -137,12 +182,68 @@ const Attendance = () => {
     }
   }
 
+  /* ------------------ Punch OUT Logic (via barcode endpoint) ------------------ */
+  const markPunchOut = async emp => {
+    try {
+      // Use the barcode scanner endpoint to handle punch OUT
+      // Pass employee empId as the barcode code
+      const res = await axios.post(
+        `${API_URL}/api/store-emp-attend?code=${emp.empId}`,
+        { date: new Date().toISOString().slice(0, 10) }
+      )
+
+      if (res.data?.type === 'out') {
+        toast.success(`Punch OUT successful for ${emp.name}\nTotal Hours: ${res.data.total_hours}h`)
+        
+        // Refresh report to show updated punch data (don't mark absent)
+        if (report) {
+          fetchReport({
+            employeeId: report.employee._id,
+            month: filters.month,
+            year: filters.year,
+          })
+        }
+      } else {
+        toast.info("Punch recorded")
+      }
+    } catch (err) {
+      console.error("Punch OUT failed", err)
+      const message = err?.response?.data?.message || "Failed to punch out"
+      toast.error(message)
+    }
+  }
+
   const handleBackToList = () => {
     setViewMode("list")
     setReport(null)
   }
 
   const handleSearch = () => fetchReport(filters)
+
+  /* Refresh report (used after punch OUT) */
+  const refreshReport = () => {
+    if (report?.employee?._id) {
+      fetchReport({
+        employeeId: report.employee._id,
+        month: filters.month,
+        year: filters.year,
+      })
+    }
+  }
+
+  /* Handle cell click to open punch records modal */
+  const handleCellClick = (isoDate, rowType) => {
+    if (report?.employee?.attendance) {
+      const attendance = report.employee.attendance.find(a => {
+        const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null
+        return aDate === isoDate
+      })
+      if (attendance) {
+        setSelectedPunchDate({ date: isoDate, attendance, rowType })
+        setPunchModalOpen(true)
+      }
+    }
+  }
 
   /* ===================== RENDER ===================== */
   return (
@@ -204,11 +305,11 @@ const Attendance = () => {
                 </button>
               ) : (
                 <button
-                  title="Attendance Marked"
-                  className="bg-green-600 p-2 rounded-full cursor-not-allowed"
-                  disabled
+                  title="Punch Out"
+                  onClick={() => markPunchOut(report.employee)}
+                  className="bg-red-600 p-2 rounded-full hover:bg-red-700 cursor-pointer"
                 >
-                  <FaUserCheck size={24} />
+                  <IoMdLogOut size={24} />
                 </button>
               )
             })()
@@ -285,6 +386,8 @@ const Attendance = () => {
                     days={report.days}
                     data={report.table}
                     isMobile={isMobile}
+                    attendanceRaw={report.employee.attendance}
+                    onCellClick={handleCellClick}
                   />
                 </div>
               </div>
@@ -317,6 +420,21 @@ const Attendance = () => {
           }, 2500)
         }}
       />
+
+      {/* Punch Records Modal */}
+      {selectedPunchDate && (
+        <PunchRecordsModal
+          isOpen={punchModalOpen}
+          onClose={() => {
+            setPunchModalOpen(false)
+            setSelectedPunchDate(null)
+          }}
+          attendance={selectedPunchDate.attendance}
+          date={selectedPunchDate.date}
+          employeeName={report?.employee?.name || 'Employee'}
+          shiftHours={report?.employee?.workHours || 8}
+        />
+      )}
     </div>
   )
 }

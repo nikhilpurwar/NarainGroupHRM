@@ -1,4 +1,4 @@
-const AttendanceTable = ({ days, data, isMobile }) => {
+const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) => {
   const getStatusColor = (status, rowType) => {
     if (rowType === 'Status') {
       if (status === 'present') return 'bg-green-100 text-green-900 font-semibold';
@@ -6,6 +6,15 @@ const AttendanceTable = ({ days, data, isMobile }) => {
       if (status === 'halfday') return 'bg-yellow-100 text-yellow-900 font-semibold';
       if (status === 'leave') return 'bg-blue-100 text-blue-900 font-semibold';
       return 'bg-gray-100 text-gray-500';
+    }
+    if (rowType === 'In' || rowType === 'Out') {
+      return status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400';
+    }
+    if (rowType === 'Worked Hours') {
+      return status ? 'bg-purple-50 text-purple-900 font-semibold' : 'bg-gray-50 text-gray-400';
+    }
+    if (rowType === 'OT (Hours)') {
+      return status ? 'bg-orange-50 text-orange-900 font-semibold' : 'bg-gray-50 text-gray-400';
     }
     return status ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-400';
   };
@@ -76,8 +85,20 @@ const AttendanceTable = ({ days, data, isMobile }) => {
                     </td>
                     {data[row].slice(0, 7).map((cell, i) => {
                       const isStatus = row === 'Status';
+                      const isInOut = row === 'In' || row === 'Out';
+                      const isoDate = days[i]?.iso;
+                      const isClickable = isInOut && cell;
+
                       return (
-                        <td key={i} className={`border px-1 py-2 text-center ${getStatusColor(cell, row)}`}>
+                        <td
+                          key={i}
+                          className={`border px-1 py-2 text-center ${getStatusColor(cell, row)} ${isClickable ? 'cursor-pointer' : ''}`}
+                          onClick={() => {
+                            if (isClickable && onCellClick) {
+                              onCellClick(isoDate, row);
+                            }
+                          }}
+                        >
                           {isStatus ? getStatusBadge(cell) : (cell || '--')}
                         </td>
                       );
@@ -143,8 +164,20 @@ const AttendanceTable = ({ days, data, isMobile }) => {
               </td>
               {data[row].map((cell, i) => {
                 const isStatus = row === 'Status';
+                const isInOut = row === 'In' || row === 'Out';
+                const isoDate = days[i]?.iso;
+                const isClickable = isInOut && cell;
+
                 return (
-                  <td key={i} className={`border px-3 py-2 text-center whitespace-nowrap ${getStatusColor(cell, row)}`}>
+                  <td
+                    key={i}
+                    className={`border px-3 py-2 text-center whitespace-nowrap ${getStatusColor(cell, row)} ${isClickable ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (isClickable && onCellClick) {
+                        onCellClick(isoDate, row);
+                      }
+                    }}
+                  >
                     {isStatus ? getStatusBadge(cell) : (cell || '--')}
                   </td>
                 );

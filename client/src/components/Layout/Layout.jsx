@@ -4,63 +4,67 @@ import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import Main from '../Main/Main'
 
-const pageConfig = {
-  dashboard: { path: '/dashboard', title: 'Dashboard', subtitle: 'Overview' },
-  employees: { path: '/employees', title: 'All Employees', subtitle: 'List of employees' },
-  addEmployee: { path: '/employee/add', title: 'Add Employee', subtitle: 'Manage employee details' },
-  editEmployee: { path: '/employee/:id/edit', title: 'Edit Employee', subtitle: 'Manage employee details' },
-  barcode: { path: '/barcode', title: 'Barcode', subtitle: 'Barcode of All Employees' },
-  profile: { path: '/profile', title: 'Profile', subtitle: 'User Profile' },
-  attReport: { path: '/attReport', title: 'Attendance', subtitle: 'Attendance report' },
-  liveattend: { path: '/liveattend', title: 'Live Attendance', subtitle: 'Current attendance' },
-  manageAdvance: { path: '/advance', title: 'Manage Advance', subtitle: 'Manage advance' },
-  'emp-salary-report': { path: '/emp-salary-report', title: 'Monthly Salary', subtitle: 'Report' },
-  'daily_report': { path: '/daily_report', title: 'Daily Salary', subtitle: 'Report' },
-  'attendence-report': { path: '/attendence-report', title: 'Attendance Report', subtitle: 'Report' },
-  departments: { path: '/departments', title: 'Head Departments', subtitle: 'Departments' },
-  subdepartment: { path: '/subdepartment', title: 'Sub Departments', subtitle: 'Departments' },
-  group: { path: '/group', title: 'Group', subtitle: 'Departments' },
-  designation: { path: '/designation', title: 'Designation', subtitle: 'Departments' },
-  'user-list': { path: '/user-list', title: 'Manage Users', subtitle: 'Settings' },
-  breaks: { path: '/breaks', title: 'Working Hours', subtitle: 'Settings' },
-  festival: { path: '/festival', title: 'Holidays', subtitle: 'Settings' },
-  charges: { path: '/charges', title: 'Charges', subtitle: 'Settings' },
-}
-
 const Layout = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-  const location = useLocation();
-  const pathname = location?.pathname || '';
-  const match = Object.values(pageConfig).find(cfg => pathname === cfg.path || pathname.startsWith(cfg.path));
-  const currentTopbar = match ? { title: match.title, subtitle: match.subtitle } : { title: 'Admin Panel', subtitle: '' };
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const location = useLocation()
 
-  const handleSidebarClick = () => {
-    // no-op: topbar derived from current route (location)
-  };
+  const pageConfig = {
+    dashboard: { path: '/dashboard', title: 'Dashboard', subtitle: 'Overview' },
+    employees: { path: '/employees', title: 'All Employees', subtitle: 'List of employees' },
+    addEmployee: { path: '/employee/add', title: 'Add Employee', subtitle: 'Manage employee details' },
+    editEmployee: { path: '/employee/:id/edit', title: 'Edit Employee', subtitle: 'Manage employee details' },
+    barcode: { path: '/barcode', title: 'Barcode', subtitle: 'Barcode of All Employees' },
+    profile: { path: '/profile', title: 'Profile', subtitle: 'User Profile' },
+    attReport: { path: '/attReport', title: 'Attendance', subtitle: 'Attendance report' },
+    liveattend: { path: '/liveattend', title: 'Live Attendance', subtitle: 'Current attendance' },
+    manageAdvance: { path: '/advance', title: 'Manage Advance', subtitle: 'Manage advance' },
+    'emp-salary-report': { path: '/emp-salary-report', title: 'Monthly Salary', subtitle: 'Report' },
+    'daily_report': { path: '/daily_report', title: 'Daily Salary', subtitle: 'Report' },
+    'attendence-report': { path: '/attendence-report', title: 'Attendance Report', subtitle: 'Report' },
+    departments: { path: '/departments', title: 'Head Departments', subtitle: 'Departments' },
+    subdepartment: { path: '/subdepartment', title: 'Sub Departments', subtitle: 'Departments' },
+    group: { path: '/group', title: 'Group', subtitle: 'Departments' },
+    designation: { path: '/designation', title: 'Designation', subtitle: 'Departments' },
+    'user-list': { path: '/user-list', title: 'Manage Users', subtitle: 'Settings' },
+    breaks: { path: '/breaks', title: 'Working Hours', subtitle: 'Settings' },
+    festival: { path: '/festival', title: 'Holidays', subtitle: 'Settings' },
+    charges: { path: '/charges', title: 'Charges', subtitle: 'Settings' },
+  }
 
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
+  const pathname = location.pathname
+  const match = Object.values(pageConfig).find(
+    cfg => pathname === cfg.path || pathname.startsWith(cfg.path)
+  )
+
+  const currentTopbar = match
+    ? { title: match.title, subtitle: match.subtitle }
+    : { title: 'Admin Panel', subtitle: '' }
 
   return (
-    <div className='flex bg-gray-100 h-screen overflow-hidden relative'>
+    <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
+
+      {/* Sidebar */}
       <Sidebar
-        onItemClick={handleSidebarClick}
         isCollapsed={isSidebarCollapsed}
-        toggleSidebar={toggleSidebar}
+        toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
-      <div className={`flex flex-col flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-0'}`}>
-        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'ml-0' : 'ml-64'}`}>
-          <Topbar
-            title={currentTopbar.title}
-            subtitle={currentTopbar.subtitle}
-            isSidebarCollapsed={isSidebarCollapsed}
-            toggleSidebar={toggleSidebar}
-          />
-        </div>
-        <div className={`transition-all duration-300 overflow-auto main-scroll ${isSidebarCollapsed ? 'ml-0' : 'ml-64'}`}>
+
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 min-w-0">
+
+        {/* Topbar */}
+        <Topbar
+          title={currentTopbar.title}
+          subtitle={currentTopbar.subtitle}
+          isSidebarCollapsed={isSidebarCollapsed}
+          toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+
+        {/* Page Content */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-auto main-scroll">
           <Main />
         </div>
+
       </div>
     </div>
   )
