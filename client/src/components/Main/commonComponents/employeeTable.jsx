@@ -172,7 +172,7 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
                                             <td className="px-4 py-3 flex items-center gap-3">
                                                 <img src={emp.avatar || DEFAULT_AVATAR} alt="Profile" className="w-10 h-10 rounded-full border" />
-                                                <button className="font-bold text-gray-900 text-left" onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}>{emp.name}</button>
+                                                <button className="font-bold text-gray-900 text-left hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}>{emp.name}</button>
                                             </td>
                                             <td className="px-4 py-3">{emp.fatherName}</td>
                                             <td className="px-4 py-3">{emp.mobile}</td>
