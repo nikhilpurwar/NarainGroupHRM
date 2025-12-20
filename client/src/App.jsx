@@ -1,8 +1,10 @@
 // import { useState } from 'react'
 import './App.css'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+
 import { HierarchyProvider } from './context/HierarchyContext'
 import Login from './components/Login'
 import SignUp from './components/SignUp'
@@ -30,42 +32,44 @@ import AddEditEmployee from './components/Main/All Employees/components/AddEditE
 function App() {
   return (
     <HierarchyProvider>
-      <ToastContainer position="top-right" autoClose={3000} />
-      <Routes>
-        <Route path="/login" element={<Login />}></Route>
-        <Route path="/signup" element={<SignUp />}></Route>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/employees" element={<AllEmployees />} />
-          <Route path="/employee/add" element={<AddEditEmployee />} />
-          <Route path="/employee/:id/edit" element={<AddEditEmployee />} />
-          <Route path="/profile/:id" element={<Profile />} />
-          <Route path="/barcodes" element={<Barcodes />} />
-          <Route path="/attReport" element={<Attendance />} />
-          <Route path="/liveattend" element={<LiveAttendance />} />
-          <Route path="/advance" element={<ManageAdvance />} />
+      <Router>
+        <ToastContainer position="top-right" autoClose={3000} />
+        <Routes>
+          <Route path="/login" element={<Login />}></Route>
+          <Route path="/signup" element={<SignUp />}></Route>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/employees" element={<AllEmployees />} />
+            <Route path="/employee/add" element={<AddEditEmployee />} />
+            <Route path="/employee/:id/edit" element={<AddEditEmployee />} />
+            <Route path="/profile/:id" element={<Profile />} />
+            <Route path="/barcodes" element={<Barcodes />} />
+            <Route path="/attReport" element={<Attendance />} />
+            <Route path="/liveattend" element={<LiveAttendance />} />
+            <Route path="/advance" element={<ManageAdvance />} />
 
-          <Route path="/emp-salary-report" element={<MonthlySalary />} />
-          <Route path="/daily_report" element={<DailySalary />} />
-          <Route path="/attendence-report" element={<ReportsAttendance />} />
+            <Route path="/emp-salary-report" element={<MonthlySalary />} />
+            <Route path="/daily_report" element={<DailySalary />} />
+            <Route path="/attendence-report" element={<ReportsAttendance />} />
 
-          {/* Department & Designations */}
-          <Route path="/departments" element={<HeadDepartments />} />
-          <Route path="/subdepartment" element={<SubDepartments />} />
-          {/* <Route path="/group" element={<Groups />} /> */}
-          <Route path="/designation" element={<Designations />} />
+            {/* Department & Designations */}
+            <Route path="/departments" element={<HeadDepartments />} />
+            <Route path="/subdepartment" element={<SubDepartments />} />
+            {/* <Route path="/group" element={<Groups />} /> */}
+            <Route path="/designation" element={<Designations />} />
 
-          {/* Settings */}
-          <Route path="/user-list" element={<ManageUsers />} />
-          <Route path="/breaks" element={<WorkingHours />} />
-          <Route path="/festival" element={<Holidays />} />
-          <Route path="/charges" element={<Charges />} />
+            {/* Settings */}
+            <Route path="/user-list" element={<ManageUsers />} />
+            <Route path="/breaks" element={<WorkingHours />} />
+            <Route path="/festival" element={<Holidays />} />
+            <Route path="/charges" element={<Charges />} />
 
-          {/* fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      </Routes>
+            {/* fallback */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </Router>
     </HierarchyProvider>
   )
 }
