@@ -5,6 +5,50 @@ import { apiError, handleMongooseError } from "../utils/error.util.js";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 
+// Helper: determine attendance day ISO (YYYY-MM-DD) based on 8AM boundary
+// Uses a timezone-aware calculation (default: Asia/Kolkata) so that
+// the attendance day matches the local date/time when punch was made.
+const getAttendanceIsoForTimestamp = (ts) => {
+  const timeZone = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
+
+  // Use Intl to get local parts in the target timezone
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+  });
+
+  const parts = fmt.formatToParts(new Date(ts)).reduce((acc, p) => {
+    if (p.type === 'year') acc.year = Number(p.value);
+    if (p.type === 'month') acc.month = Number(p.value);
+    if (p.type === 'day') acc.day = Number(p.value);
+    if (p.type === 'hour') acc.hour = Number(p.value);
+    return acc;
+  }, { year: 0, month: 0, day: 0, hour: 0 });
+
+  const { year, month, day, hour } = parts;
+  // If punch happened at or after 08:00 local time, it's the same day; otherwise previous day
+  let baseYear = year;
+  let baseMonth = month;
+  let baseDay = day;
+  if (hour < 8) {
+    // subtract one day (handle month/year boundaries)
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    dt.setUTCDate(dt.getUTCDate() - 1);
+    baseYear = dt.getUTCFullYear();
+    baseMonth = dt.getUTCMonth() + 1;
+    baseDay = dt.getUTCDate();
+  }
+
+  // Return ISO date string YYYY-MM-DD
+  const mm = String(baseMonth).padStart(2, '0');
+  const dd = String(baseDay).padStart(2, '0');
+  return `${baseYear}-${mm}-${dd}`;
+}
+
 const generateBarcodeDataUrl = (text) => {
   return new Promise((resolve, reject) => {
     bwipjs.toBuffer({
@@ -85,7 +129,6 @@ export const getEmployeeById = async (req, res) => {
 export const addAttendance = async (req, res) => {
   try {
     const { date, status, inTime, outTime, note } = req.body;
-    if (!date) return res.status(400).json({ success: false, message: "date is required" });
 
     const emp = await Employee.findById(req.params.id)
       .populate('headDepartment')
@@ -93,6 +136,92 @@ export const addAttendance = async (req, res) => {
       .populate('designation');
 
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
+
+    // If no explicit inTime/outTime provided, treat this as a punch toggle (IN/OUT) using 8AM boundary
+    if (!inTime && !outTime) {
+      const now = new Date();
+      const currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const attendanceIso = getAttendanceIsoForTimestamp(now);
+      
+      // Check for duplicate punch (debounce)
+      if (attendanceService.isPunchDuplicate(emp._id.toString(), null)) {
+        return res.status(400).json({ success: false, message: 'Duplicate punch detected. Please try again after a few seconds.' });
+      }
+
+      const attendanceDoc = await Attendance.findOne({
+        employee: emp._id,
+        date: {
+          $gte: new Date(`${attendanceIso}T00:00:00Z`),
+          $lte: new Date(`${attendanceIso}T23:59:59Z`)
+        }
+      });
+
+      if (attendanceDoc) {
+        const lastPunch = Array.isArray(attendanceDoc.punchLogs) && attendanceDoc.punchLogs.length > 0 ? (attendanceDoc.punchLogs[attendanceDoc.punchLogs.length - 1].punchType || '').toUpperCase() : null;
+        if (lastPunch === 'IN') {
+          // Perform Punch OUT: append OUT, compute totals, save
+          attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
+          attendanceDoc.punchLogs.push({ punchType: 'OUT', punchTime: now });
+          const computed = attendanceService.computeTotalsFromPunchLogs(attendanceDoc.punchLogs, 8);
+          attendanceDoc.totalHours = computed.totalHours;
+          attendanceDoc.regularHours = computed.regularHours;
+          attendanceDoc.overtimeHours = computed.overtimeHours;
+          attendanceDoc.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.inTime;
+          attendanceDoc.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.outTime;
+          attendanceDoc.note = `Punch OUT via manual toggle | Total: ${computed.totalHours}h | Regular: ${computed.regularHours}h | OT: ${computed.overtimeHours}h`;
+          await attendanceDoc.save();
+          
+          // Record punch in debounce cache
+          attendanceService.recordPunch(emp._id.toString(), 'OUT');
+          
+          await emp.populate('headDepartment');
+          await emp.populate('subDepartment');
+          await emp.populate('designation');
+          return res.status(200).json({ success: true, type: 'out', message: 'Punch OUT successful', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
+        } else {
+          // Append IN to existing attendance
+          attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
+          attendanceDoc.punchLogs.push({ punchType: 'IN', punchTime: now });
+          attendanceDoc.inTime = currentTimeString;
+          const computed = attendanceService.computeTotalsFromPunchLogs(attendanceDoc.punchLogs, 8);
+          attendanceDoc.totalHours = computed.totalHours;
+          attendanceDoc.regularHours = computed.regularHours;
+          attendanceDoc.overtimeHours = computed.overtimeHours;
+          await attendanceDoc.save();
+          
+          // Record punch in debounce cache
+          attendanceService.recordPunch(emp._id.toString(), 'IN');
+          
+          // Check for continuous IN across 8AM boundary
+          await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+          
+          await emp.populate('headDepartment');
+          await emp.populate('subDepartment');
+          await emp.populate('designation');
+          return res.status(200).json({ success: true, type: 'in', message: 'Punch IN appended', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
+        }
+      }
+
+      // Create new attendance and mark IN
+      const dateObj = new Date(`${attendanceIso}T00:00:00Z`);
+      const dayOfWeek2 = dateObj.getDay();
+      const isWeekend2 = dayOfWeek2 === 0 || dayOfWeek2 === 6;
+      const newAtt = await Attendance.create({ employee: emp._id, date: dateObj, status: 'present', inTime: currentTimeString, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, breakMinutes: 0, isWeekend: isWeekend2, isHoliday: false, punchLogs: [{ punchType: 'IN', punchTime: now }], note: 'Punch IN via manual toggle' });
+      
+      // Record punch in debounce cache
+      attendanceService.recordPunch(emp._id.toString(), 'IN');
+      
+      // Check for continuous IN across 8AM boundary
+      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+      
+      await emp.populate('headDepartment');
+      await emp.populate('subDepartment');
+      await emp.populate('designation');
+      return res.status(201).json({ success: true, type: 'in', message: 'Punch IN successful', attendance: newAtt, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
+    }
+
+    // Manual explicit attendance creation (inTime/outTime provided) - preserve previous behavior
+    if (!date) return res.status(400).json({ success: false, message: "date is required" });
 
     // Check for duplicate attendance on same date in Attendance collection
     const dateObj = new Date(date);

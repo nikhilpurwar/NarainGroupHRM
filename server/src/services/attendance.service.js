@@ -4,7 +4,35 @@ import createHttpError from 'http-errors'
 // Configurable business rules
 const DEFAULT_CONFIG = {
   absentMarkingCutoffMinutes: 60 * 24, // by default consider past-day cutoff (can be overridden)
+  PUNCH_DEBOUNCE_SECONDS: 10, // debounce within 10 seconds
+  ATTENDANCE_DAY_START_HOUR: 8, // attendance day starts at 8 AM
 }
+
+// In-memory debounce cache: employeeId => { lastPunchTime, lastPunchType }
+const punchDebounceCache = new Map();
+
+export const isPunchDuplicate = (employeeId, punchType) => {
+  const now = new Date();
+  const cached = punchDebounceCache.get(employeeId);
+  
+  if (!cached) return false;
+  
+  const timeDiffSeconds = (now - cached.lastPunchTime) / 1000;
+  const isDuplicate = timeDiffSeconds < DEFAULT_CONFIG.PUNCH_DEBOUNCE_SECONDS && cached.lastPunchType === punchType;
+  
+  return isDuplicate;
+};
+
+export const recordPunch = (employeeId, punchType) => {
+  punchDebounceCache.set(employeeId, {
+    lastPunchTime: new Date(),
+    lastPunchType: punchType
+  });
+};
+
+export const clearPunchCache = (employeeId) => {
+  punchDebounceCache.delete(employeeId);
+};
 
 export const buildDateRange = (year, month) => {
   const start = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00Z`)
@@ -153,6 +181,12 @@ export default {
   bulkUpsertAttendances,
   getMonthlyAttendances,
   autoMarkAbsentsForMonth,
+  isPunchDuplicate,
+  recordPunch,
+  clearPunchCache,
+  handleContinuousINAcross8AM,
+  parseDateTime,
+  computeTotalsFromPunchLogs,
 }
 
 // Utility: parse a date (YYYY-MM-DD) and time string into a Date object.
@@ -186,5 +220,81 @@ export function parseDateTime(dateIso, timeStr) {
     return dt
   } catch (err) {
     return null
+  }
+}
+
+// Check if employee has open IN that crosses 8AM boundary to next day
+export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Attendance) {
+  try {
+    // Get attendance for today (computed by 8AM boundary)
+    const todayAtt = await Attendance.findOne({
+      employee: employeeId,
+      date: {
+        $gte: new Date(`${attendanceIso}T00:00:00Z`),
+        $lte: new Date(`${attendanceIso}T23:59:59Z`)
+      }
+    });
+
+    if (!todayAtt || !Array.isArray(todayAtt.punchLogs) || todayAtt.punchLogs.length === 0) {
+      return null;
+    }
+
+    // Check if last punch is IN
+    const lastPunch = todayAtt.punchLogs[todayAtt.punchLogs.length - 1];
+    if (!lastPunch || lastPunch.punchType !== 'IN') {
+      return null;
+    }
+
+    // Get last IN time
+    const lastInTime = new Date(lastPunch.punchTime);
+    const lastInHour = lastInTime.getHours();
+
+    // If IN was before 8AM (assigned to previous day), check if it should span to today
+    if (lastInHour < 8 && attendanceIso !== lastInTime.toISOString().slice(0, 10)) {
+      // IN was yesterday before 8AM, and we're now computing today
+      // This means employee was IN from yesterday before 8AM and is still IN today
+      // Mark today as Present automatically
+      const nextDayIso = attendanceIso;
+      const nextDayDateObj = new Date(`${nextDayIso}T00:00:00Z`);
+      const nextDayOfWeek = nextDayDateObj.getDay();
+      const nextDayIsWeekend = nextDayOfWeek === 0 || nextDayOfWeek === 6;
+
+      let nextDayAtt = await Attendance.findOne({
+        employee: employeeId,
+        date: {
+          $gte: new Date(`${nextDayIso}T00:00:00Z`),
+          $lte: new Date(`${nextDayIso}T23:59:59Z`)
+        }
+      });
+
+      if (!nextDayAtt) {
+        // Create new attendance for next day with IN at 8AM boundary
+        nextDayAtt = await Attendance.create({
+          employee: employeeId,
+          date: nextDayDateObj,
+          status: 'present',
+          inTime: '08:00:00',
+          outTime: null,
+          totalHours: 0,
+          regularHours: 0,
+          overtimeHours: 0,
+          breakMinutes: 0,
+          isWeekend: nextDayIsWeekend,
+          isHoliday: false,
+          punchLogs: [{ 
+            punchType: 'IN', 
+            punchTime: new Date(`${nextDayIso}T08:00:00Z`)
+          }],
+          note: 'Continuous IN from previous day (auto-marked at 8AM boundary)'
+        });
+      }
+
+      return { marked: true, nextDayAttendance: nextDayAtt };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error handling continuous IN:', err);
+    return null;
   }
 }

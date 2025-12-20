@@ -1,6 +1,14 @@
-const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) => {
-  const getStatusColor = (status,  rowType) => {
+const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, holidays = [] }) => {
+  const isHoliday = (isoDate) => {
+    return (holidays || []).some(h => {
+      const hDate = h.date ? (typeof h.date === 'string' ? h.date : h.date.split('T')[0]) : null
+      return hDate === isoDate
+    })
+  }
+
+  const getStatusColor = (status,  rowType, isoDate) => {
     if (rowType === 'Status') {
+      if (isHoliday(isoDate)) return 'bg-purple-100 text-purple-900 font-semibold';
       if (status === 'present') return 'bg-green-100 text-green-900 font-semibold';
       if (status === 'absent') return 'bg-red-100 text-red-900 font-semibold';
       if (status === 'halfday') return 'bg-yellow-100 text-yellow-900 font-semibold';
@@ -10,16 +18,32 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) =
     if (rowType === 'In' || rowType === 'Out') {
       return status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400';
     }
+    // if (rowType === 'Regular Hours') {
+    //   return status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400';
+    // }
     if (rowType === 'Worked Hours') {
-      return status ? 'bg-purple-50 text-purple-900 font-semibold' : 'bg-gray-50 text-gray-400';
+      return status ? 'bg-blue-50 text-blue-900 font-semibold' : 'bg-gray-50 text-gray-400';
     }
     if (rowType === 'OT (Hours)') {
       return status ? 'bg-orange-50 text-orange-900 font-semibold' : 'bg-gray-50 text-gray-400';
     }
+    if (rowType === 'Total Worked Hours') {
+      return status ? 'bg-purple-50 text-purple-900 font-bold' : 'bg-gray-50 text-gray-400';
+    }
     return status ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-400';
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isoDate) => {
+    if (isHoliday(isoDate)) {
+      return (
+        <div className="flex flex-col items-center">
+          <span className="bg-purple-500 text-white px-1.5 py-0.5 rounded text-xs font-bold">
+            F
+          </span>
+          <span className="text-[10px] text-gray-600 mt-0.5">Festival</span>
+        </div>
+      )
+    }
     if (!status) return '--';
     const statusMap = {
       'present': { label: 'P', bg: 'bg-green-500', full: 'Present' },
@@ -92,14 +116,14 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) =
                       return (
                         <td
                           key={i}
-                          className={`border px-1 py-2 text-center ${getStatusColor(cell, row)} ${isClickable ? 'cursor-pointer' : ''}`}
+                          className={`border px-1 py-2 text-center ${getStatusColor(cell, row, isoDate)} ${isClickable ? 'cursor-pointer' : ''}`}
                           onClick={() => {
                             if (isClickable && onCellClick) {
                               onCellClick(isoDate, row);
                             }
                           }}
                         >
-                          {isStatus ? getStatusBadge(cell) : (cell || '--')}
+                          {isStatus ? getStatusBadge(cell, isoDate) : (cell || '--')}
                         </td>
                       );
                     })}
@@ -171,14 +195,14 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick }) =
                 return (
                   <td
                     key={i}
-                    className={`border px-3 py-2 text-center whitespace-nowrap ${getStatusColor(cell, row)} ${isClickable ? 'cursor-pointer' : ''}`}
+                    className={`border px-3 py-2 text-center whitespace-nowrap ${getStatusColor(cell, row, isoDate)} ${isClickable ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (isClickable && onCellClick) {
                         onCellClick(isoDate, row);
                       }
                     }}
                   >
-                    {isStatus ? getStatusBadge(cell) : (cell || '--')}
+                    {isStatus ? getStatusBadge(cell, isoDate) : (cell || '--')}
                   </td>
                 );
               })}
