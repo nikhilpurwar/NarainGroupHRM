@@ -32,15 +32,15 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
           </div>
           <div>
             <p className="text-xs text-gray-600">Worked Hours</p>
-            <p className="text-lg font-semibold text-blue-600">{attendance.totalHours || 0}h</p>
+            <p className="text-lg font-semibold text-blue-600">{attendance.totalHoursDisplay || (attendance.totalHours ? `${attendance.totalHours}h` : '0h 0m')}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Regular Hours</p>
-            <p className="text-lg font-semibold text-green-600">{attendance.regularHours || 0}h</p>
+            <p className="text-lg font-semibold text-green-600">{attendance.regularHoursDisplay || (attendance.regularHours ? `${attendance.regularHours}h` : '0h 0m')}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Overtime Hours</p>
-            <p className="text-lg font-semibold text-orange-600">{attendance.overtimeHours || 0}h</p>
+            <p className="text-lg font-semibold text-orange-600">{attendance.overtimeHoursDisplay || (attendance.overtimeHours ? `${attendance.overtimeHours}h` : '0h 0m')}</p>
           </div>
         </div>
 

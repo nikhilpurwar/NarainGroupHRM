@@ -166,6 +166,10 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
           attendanceDoc.overtimeHours = computed.overtimeHours;
+          attendanceDoc.totalMinutes = computed.totalMinutes;
+          attendanceDoc.totalHoursDisplay = computed.totalHoursDisplay;
+          attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
+          attendanceDoc.overtimeHoursDisplay = computed.overtimeHoursDisplay;
           attendanceDoc.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.inTime;
           attendanceDoc.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.outTime;
           attendanceDoc.note = `Punch OUT via manual toggle | Total: ${computed.totalHours}h | Regular: ${computed.regularHours}h | OT: ${computed.overtimeHours}h`;
@@ -187,6 +191,10 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
           attendanceDoc.overtimeHours = computed.overtimeHours;
+          attendanceDoc.totalMinutes = computed.totalMinutes;
+          attendanceDoc.totalHoursDisplay = computed.totalHoursDisplay;
+          attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
+          attendanceDoc.overtimeHoursDisplay = computed.overtimeHoursDisplay;
           await attendanceDoc.save();
           
           // Record punch in debounce cache
@@ -206,7 +214,7 @@ export const addAttendance = async (req, res) => {
       const dateObj = new Date(`${attendanceIso}T00:00:00Z`);
       const dayOfWeek2 = dateObj.getDay();
       const isWeekend2 = dayOfWeek2 === 0 || dayOfWeek2 === 6;
-      const newAtt = await Attendance.create({ employee: emp._id, date: dateObj, status: 'present', inTime: currentTimeString, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, breakMinutes: 0, isWeekend: isWeekend2, isHoliday: false, punchLogs: [{ punchType: 'IN', punchTime: now }], note: 'Punch IN via manual toggle' });
+      const newAtt = await Attendance.create({ employee: emp._id, date: dateObj, status: 'present', inTime: currentTimeString, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, totalMinutes: 0, totalHoursDisplay: '0h 0m', regularHoursDisplay: '0h 0m', overtimeHoursDisplay: '0h 0m', breakMinutes: 0, isWeekend: isWeekend2, isHoliday: false, punchLogs: [{ punchType: 'IN', punchTime: now }], note: 'Punch IN via manual toggle' });
       
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
@@ -289,6 +297,7 @@ export const addAttendance = async (req, res) => {
       inTime: capturedInTime,
       outTime,
       totalHours,
+      totalMinutes: inPunch && outPunch ? Math.round((outPunch - inPunch) / 60000) : 0,
       regularHours,
       overtimeHours,
       breakMinutes: 0,

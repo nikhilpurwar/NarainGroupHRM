@@ -195,7 +195,7 @@ const Attendance = () => {
         <div className="p-6 pb-0">
           <button
             onClick={() => setViewMode("list")}
-            className="flex items-center gap-2 text-gray-600 hover:text-black"
+            className="flex items-center gap-2 text-gray-600 hover:text-black cursor-pointer"
           >
             <MdKeyboardBackspace size={24} />
             <span>Back to List</span>

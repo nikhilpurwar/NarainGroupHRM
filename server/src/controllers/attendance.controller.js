@@ -94,6 +94,10 @@ export const attendanceReport = async (req, res) => {
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
             a.overtimeHours = computed.overtimeHours;
+            a.totalMinutes = computed.totalMinutes;
+            a.totalHoursDisplay = computed.totalHoursDisplay;
+            a.regularHoursDisplay = computed.regularHoursDisplay;
+            a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
             a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
             a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
             a._computedPairs = computed.pairs;
@@ -162,8 +166,9 @@ export const attendanceReport = async (req, res) => {
           statusRow.push(rec.status || 'present');
           inRow.push(rec.inTime || '');
           outRow.push(rec.outTime || '');
-          workedRow.push(typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : '');
-          otRow.push(typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : '');
+          // Prefer human-friendly display when available
+          workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
+          otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
           noteRow.push(rec.note || '');
         } else {
           statusRow.push(null);
@@ -211,6 +216,10 @@ export const attendanceReport = async (req, res) => {
         a.totalHours = computed.totalHours;
         a.regularHours = computed.regularHours;
         a.overtimeHours = computed.overtimeHours;
+        a.totalMinutes = computed.totalMinutes;
+        a.totalHoursDisplay = computed.totalHoursDisplay;
+        a.regularHoursDisplay = computed.regularHoursDisplay;
+        a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
         a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
         a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
         a._computedPairs = computed.pairs;
@@ -277,8 +286,8 @@ export const attendanceReport = async (req, res) => {
         statusRow.push(rec.status || 'present');
         inRow.push(rec.inTime || '');
         outRow.push(rec.outTime || '');
-        workedRow.push(typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : '');
-        otRow.push(typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : '');
+        workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
+        otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
         noteRow.push(rec.note || '');
       } else {
         statusRow.push(null);
@@ -407,6 +416,10 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       existingAttendance.totalHours = computed.totalHours;
       existingAttendance.regularHours = computed.regularHours;
       existingAttendance.overtimeHours = computed.overtimeHours;
+      existingAttendance.totalMinutes = computed.totalMinutes;
+      existingAttendance.totalHoursDisplay = computed.totalHoursDisplay;
+      existingAttendance.regularHoursDisplay = computed.regularHoursDisplay;
+      existingAttendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
       await existingAttendance.save();
       
       // Record punch in debounce cache
@@ -444,6 +457,10 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       inTime: currentTimeString,
       outTime: null,
       totalHours: 0,
+      totalMinutes: 0,
+      totalHoursDisplay: '0h 0m',
+      regularHoursDisplay: '0h 0m',
+      overtimeHoursDisplay: '0h 0m',
       regularHours: 0,
       overtimeHours: 0,
       breakMinutes: 0,
@@ -498,9 +515,13 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     attendance.totalHours = totalHours;
     attendance.regularHours = regularHours;
     attendance.overtimeHours = overtimeHours;
+    attendance.totalMinutes = computed.totalMinutes;
+    attendance.totalHoursDisplay = computed.totalHoursDisplay;
+    attendance.regularHoursDisplay = computed.regularHoursDisplay;
+    attendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
     attendance.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.inTime;
     attendance.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.outTime;
-    attendance.note = `Punch OUT via barcode scanner | Total: ${totalHours}h | Regular: ${regularHours}h | OT: ${overtimeHours}h`;
+    attendance.note = `Punch OUT via barcode scanner | Total: ${computed.totalHoursDisplay} | Regular: ${computed.regularHoursDisplay} | OT: ${computed.overtimeHoursDisplay}`;
 
     await attendance.save();
     

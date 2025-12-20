@@ -25,7 +25,7 @@ const EmployeeTable = ({
     const [subDepartment, setSubDepartment] = useState('')
     const [designation, setDesignation] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
-    
+
     // Schema options states
     const [departments, setDepartments] = useState([])
     const [subDepartments, setSubDepartments] = useState([])
@@ -37,13 +37,13 @@ const EmployeeTable = ({
         const fetchSchemaOptions = async () => {
             try {
                 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
-                
+
                 const [deptsRes, subDeptsRes, designationsRes] = await Promise.all([
                     axios.get(`${apiUrl}/api/department/head-departments`),
                     axios.get(`${apiUrl}/api/department/sub-departments`),
                     axios.get(`${apiUrl}/api/department/designations`)
                 ])
-                
+
                 setDepartments(deptsRes.data.data || [])
                 setSubDepartments(subDeptsRes.data.data || [])
                 setDesignations(designationsRes.data.data || [])
@@ -53,7 +53,7 @@ const EmployeeTable = ({
                 setSchemaLoading(false)
             }
         }
-        
+
         fetchSchemaOptions()
     }, [])
 
@@ -135,7 +135,7 @@ const EmployeeTable = ({
                             onClick={clearFilters}
                             className="flex items-center justify-center gap-2 w-full md:w-auto px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition"
                         >
-                            <RotateCcw size={18}/><span>Clear</span>
+                            <RotateCcw size={18} /><span>Clear</span>
                         </button>
                     </div>
 
@@ -150,11 +150,11 @@ const EmployeeTable = ({
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
                                 <th className="px-4 py-3">#</th>
+                                <th className="px-4 py-3">Emp ID</th>
                                 <th className="px-4 py-3">Name</th>
                                 <th className="px-4 py-3">Father Name</th>
                                 <th className="px-4 py-3">Mobile</th>
                                 <th className="px-4 py-3">Salary</th>
-                                <th className="px-4 py-3">Emp ID</th>
                                 <th className="px-4 py-3">Department</th>
                                 <th className="px-4 py-3">Sub Dept.</th>
                                 <th className="px-4 py-3">Designation</th>
@@ -170,14 +170,38 @@ const EmployeeTable = ({
                                     return (
                                         <tr key={emp.id || emp._id} className={`border-b transition ${statusClass}`}>
                                             <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
-                                            <td className="px-4 py-3 flex items-center gap-3">
-                                                <img src={emp.avatar || DEFAULT_AVATAR} alt="Profile" className="w-10 h-10 rounded-full border" />
-                                                <button className="font-bold text-gray-900 text-left hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}>{emp.name}</button>
+                                            <td
+                                                onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                className="px-4 py-3 cursor-pointer"
+                                            >
+                                                {emp.empId}
+                                            </td>
+                                            <td
+                                                onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                className="px-4 py-3 my-1 flex items-center gap-3 hover:bg-gray-200 hover:rounded-4xl cursor-pointer"
+                                            >
+                                                {emp.avatar ? (
+                                                    <img
+                                                        src={emp.avatar || DEFAULT_AVATAR}
+                                                        alt="Profile"
+                                                        className="w-10 h-10 rounded-full border"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-gray-300 text-gray-700 font-bold">
+                                                        {emp.name
+                                                            .split(" ")
+                                                            .map((n) => n[0])
+                                                            .join("")
+                                                            .toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <span className="font-bold text-gray-900 text-left hover:underline cursor-pointer">
+                                                    {emp.name}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3">{emp.fatherName}</td>
                                             <td className="px-4 py-3">{emp.mobile}</td>
                                             <td className="px-4 py-3">₹{emp.salary}</td>
-                                            <td className="px-4 py-3">{emp.empId}</td>
                                             <td className="px-4 py-3">{emp.headDepartment?.name || emp.headDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>

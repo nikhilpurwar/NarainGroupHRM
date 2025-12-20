@@ -108,8 +108,8 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
             <p className="text-green-500 text-xs mt-2">
               {successData.punchType === 'IN' ? 'Punch IN' : 'Punch OUT'} ✓
             </p>
-            {successData.totalHours && (
-              <p className="text-green-600 text-xs mt-1">Total Hours: {successData.totalHours}h</p>
+            {(successData.totalHoursDisplay || successData.totalHours || successData.attendance?.totalHoursDisplay || successData.attendance?.totalHours) && (
+              <p className="text-green-600 text-xs mt-1">Total Hours: {successData.totalHoursDisplay || successData.totalHours || successData.attendance?.totalHoursDisplay || successData.attendance?.totalHours} </p>
             )}
           </div>
         )}

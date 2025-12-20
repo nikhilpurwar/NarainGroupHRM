@@ -139,7 +139,25 @@ export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { cou
   const regularHours = totalHours <= shift ? totalHours : shift;
   const overtimeHours = totalHours > shift ? +(totalHours - shift).toFixed(2) : 0;
 
-  return { totalHours, regularHours, overtimeHours, lastInTime, lastOutTime, pairs };
+  // Helper: format minutes into "Xh Ym" string
+  const formatMinutes = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    return `${h}h ${m}m`;
+  }
+
+  return { 
+    totalHours, 
+    regularHours, 
+    overtimeHours, 
+    lastInTime, 
+    lastOutTime, 
+    pairs,
+    totalMinutes,
+    totalHoursDisplay: formatMinutes(totalMinutes),
+    regularHoursDisplay: formatMinutes(Math.round(regularHours * 60)),
+    overtimeHoursDisplay: formatMinutes(Math.round(overtimeHours * 60)),
+  };
 }
 
 export async function getMonthlyAttendances(employeeId, year, month, { page = 1, limit = 100, projection = null } = {}) {
