@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
 import { io as clientIO } from "socket.io-client";
@@ -13,6 +14,7 @@ const LiveAttendance = () => {
   const [attendanceMap, setAttendanceMap] = useState({});
   const [attendanceIso, setAttendanceIso] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,7 +60,7 @@ const LiveAttendance = () => {
       setAttendanceMap((prev) => ({ ...prev, [payload.employee]: payload.attendance }));
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("disconnect", () => { });
     return () => {
       socket.disconnect();
     };
@@ -104,9 +106,22 @@ const LiveAttendance = () => {
                   const statusColor = status === 'absent' ? 'bg-red-100 text-red-700' : status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
 
                   return (
-                    <tr key={key} className="border-b hover:bg-gray-50 transition">
+                    <tr
+                      key={key}
+                      title="Click too view profile"
+                      onClick={() => {
+                        navigate(`/profile/${item._id}`);
+                      }}
+                      className="border-b hover:bg-gray-100 transition cursor-pointer"
+                    >
                       <td className="px-4 py-3">{index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-gray-700">{item.empId}</td>
+                      <td
+                        title="Click too view profile"
+                        className="px-4 py-3 font-medium text-gray-700"
+                      >
+                        {item.empId}
+                      </td>
+
                       <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
                       <td className="px-4 py-3">{dateStr}</td>
                       <td className="px-4 py-3">{dept}</td>
