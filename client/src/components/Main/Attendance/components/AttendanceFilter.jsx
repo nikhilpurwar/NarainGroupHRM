@@ -5,9 +5,9 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 const months = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-]
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 
 const AttendanceFilter = ({ filters, setFilters, onSearch, reportData, isMobile }) => {
@@ -160,7 +160,7 @@ const AttendanceFilter = ({ filters, setFilters, onSearch, reportData, isMobile 
 
   // Desktop/Tablet View
   return (
-    <div className="bg-white rounded-xl shadow p-4 mb-6 overflow-x-auto">
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow p-4 mb-6 overflow-x-auto border border-blue-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-3 min-w-max lg:min-w-full">
         <select
           className="col-span-2 border p-2 rounded-lg focus:outline-none focus:border-gray-900 text-sm lg:text-base"

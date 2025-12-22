@@ -7,6 +7,7 @@ import { useHierarchy } from '../../../../context/HierarchyContext'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
+const DEDUCTION_API = `${API_URL}/api/charges`
 
 const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (
     <div>
@@ -75,6 +76,7 @@ const AddEditEmployee = () => {
 
     const [form, setForm] = useState(defaultForm)
     const [employees, setEmployees] = useState([])
+    const [deductions, setDeductions] = useState([])
     const [errors, setErrors] = useState({})
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
@@ -145,6 +147,19 @@ const AddEditEmployee = () => {
         }
         fetchEmployee()
     }, [id, isEdit])
+
+    // fetch deduction list
+    useEffect(() => {
+        const fetchDeductions = async () => {
+            try {
+                const res = await axios.get(DEDUCTION_API)
+                setDeductions(res.data?.data || [])
+            } catch (e) {
+                toast.error('Failed to fetch deductions:', e)
+            }
+        }
+        fetchDeductions()
+    }, [])
 
     // compute salaryPerHour on render if not provided
 
@@ -280,14 +295,14 @@ const AddEditEmployee = () => {
                 <h2 className="text-2xl font-semibold">{isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
                 <button className="text-sm text-gray-600" onClick={() => navigate(-1)}>✕</button>
             </div> */}
-             {/* Back Button */}
-                  <button
-                    onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
-                  >
-                    <MdKeyboardBackspace size={26} />
-                    <span className="text-sm font-medium">Back</span>
-                  </button>
+            {/* Back Button */}
+            <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
+            >
+                <MdKeyboardBackspace size={26} />
+                <span className="text-sm font-medium">Back</span>
+            </button>
 
             <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -313,7 +328,7 @@ const AddEditEmployee = () => {
 
                             <div className="flex items-center justify-center gap-6">
                                 {preview ? (
-                                    <img                                 
+                                    <img
                                         src={preview}
                                         alt="Profile Preview"
                                         className="w-30 h-30 rounded-full border-2 border-gray-300 shadow-sm object-cover"
@@ -428,7 +443,7 @@ const AddEditEmployee = () => {
                             value={form.shift}
                             onChange={handleChange}
                             options={["8-hour", "9-hour", "10-hour", "12-hour"]}
-                        />                      
+                        />
                     </div>
                 </div>
 
@@ -453,10 +468,17 @@ const AddEditEmployee = () => {
                     <div className="p-4">
                         <p className="font-medium mb-2">Deductions</p>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                            {["pf", "lwf", "ptax", "esi", "tds", "insurance"].map((d) => (
-                                <label key={d} className="flex items-center gap-2">
-                                    <input type="checkbox" name="deductions" value={d} onChange={handleChange} checked={form.deductions.includes(d)} />
-                                    {d.toUpperCase()}
+                            {deductions.map((d) => (
+                                <label key={d._id}  className="flex items-center gap-2 font-bold">
+                                    <input
+                                        title={d.value_type === 'INR' ? `${d.value}₹` : `${d.value}%`}
+                                        type="checkbox"
+                                        name="deductions"
+                                        value={d.deduction}
+                                        onChange={handleChange}
+                                        checked={form.deductions.includes(d.deduction)}
+                                    />
+                                    {d.deduction.toUpperCase()}
                                 </label>
                             ))}
                         </div>

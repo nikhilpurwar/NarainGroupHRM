@@ -142,7 +142,7 @@ export const addAttendance = async (req, res) => {
       const now = new Date();
       const currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const attendanceIso = getAttendanceIsoForTimestamp(now);
-      
+
       // Check for duplicate punch (debounce)
       if (attendanceService.isPunchDuplicate(emp._id.toString(), null)) {
         return res.status(400).json({ success: false, message: 'Duplicate punch detected. Please try again after a few seconds.' });
@@ -172,12 +172,14 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.overtimeHoursDisplay = computed.overtimeHoursDisplay;
           attendanceDoc.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.inTime;
           attendanceDoc.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendanceDoc.outTime;
-          attendanceDoc.note = `Punch OUT via manual toggle | Total: ${computed.totalHours}h | Regular: ${computed.regularHours}h | OT: ${computed.overtimeHours}h`;
+          // attendanceDoc.note = `Punch OUT via manual toggle | Total: ${computed.totalHours}h | Regular: ${computed.regularHours}h | OT: ${computed.overtimeHours}h`;
+          attendanceDoc.note = `Punch OUT via manual toggle`;
+
           await attendanceDoc.save();
-          
+
           // Record punch in debounce cache
           attendanceService.recordPunch(emp._id.toString(), 'OUT');
-          
+
           await emp.populate('headDepartment');
           await emp.populate('subDepartment');
           await emp.populate('designation');
@@ -196,13 +198,13 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
           attendanceDoc.overtimeHoursDisplay = computed.overtimeHoursDisplay;
           await attendanceDoc.save();
-          
+
           // Record punch in debounce cache
           attendanceService.recordPunch(emp._id.toString(), 'IN');
-          
+
           // Check for continuous IN across 8AM boundary
           await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
-          
+
           await emp.populate('headDepartment');
           await emp.populate('subDepartment');
           await emp.populate('designation');
@@ -215,13 +217,13 @@ export const addAttendance = async (req, res) => {
       const dayOfWeek2 = dateObj.getDay();
       const isWeekend2 = dayOfWeek2 === 0 || dayOfWeek2 === 6;
       const newAtt = await Attendance.create({ employee: emp._id, date: dateObj, status: 'present', inTime: currentTimeString, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, totalMinutes: 0, totalHoursDisplay: '0h 0m', regularHoursDisplay: '0h 0m', overtimeHoursDisplay: '0h 0m', breakMinutes: 0, isWeekend: isWeekend2, isHoliday: false, punchLogs: [{ punchType: 'IN', punchTime: now }], note: 'Punch IN via manual toggle' });
-      
+
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
-      
+
       // Check for continuous IN across 8AM boundary
       await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
-      
+
       await emp.populate('headDepartment');
       await emp.populate('subDepartment');
       await emp.populate('designation');
@@ -235,10 +237,12 @@ export const addAttendance = async (req, res) => {
     const dateObj = new Date(date);
     const dateIso = dateObj.toISOString().slice(0, 10);
 
-    const existingAttendance = await Attendance.findOne({ employee: emp._id, date: {
-      $gte: new Date(`${dateIso}T00:00:00Z`),
-      $lte: new Date(`${dateIso}T23:59:59Z`)
-    } });
+    const existingAttendance = await Attendance.findOne({
+      employee: emp._id, date: {
+        $gte: new Date(`${dateIso}T00:00:00Z`),
+        $lte: new Date(`${dateIso}T23:59:59Z`)
+      }
+    });
 
     if (existingAttendance) {
       return res.status(400).json({ success: false, message: "Attendance already marked for this date" });

@@ -59,11 +59,11 @@ const EmployeeSummary = ({ emp, isMobile }) => {
 
   // Desktop/Tablet View
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-xl shadow p-4 sm:p-6 mb-4 border border-blue-200">
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-b-xl shadow p-4 sm:p-6 mb-4 border border-blue-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* ID Card */}
-        <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-blue-600 shadow-sm hover:shadow-md transition">
+        <div className="bg-blue-100 rounded-lg p-3 sm:p-4 border-l-4 border-blue-600 shadow-sm hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-1">
             <User size={14} className="text-blue-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Employee ID</span>
@@ -72,7 +72,7 @@ const EmployeeSummary = ({ emp, isMobile }) => {
         </div>
 
         {/* Name Card */}
-        <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-purple-600 shadow-sm hover:shadow-md transition">
+        <div className="bg-purple-100 rounded-lg p-3 sm:p-4 border-l-4 border-purple-600 shadow-sm hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-1">
             <User size={14} className="text-purple-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Name</span>
@@ -82,7 +82,7 @@ const EmployeeSummary = ({ emp, isMobile }) => {
         </div>
 
         {/* Department Card */}
-        <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-green-600 shadow-sm hover:shadow-md transition">
+        <div className="bg-green-50 rounded-lg p-3 sm:p-4 border-l-4 border-green-600 shadow-sm hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-1">
             <Building2 size={14} className="text-green-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Department</span>
@@ -92,13 +92,13 @@ const EmployeeSummary = ({ emp, isMobile }) => {
         </div>
 
         {/* Group & Status Card */}
-        <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-indigo-600 shadow-sm hover:shadow-md transition">
+        <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 border-l-4 border-indigo-600 shadow-sm hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-indigo-600 flex-shrink-0" />
             <span className="text-xs text-gray-500 font-semibold uppercase">Designation / Shift</span>
           </div>
           <div className="text-sm font-bold text-gray-800 truncate">{emp.designation?.name || emp.designation || 'N/A'}</div>
-          <div className="text-xs text-gray-500 mt-1">Shift: 8h</div>
+          {/* <div className="text-xs text-gray-500 mt-1">Shift: 8h</div> */}
           <div className={`text-xs font-semibold px-2 py-1 rounded mt-2 w-fit flex items-center gap-1 ${statusColor}`}>
             <CheckCircle size={12} />
             {emp.status || 'N/A'}

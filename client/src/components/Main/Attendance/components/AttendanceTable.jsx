@@ -6,7 +6,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     })
   }
 
-  const getStatusColor = (status,  rowType, isoDate) => {
+  const getStatusColor = (status, rowType, isoDate) => {
     if (rowType === 'Status') {
       if (isHoliday(isoDate)) return 'bg-purple-100 text-purple-900 font-semibold';
       if (status === 'present') return 'bg-green-100 text-green-900 font-semibold';
@@ -52,7 +52,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
       'leave': { label: 'L', bg: 'bg-blue-500', full: 'Leave' }
     };
     const s = statusMap[status] || { label: status, bg: 'bg-gray-500', full: status };
-    
+
     if (isMobile) {
       return (
         <div className="flex flex-col items-center">
@@ -63,7 +63,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
         </div>
       );
     }
-    
+
     return <span className={`${s.bg} text-white px-2 py-1 rounded text-xs font-bold`}>{s.label}</span>;
   };
 
@@ -164,7 +164,38 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
 
   // Desktop/Tablet View
   return (
-    <div className="bg-white rounded-xl shadow overflow-auto">
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow overflow-auto border border-blue-200">
+
+      {/* Shows total Present and Absent of seleted month and year from filter */}
+      <div className="sticky left-0 flex gap-6 p-6">
+        {/* Present Card */}
+        <div className="flex justify-between items-center w-xs bg-green-100 rounded-lg p-3 sm:p-4 border-l-4 border-green-600 shadow-sm hover:shadow-md transition">
+          <div className="flex flex-col justify-center gap-2">
+            {/* <User size={14} className="text-blue-600 flex-shrink-0" /> */}
+            <span className="text-xs text-gray-500 font-semibold uppercase">Present</span>
+            <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">10</div>
+          </div>
+          <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
+            <span title="Selected month from filter">December</span>
+            <span title="Selected year from filter">2025</span>
+          </div>
+        </div>
+
+        {/* Absent Card */}
+        <div className="flex justify-between items-center w-xs bg-red-100 rounded-lg p-3 sm:p-4 border-l-4 border-red-600 shadow-sm hover:shadow-md transition">
+          <div className="flex flex-col justify-center gap-2">
+            {/* <User size={14} className="text-blue-600 flex-shrink-0" /> */}
+            <span className="text-xs text-gray-500 font-semibold uppercase">Absent</span>
+            <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">10</div>
+          </div>
+          <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
+            <span title="Selected month from filter">December</span>
+            <span title="Selected year from filter">2025</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Attendance-Report Table */}
       <table className="min-w-full border-collapse text-sm">
         <thead>
           <tr className="bg-gradient-to-r from-gray-800 to-gray-900 text-white">
@@ -211,7 +242,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
         </tbody>
       </table>
 
-      <div className="sticky left-0 p-4 bg-gray-50 border-t flex flex-wrap gap-4 text-xs">
+      <div className="sticky left-0 p-4 bg-gray-50 flex flex-wrap gap-4 text-xs">
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 bg-green-500 rounded flex-shrink-0"></span>
           <span>Present</span>

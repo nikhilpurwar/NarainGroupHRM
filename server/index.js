@@ -1,22 +1,33 @@
 import dotenv from "dotenv";
-dotenv.config(); 
+dotenv.config();
 import app from "./app.js";
-
 import connectdb from "./src/config/db.js";
-
-// Configure CORS after .env is loaded
-// configureCORS();
+import http from "http";
+import { Server as IOServer } from "socket.io";
+import { setIO } from "./src/utils/socket.util.js";
 
 const PORT = process.env.PORT || 5100;
 
-//Connect to MongoDB, then start Express server
+// Connect to MongoDB, then start HTTP server with Socket.IO
 connectdb()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running on :${PORT}`);
+    const server = http.createServer(app);
+
+    const io = new IOServer(server, {
+      cors: {
+        origin: (process.env.CORS_ORIGINS || "*").split(",").map(s => s.trim()).filter(Boolean) || "*",
+        methods: ["GET", "POST"],
+      },
+    });
+
+    // expose io to controllers
+    setIO(io);
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Server (with sockets) is running on :${PORT}`);
     });
   })
   .catch((err) => {
     console.error(`❌ Failed to connect to MongoDB: ${err.message}`);
-    process.exit(1); // Optional: Exit process on DB failure
+    process.exit(1);
   });

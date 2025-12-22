@@ -152,13 +152,19 @@ const EmployeeTable = ({
                                 <th className="px-4 py-3">#</th>
                                 <th className="px-4 py-3">Emp ID</th>
                                 <th className="px-4 py-3">Name</th>
-                                <th className="px-4 py-3">Father Name</th>
+                                {!renderActions && <th className="px-4 py-3">Father Name</th>}
                                 <th className="px-4 py-3">Mobile</th>
-                                <th className="px-4 py-3">Salary</th>
+                                {!renderActions && <th className="px-4 py-3">Salary</th>}
                                 <th className="px-4 py-3">Department</th>
                                 <th className="px-4 py-3">Sub Dept.</th>
                                 <th className="px-4 py-3">Designation</th>
                                 <th className="px-4 py-3">Status</th>
+                                {renderActions && (
+                                    <>
+                                        <th title='Total Present this Month' className="px-4 py-3">Present</th>
+                                        <th title='Total Absent this Month' className="px-4 py-3">Absent</th>
+                                    </>
+                                )}
                                 <th className="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
@@ -177,6 +183,7 @@ const EmployeeTable = ({
                                                 {emp.empId}
                                             </td>
                                             <td
+                                                title={renderActions ? 'Click to View Attendace Report' : 'Click to View Profile'}
                                                 onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
                                                 className="px-4 py-3 my-1 flex items-center gap-3 hover:bg-gray-200 hover:rounded-4xl cursor-pointer"
                                             >
@@ -199,15 +206,35 @@ const EmployeeTable = ({
                                                     {emp.name}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3">{emp.fatherName}</td>
+                                            {!renderActions && <td className="px-4 py-3">{emp.fatherName}</td>}
                                             <td className="px-4 py-3">{emp.mobile}</td>
-                                            <td className="px-4 py-3">₹{emp.salary}</td>
+                                            {!renderActions && <td className="px-4 py-3">₹{emp.salary}</td>}
                                             <td className="px-4 py-3">{emp.headDepartment?.name || emp.headDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>
                                             <td className="px-4 py-3">
-                                                <button onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }} className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`} title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>{emp.status === 'active' ? 'Active' : 'Inactive'}</button>
+                                                {renderActions ? (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }}
+                                                        className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`}
+                                                    >
+                                                        {emp.status === 'active' ? 'Active' : 'Inactive'}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }}
+                                                        className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`}
+                                                        title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>
+                                                        {emp.status === 'active' ? 'Active' : 'Inactive'}
+                                                    </button>)}
                                             </td>
+                                            {renderActions && (
+                                                // shows total Present and Absent of current month
+                                                <>
+                                                    <td title='Total Present this Month' className="px-4 py-3">--</td>
+                                                    <td title='Total Absent this Month' className="px-4 py-3">--</td>
+                                                </>
+                                            )}
                                             <td className="text-center">
                                                 {renderActions ? (<div className='flex justify-start items-center'>{renderActions(emp)}</div>) : (
                                                     <div className='flex justify-center items-center gap-3'>
