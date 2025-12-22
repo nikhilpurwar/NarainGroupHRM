@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react"
 import axios from "axios"
-import { useNavigate } from 'react-router-dom'
 import AttendanceFilter from "./components/AttendanceFilter"
 import EmployeeSummary from "./components/EmployeeSummary"
 import AttendanceTable from "./components/AttendanceTable"
@@ -36,7 +35,6 @@ const Attendance = () => {
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
   const [holidays, setHolidays] = useState([])
-  const navigate = useNavigate()
 
   /* ---------------- Resize ---------------- */
   useEffect(() => {
@@ -281,9 +279,9 @@ const Attendance = () => {
                 <button
                   disabled
                   title="Attendance Marked"
-                  className="bg-gray-200 text-green-600 px-3 py-1 rounded-full cursor-not-allowed"
+                  className="ml-6 text-green-600 px-3 py-1 rounded-full"
                 >
-                  <FaUserCheck size={14} />
+                  <FaUserCheck size={20} />
                 </button>
               ) : (
                 <button
@@ -292,7 +290,7 @@ const Attendance = () => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  className="ml-6 bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
                 >
                   <FaUserCheck size={14} />
                 </button>

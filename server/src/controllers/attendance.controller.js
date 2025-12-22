@@ -2,6 +2,7 @@ import Employee from "../models/employee.model.js";
 import Attendance from "../models/attendance.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
+import { getIO } from "../utils/socket.util.js";
 
 // Helper: determine attendance day ISO (YYYY-MM-DD) based on 8AM boundary
 // Uses timezone-aware calculation (default: Asia/Kolkata) so that
@@ -433,6 +434,14 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       await emp.populate('designation');
       await emp.populate('reportsTo', 'name empId');
 
+      // emit socket update
+      try {
+        const io = getIO();
+        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: existingAttendance, type: 'in' });
+      } catch (e) {
+        console.warn('Socket emit failed', e.message || e);
+      }
+
       return res.status(200).json({
         success: true,
         type: 'in',
@@ -481,6 +490,14 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     await emp.populate('subDepartment');
     await emp.populate('designation');
     await emp.populate('reportsTo', 'name empId');
+
+    // emit socket update for new attendance
+    try {
+      const io = getIO();
+      if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAttendanceDoc, type: 'in' });
+    } catch (e) {
+      console.warn('Socket emit failed', e.message || e);
+    }
 
     return res.status(201).json({
       success: true,
@@ -533,6 +550,14 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     await emp.populate('subDepartment');
     await emp.populate('designation');
     await emp.populate('reportsTo', 'name empId');
+
+    // emit socket update for out
+    try {
+      const io = getIO();
+      if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance, type: 'out' });
+    } catch (e) {
+      console.warn('Socket emit failed', e.message || e);
+    }
 
     return res.status(200).json({
       success: true,
