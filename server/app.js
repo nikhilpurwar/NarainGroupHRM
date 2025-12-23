@@ -52,6 +52,7 @@ import userRoutes from "./src/routes/settings/user.route.js";
 
 // attendance imports
 import attendanceRoutes from "./src/routes/attendance.route.js";
+import advanceRoutes from "./src/routes/advance.route.js";
 
 // Security
 app.use(helmet());
@@ -70,6 +71,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
 // Barcode attendance - also available at direct /api/store-emp-attend path
 app.use("/api", attendanceRoutes);
+// Advances (loans/advances)
+app.use("/api/advance", advanceRoutes);
 
 // Serve client in production if built
 if (process.env.NODE_ENV === 'production') {

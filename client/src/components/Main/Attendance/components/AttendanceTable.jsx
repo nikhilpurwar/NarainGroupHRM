@@ -168,31 +168,51 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
 
       {/* Shows total Present and Absent of seleted month and year from filter */}
       <div className="sticky left-0 flex gap-6 p-6">
-        {/* Present Card */}
-        <div className="flex justify-between items-center w-xs bg-green-100 rounded-lg p-3 sm:p-4 border-l-4 border-green-600 shadow-sm hover:shadow-md transition">
-          <div className="flex flex-col justify-center gap-2">
-            {/* <User size={14} className="text-blue-600 flex-shrink-0" /> */}
-            <span className="text-xs text-gray-500 font-semibold uppercase">Present</span>
-            <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">10</div>
-          </div>
-          <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
-            <span title="Selected month from filter">December</span>
-            <span title="Selected year from filter">2025</span>
-          </div>
-        </div>
+        {/* compute present/absent from Status row (ignore holidays) */}
+        {(() => {
+          const statusRow = (data && data['Status']) || [];
+          let presentCount = 0;
+          let absentCount = 0;
+          for (let i = 0; i < statusRow.length; i++) {
+            const s = statusRow[i];
+            const iso = days && days[i] ? days[i].iso : null;
+            if (isHoliday(iso)) continue;
+            if (!s) continue;
+            const st = (String(s) || '').toLowerCase();
+            if (st === 'present' || st === 'halfday') presentCount++;
+            else if (st === 'absent') absentCount++;
+          }
 
-        {/* Absent Card */}
-        <div className="flex justify-between items-center w-xs bg-red-100 rounded-lg p-3 sm:p-4 border-l-4 border-red-600 shadow-sm hover:shadow-md transition">
-          <div className="flex flex-col justify-center gap-2">
-            {/* <User size={14} className="text-blue-600 flex-shrink-0" /> */}
-            <span className="text-xs text-gray-500 font-semibold uppercase">Absent</span>
-            <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">10</div>
-          </div>
-          <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
-            <span title="Selected month from filter">December</span>
-            <span title="Selected year from filter">2025</span>
-          </div>
-        </div>
+          const firstIso = days && days[0] ? days[0].iso : null;
+          const monthLabel = firstIso ? new Date(firstIso).toLocaleString('default', { month: 'long' }) : '';
+          const yearLabel = firstIso ? new Date(firstIso).getFullYear() : '';
+
+          return (
+            <>
+              <div className="flex justify-between items-center w-xs bg-green-100 rounded-lg p-3 sm:p-4 border-l-4 border-green-600 shadow-sm hover:shadow-md transition">
+                <div className="flex flex-col justify-center gap-2">
+                  <span className="text-xs text-gray-500 font-semibold uppercase">Present</span>
+                  <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">{presentCount}</div>
+                </div>
+                <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
+                  <span title="Selected month from filter">{monthLabel}</span>
+                  <span title="Selected year from filter">{yearLabel}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center w-xs bg-red-100 rounded-lg p-3 sm:p-4 border-l-4 border-red-600 shadow-sm hover:shadow-md transition">
+                <div className="flex flex-col justify-center gap-2">
+                  <span className="text-xs text-gray-500 font-semibold uppercase">Absent</span>
+                  <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">{absentCount}</div>
+                </div>
+                <div className="flex flex-col text-end text-gray-300 text-2xl font-bold">
+                  <span title="Selected month from filter">{monthLabel}</span>
+                  <span title="Selected year from filter">{yearLabel}</span>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Attendance-Report Table */}
