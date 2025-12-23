@@ -256,7 +256,7 @@ const AddEditEmployee = () => {
                     const seq = count + 1
                     const yy = new Date().getFullYear() % 100
                     const padded = String(seq).padStart(4, '0')
-                    payload.empId = `RPM-${yy}-${padded}`
+                    payload.empId = `EMP${yy}${padded}`
                 } catch (genErr) {
                     console.warn('Failed to generate empId', genErr)
                 }
@@ -393,7 +393,7 @@ const AddEditEmployee = () => {
                             >
                                 <option value="">Select Head Department</option>
                                 {headDepartments.map(h => (
-                                    <option key={h._id} value={h._id}>{h.name} ({h.code})</option>
+                                    <option key={h._id} value={h._id}>{h.name}</option>
                                 ))}
                             </select>
                             {errors.headDepartment && <p className="text-red-500 text-sm mt-1">{errors.headDepartment}</p>}
@@ -415,7 +415,7 @@ const AddEditEmployee = () => {
                             >
                                 <option value="">Select Sub Department</option>
                                 {filteredSubDepts.map(s => (
-                                    <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
+                                    <option key={s._id} value={s._id}>{s.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -432,7 +432,7 @@ const AddEditEmployee = () => {
                             >
                                 <option value="">Select Designation</option>
                                 {filteredDesignations.map(d => (
-                                    <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                                    <option key={d._id} value={d._id}>{d.name}</option>
                                 ))}
                             </select>
                         </div>

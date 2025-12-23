@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import axios from "axios"
 import AttendanceFilter from "./components/AttendanceFilter"
 import EmployeeSummary from "./components/EmployeeSummary"
@@ -35,6 +35,8 @@ const Attendance = () => {
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
   const [holidays, setHolidays] = useState([])
+  const fetchInProgressRef = useRef(false)
+  const lastRequestedRef = useRef(null)
 
   /* ---------------- Resize ---------------- */
   useEffect(() => {
@@ -85,14 +87,26 @@ const Attendance = () => {
 
   /* ---------------- Fetch Report ---------------- */
   const fetchReport = async params => {
+    // Prevent duplicate or overlapping fetches for the same employee/month/year
+    if (fetchInProgressRef.current) return
+    const requestedKey = `${params.employeeId || ''}_${params.month || ''}_${params.year || ''}`
+    if (lastRequestedRef.current === requestedKey && report && report.employee && report.employee._id === params.employeeId) {
+      // already showing this report
+      return
+    }
+
     try {
+      fetchInProgressRef.current = true
       setLoading(true)
+      lastRequestedRef.current = requestedKey
       const res = await axios.get(API, { params })
       setReport(res.data?.data || null)
       setViewMode("report")
-    } catch {
+    } catch (err) {
+      console.error('fetchReport error', err)
       toast.error("Failed to load report")
     } finally {
+      fetchInProgressRef.current = false
       setLoading(false)
     }
   }

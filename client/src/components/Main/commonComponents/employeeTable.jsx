@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import React, { useEffect, useState, useMemo } from 'react'
+import { Search, ChevronLeft, ChevronRight, RotateCcw, Eye } from 'lucide-react'
 import axios from 'axios'
 // import { Link, useNavigate } from 'react-router-dom'
 import { FiEdit } from "react-icons/fi";
@@ -82,6 +82,60 @@ const EmployeeTable = ({
     const indexOfFirst = indexOfLast - pageSize
     const currentData = filtered.slice(indexOfFirst, indexOfLast)
 
+    // Precompute present/absent counts for employees on the current page (optimized)
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
+    const currentYear = String(new Date().getFullYear())
+    const countsMap = useMemo(() => {
+        const map = {}
+        for (const emp of currentData) {
+            const key = emp._id || emp.id
+            let present = 0
+            let absent = 0
+            const attends = emp.attendance || emp.attendanceRaw || []
+            if (Array.isArray(attends) && attends.length) {
+                for (const a of attends) {
+                    try {
+                        if (!a) continue
+
+                        // robust ISO date extraction
+                        let iso = null
+                        if (typeof a.date === 'string') {
+                            iso = a.date.slice(0, 10)
+                        } else if (a.date && typeof a.date === 'object' && a.date.toISOString) {
+                            iso = a.date.toISOString().slice(0, 10)
+                        } else {
+                            const dt = new Date(a.date)
+                            if (!isNaN(dt)) iso = dt.toISOString().slice(0, 10)
+                        }
+                        if (!iso) continue
+                        if (!iso.startsWith(`${currentYear}-${currentMonth}`)) continue
+
+                        const status = (a.status || '').toLowerCase()
+
+                        // Determine presence: prefer explicit status, else infer from punchLogs/inTime/outTime
+                        if (status === 'present' || status === 'halfday') {
+                            present += 1
+                        } else if (status === 'absent') {
+                            absent += 1
+                        } else {
+                            const hasPunchLogs = Array.isArray(a.punchLogs) && a.punchLogs.length > 0
+                            const hasInOut = (a.inTime || a.outTime)
+                            if (hasPunchLogs || hasInOut) {
+                                present += 1
+                            } else {
+                                // don't auto-count as absent unless explicitly marked absent
+                            }
+                        }
+                    } catch (err) {
+                        // ignore parse errors per-row
+                    }
+                }
+            }
+            map[key] = { present, absent }
+        }
+        return map
+    }, [currentData, currentMonth, currentYear])
+
     const goNext = () => setCurrentPage(p => (p < totalPages ? p + 1 : p))
     const goPrev = () => setCurrentPage(p => (p > 1 ? p - 1 : p))
 
@@ -146,7 +200,7 @@ const EmployeeTable = ({
                 {loading ? (
                     <p className="text-center py-6 text-gray-500">Loading employees...</p>
                 ) : (
-                    <table className="w-full table-auto">
+                    <table className="w-full min-w-7xl table-auto">
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
                                 <th className="px-4 py-3">#</th>
@@ -202,8 +256,8 @@ const EmployeeTable = ({
                                                             .toUpperCase()}
                                                     </div>
                                                 )}
-                                                <span className="font-bold text-gray-900 text-left hover:underline cursor-pointer">
-                                                    {emp.name}
+                                                <span className="font-semibold text-gray-900 text-left hover:underline cursor-pointer">
+                                                    {emp.name.split(" ")[0]} <br /> {emp.name.split(" ")[1]}
                                                 </span>
                                             </td>
                                             {!renderActions && <td className="px-4 py-3">{emp.fatherName}</td>}
@@ -229,19 +283,44 @@ const EmployeeTable = ({
                                                     </button>)}
                                             </td>
                                             {renderActions && (
-                                                // shows total Present and Absent of current month
+                                                // shows total Present and Absent of current month (computed from employee.attendance when available)
                                                 <>
-                                                    <td title='Total Present this Month' className="px-4 py-3">--</td>
-                                                    <td title='Total Absent this Month' className="px-4 py-3">--</td>
+                                                    <td title='Total Present this Month' className="px-4 py-3">{(() => {
+                                                        const key = emp._id || emp.id
+                                                        const v = countsMap[key]
+                                                        return (v && typeof v.present === 'number') ? v.present : '--'
+                                                    })()}</td>
+                                                    <td title='Total Absent this Month' className="px-4 py-3">{(() => {
+                                                        const key = emp._id || emp.id
+                                                        const v = countsMap[key]
+                                                        return (v && typeof v.absent === 'number') ? v.absent : '--'
+                                                    })()}</td>
                                                 </>
                                             )}
                                             <td className="text-center">
-                                                {renderActions ? (<div className='flex justify-start items-center'>{renderActions(emp)}</div>) : (
-                                                    <div className='flex justify-center items-center gap-3'>
-                                                        <button onClick={(e) => { e.stopPropagation(); onEdit(emp) }} className="text-blue-600 hover:text-blue-800">
+                                                {renderActions ? (
+                                                    <div className='flex justify-start items-center'>{renderActions(emp)}</div>
+                                                ) : (
+                                                    <div className='flex justify-center items-center gap-2 mr-2'>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                            className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye size={20} />
+                                                        </button>
+                                                        <button
+                                                            title="Edit Employee"
+                                                            onClick={(e) => { e.stopPropagation(); onEdit(emp) }}
+                                                            className="p-1 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                        >
                                                             <FiEdit size={18} />
                                                         </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); onDelete(emp._id || emp.id) }} className="text-red-600 hover:text-red-800" title="Delete">
+                                                        <button
+                                                            title="Delete Employee"
+                                                            onClick={(e) => { e.stopPropagation(); onDelete(emp._id || emp.id) }}
+                                                            className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                        >
                                                             <MdDeleteOutline size={22} />
                                                         </button>
                                                     </div>

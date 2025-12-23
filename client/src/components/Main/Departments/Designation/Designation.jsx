@@ -65,7 +65,7 @@ const Designation = () => {
   return (
     <div className="p-6">
       <div className="border border-gray-300 rounded-xl shadow-lg overflow-hidden">
-        
+
         {/* Header */}
         <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
           Designations
@@ -108,7 +108,7 @@ const Designation = () => {
                 <th className="px-4 py-2 text-left">S.No.</th>
                 <th className="px-4 py-2 text-left">Designation Name</th>
                 <th className="px-4 py-2 text-left">Sub Department</th>
-                <th className="px-4 py-2 text-left">Code</th>
+                {/* <th className="px-4 py-2 text-left">Code</th> */}
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
@@ -119,20 +119,23 @@ const Designation = () => {
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
                   <td className="px-4 py-3 border-t">{item.subDepartment?.name || "-"}</td>
-                  <td className="px-4 py-3 border-t">{item.code || "-"}</td>
+                  {/* <td className="px-4 py-3 border-t">{item.code || "-"}</td> */}
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">
-                    <FiEdit
-                      onClick={() => handleEdit(item)}
-                      size={16}
-                      className="text-blue-700 cursor-pointer hover:scale-105"
-                    />
-
-                    <MdDeleteOutline
-                      onClick={() => handleDelete(item._id)}
-                      size={20}
-                      className="text-red-600 cursor-pointer hover:scale-105"
-                    />
+                    <div className="p-1 hover:bg-blue-100 rounded-md">
+                      <FiEdit
+                        onClick={() => handleEdit(item)}
+                        size={16}
+                        className=" text-blue-700 cursor-pointer  hover:scale-110"
+                      />
+                    </div>
+                    <div className="p-1 hover:bg-red-100 rounded-md">
+                      <MdDeleteOutline
+                        onClick={() => handleDelete(item._id)}
+                        size={20}
+                        className="text-red-600 cursor-pointer hover:bg-red-100 hover:scale-110"
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -140,7 +143,7 @@ const Designation = () => {
           </table>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 

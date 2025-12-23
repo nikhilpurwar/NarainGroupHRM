@@ -62,7 +62,7 @@ const AddEditDesignation = ({
     try {
       setLoading(true);
 
-      const payload = { 
+      const payload = {
         name: formData.designationName,
         subDepartment: formData.subDepartment,
       }
@@ -106,40 +106,15 @@ const AddEditDesignation = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
 
-          {/* Designation Name */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Designation Name 
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
-                errors.designationName ? "border-red-500" : "border-gray-300"
-              }`}
-              value={formData.designationName}
-              onChange={(e) =>
-                setFormData({ ...formData, designationName: e.target.value })
-              }
-              placeholder="e.g. Senior Manager"
-            />
-            {errors.designationName && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.designationName}
-              </p>
-            )}
-          </div>
-
           {/* Sub Department */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Sub Department 
+              Sub Department
               <span className="text-red-500">*</span>
             </label>
             <select
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${
-                errors.subDepartment ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${errors.subDepartment ? "border-red-500" : "border-gray-300"
+                }`}
               value={formData.subDepartment}
               onChange={(e) =>
                 setFormData({ ...formData, subDepartment: e.target.value })
@@ -157,8 +132,31 @@ const AddEditDesignation = ({
             )}
           </div>
 
-          {/* Code */}
+          {/* Designation Name */}
           <div>
+            <label className="block text-sm font-medium mb-1">
+              Designation Name
+              <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 ${errors.designationName ? "border-red-500" : "border-gray-300"
+                }`}
+              value={formData.designationName}
+              onChange={(e) =>
+                setFormData({ ...formData, designationName: e.target.value })
+              }
+              placeholder="e.g. Senior Manager"
+            />
+            {errors.designationName && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.designationName}
+              </p>
+            )}
+          </div>
+
+          {/* Code */}
+          {/* <div>
             <label className="block text-sm font-medium mb-1">
               Code
             </label>
@@ -176,7 +174,7 @@ const AddEditDesignation = ({
             {errors.code && (
               <p className="text-red-500 text-xs mt-1">{errors.code}</p>
             )}
-          </div>
+          </div> */}
 
           {/* Submit Button */}
           <button
@@ -187,8 +185,8 @@ const AddEditDesignation = ({
             {loading
               ? "Saving..."
               : isEdit
-              ? "Update Designation"
-              : "Add Designation"}
+                ? "Update Designation"
+                : "Add Designation"}
           </button>
         </form>
       </div>
