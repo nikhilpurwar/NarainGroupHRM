@@ -127,10 +127,10 @@ const ViewAdvance = ({ data, onClose }) => {
                     <span className="text-gray-500">ID:</span>
                     <span className="font-medium">{data.employee?.empId}</span>
                   </span>
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm border border-gray-300">
+                  {/* <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm border border-gray-300">
                     <span className="text-gray-500">Department:</span>
-                    <span className="font-medium">{data.employee?.department || 'N/A'}</span>
-                  </span>
+                    <span className="font-medium">{data.employee?.designation?.name || 'N/A'}</span>
+                  </span> */}
                 </div>
               </div>
             </div>

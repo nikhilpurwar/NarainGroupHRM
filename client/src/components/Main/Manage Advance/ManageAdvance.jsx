@@ -237,19 +237,19 @@ const ManageAdvance = () => {
       </div>
 
       {/* TABLE */}
-      <div className="bg-white py-4 rounded-xl shadow-md overflow-x-auto">
+      <div className="bg-white shadow-md overflow-x-auto">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           </div>
         ) : (
           <table className="w-full table-auto">
-            <thead>
-              <tr className="bg-gray-50 text-left text-sm font-medium text-gray-700">
-                <th className="px-6 py-3 border-b">#</th>
-                <th className="px-6 py-3 border-b">Employee</th>
-                <th className="px-6 py-3 border-b">Date</th>
-                <th className="px-6 py-3 border-b" title="Date Installment Start Deducting">
+            <thead className="">
+              <tr className="bg-gray-200 text-left text-sm font-medium text-gray-700">
+                <th className="px-4 py-3 border-b">#</th>
+                <th className="mr-5 px-4 py-3 border-b">Employee</th>
+                <th className="px-4 py-3 border-b">Date</th>
+                <th className="px-4 py-3 border-b" title="Date Installment Start Deducting">
                   <div className="flex items-center gap-1">
                     Installment Start
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -257,8 +257,8 @@ const ManageAdvance = () => {
                     </svg>
                   </div>
                 </th>
-                <th className="px-6 py-3 border-b">Type</th>
-                <th className="px-6 py-3 border-b" title="Total Amount Loan/Advance">
+                <th className="px-4 py-3 border-b">Type</th>
+                <th className="px-4 py-3 border-b" title="Total Amount Loan/Advance">
                   <div className="flex items-center gap-1">
                     Amount
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -266,7 +266,7 @@ const ManageAdvance = () => {
                     </svg>
                   </div>
                 </th>
-                <th className="px-6 py-3 border-b" title="Loan/Advance Paid">
+                <th className="px-4 py-3 border-b" title="Loan/Advance Paid">
                   <div className="flex items-center gap-1">
                     Deduction
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -274,7 +274,7 @@ const ManageAdvance = () => {
                     </svg>
                   </div>
                 </th>
-                <th className="px-6 py-3 border-b" title="Loan/Advance Balance">
+                <th className="px-4 py-3 border-b" title="Loan/Advance Balance">
                   <div className="flex items-center gap-1">
                     Balance
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -282,7 +282,7 @@ const ManageAdvance = () => {
                     </svg>
                   </div>
                 </th>
-                <th className="px-6 py-3 border-b" title="Installment Paid || Total">
+                <th className="px-4 py-3 border-b" title="Installment Paid || Total">
                   <div className="flex items-center gap-1">
                     Installment
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -290,8 +290,8 @@ const ManageAdvance = () => {
                     </svg>
                   </div>
                 </th>
-                <th className="px-6 py-3 border-b">Status</th>
-                <th className="px-6 py-3 border-b text-center">Actions</th>
+                <th className="px-4 py-3 border-b">Status</th>
+                <th className="px-4 py-3 border-b text-center">Actions</th>
               </tr>
             </thead>
 
@@ -302,18 +302,18 @@ const ManageAdvance = () => {
                     key={a._id}
                     className="border-b hover:bg-gray-50/50 transition-colors"
                   >
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="p-4 text-gray-600">
                       {indexOfFirst + i + 1}
                     </td>
 
-                    <td className="px-6 py-4">
-                      <div className="flex gap-3 items-center">
+                    <td className="p-4">
+                      <div className="w-40 flex gap-3 items-center">
                         <img
                           src={a.employee?.avatar || DEFAULT_AVATAR}
                           className="w-10 h-10 rounded-full border-2 border-white shadow"
                           alt={a.employee?.name}
                         />
-                        <div>
+                        <div className="flex flex-col"> 
                           <p className="font-semibold text-gray-900">
                             {a.employee?.name}
                           </p>
@@ -324,10 +324,10 @@ const ManageAdvance = () => {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-gray-700">{a.date}</td>
-                    <td className="px-6 py-4 text-gray-700">{a.start_from || "-"}</td>
+                    <td className="p-4 text-gray-700">{a.date}</td>
+                    <td className="p-4 text-gray-700">{a.start_from || "-"}</td>
 
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
                           a.type === "loan"
@@ -339,23 +339,23 @@ const ManageAdvance = () => {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <div className="font-semibold text-gray-900">₹{a.amount}</div>
                     </td>
                     
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <div className="text-green-600 font-medium">₹{a.deduction || 0}</div>
                     </td>
                     
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <div className="text-red-600 font-medium">₹{a.balance || a.amount}</div>
                     </td>
 
-                    <td className="px-6 py-4 text-gray-700">
+                    <td className="p-4 text-gray-700">
                       {a.instalment || a.totalInstalment || "-"}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <button
                         onClick={() => onToggleStatus(a._id, a.status)}
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -368,28 +368,28 @@ const ManageAdvance = () => {
                       </button>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="p-4">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => onView(a)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
                           title="View Details"
                         >
-                          <Eye size={18} />
+                          <Eye size={20} />
                         </button>
                         <button
                           onClick={() => onEdit(a)}
-                          className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          className="p-1 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
                           title="Edit"
                         >
                           <FiEdit size={18} />
                         </button>
                         <button
                           onClick={() => onDelete(a)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
                           title="Delete"
                         >
-                          <MdDeleteOutline size={18} />
+                          <MdDeleteOutline size={22} />
                         </button>
                       </div>
                     </td>

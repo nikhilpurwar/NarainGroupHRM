@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, RotateCcw, Eye } from 'lucide-react'
 import axios from 'axios'
 // import { Link, useNavigate } from 'react-router-dom'
 import { FiEdit } from "react-icons/fi";
@@ -200,7 +200,7 @@ const EmployeeTable = ({
                 {loading ? (
                     <p className="text-center py-6 text-gray-500">Loading employees...</p>
                 ) : (
-                    <table className="w-full table-auto">
+                    <table className="w-full min-w-7xl table-auto">
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
                                 <th className="px-4 py-3">#</th>
@@ -256,8 +256,8 @@ const EmployeeTable = ({
                                                             .toUpperCase()}
                                                     </div>
                                                 )}
-                                                <span className="font-bold text-gray-900 text-left hover:underline cursor-pointer">
-                                                    {emp.name}
+                                                <span className="font-semibold text-gray-900 text-left hover:underline cursor-pointer">
+                                                    {emp.name.split(" ")[0]} <br /> {emp.name.split(" ")[1]}
                                                 </span>
                                             </td>
                                             {!renderActions && <td className="px-4 py-3">{emp.fatherName}</td>}
@@ -298,12 +298,29 @@ const EmployeeTable = ({
                                                 </>
                                             )}
                                             <td className="text-center">
-                                                {renderActions ? (<div className='flex justify-start items-center'>{renderActions(emp)}</div>) : (
-                                                    <div className='flex justify-center items-center gap-3'>
-                                                        <button onClick={(e) => { e.stopPropagation(); onEdit(emp) }} className="text-blue-600 hover:text-blue-800">
+                                                {renderActions ? (
+                                                    <div className='flex justify-start items-center'>{renderActions(emp)}</div>
+                                                ) : (
+                                                    <div className='flex justify-center items-center gap-2 mr-2'>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                            className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye size={20} />
+                                                        </button>
+                                                        <button
+                                                            title="Edit Employee"
+                                                            onClick={(e) => { e.stopPropagation(); onEdit(emp) }}
+                                                            className="p-1 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                        >
                                                             <FiEdit size={18} />
                                                         </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); onDelete(emp._id || emp.id) }} className="text-red-600 hover:text-red-800" title="Delete">
+                                                        <button
+                                                            title="Delete Employee"
+                                                            onClick={(e) => { e.stopPropagation(); onDelete(emp._id || emp.id) }}
+                                                            className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                                                        >
                                                             <MdDeleteOutline size={22} />
                                                         </button>
                                                     </div>

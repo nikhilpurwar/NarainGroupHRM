@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Printer, 
-  Download, 
-  ChevronLeft, 
+import {
+  Search,
+  Filter,
+  Printer,
+  Download,
+  ChevronLeft,
   ChevronRight,
   Eye,
   Edit,
   Calendar,
-  IndianRupee ,
-  FileText
+  IndianRupee,
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -27,16 +28,16 @@ const MonthlySalary = () => {
     month: new Date().getMonth() + 1, // Current month
     year: new Date().getFullYear()
   });
-  
+
   // State for salary data
   const [salaryData, setSalaryData] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
-  
+
   // Months and years for dropdown
   const months = [
     { value: 1, label: 'January' },
@@ -52,9 +53,9 @@ const MonthlySalary = () => {
     { value: 11, label: 'November' },
     { value: 12, label: 'December' }
   ];
-  
+
   const years = [2025, 2024, 2023, 2022];
-  
+
   // Generate month-year options for dropdown
   const getMonthYearOptions = () => {
     const options = [];
@@ -68,7 +69,7 @@ const MonthlySalary = () => {
     });
     return options;
   };
-  
+
   // Fetch salary data
   const fetchSalaryData = useCallback(async () => {
     setLoading(true);
@@ -81,9 +82,9 @@ const MonthlySalary = () => {
         page: currentPage,
         limit: pageSize
       };
-      
+
       const response = await axios.get(`${API_URL}/api/salary/monthly-report`, { params });
-      
+
       if (response.data.success) {
         setSalaryData(response.data.data.salaries || []);
         setTotalRecords(response.data.data.total || 0);
@@ -100,7 +101,7 @@ const MonthlySalary = () => {
       setLoading(false);
     }
   }, [filters, currentPage, pageSize]);
-  
+
   // Generate mock data for demonstration
   const generateMockData = () => {
     const mockData = [];
@@ -111,7 +112,7 @@ const MonthlySalary = () => {
       const totalPay = basicPay + otPay;
       const deductions = Math.floor(Math.random() * 5000);
       const netPay = totalPay - deductions;
-      
+
       mockData.push({
         id: i,
         empId: `EMP${1000 + i}`,
@@ -144,7 +145,7 @@ const MonthlySalary = () => {
     }
     return mockData;
   };
-  
+
   // Handle filter change
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -153,14 +154,14 @@ const MonthlySalary = () => {
       [name]: value
     }));
   };
-  
+
   // Apply filters
   const applyFilters = (e) => {
     e?.preventDefault();
     setCurrentPage(1); // Reset to first page
     fetchSalaryData();
   };
-  
+
   // Clear filters
   const clearFilters = () => {
     setFilters({
@@ -169,40 +170,40 @@ const MonthlySalary = () => {
     });
     setCurrentPage(1);
   };
-  
+
   // Handle pagination
   const totalPages = Math.ceil(totalRecords / pageSize);
-  
+
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-  
+
   const goPrev = () => goToPage(currentPage - 1);
   const goNext = () => goToPage(currentPage + 1);
-  
+
   // Export to PDF
   const exportToPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
-    
+
     // Title
     doc.setFontSize(18);
     doc.text(`Monthly Salary Report - ${monthYear}`, 14, 15);
-    
+
     // Date and filters
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
     if (filters.employeeName) {
       doc.text(`Filter: ${filters.employeeName}`, 14, 29);
     }
-    
+
     // Table headers
     const headers = [
       ['Emp ID', 'Emp Name', 'Group', 'Basic Pay', 'OT Pay', 'Total Pay', 'Deductions', 'Net Pay', 'Status']
     ];
-    
+
     // Table data
     const data = salaryData.map(item => [
       item.empId,
@@ -215,7 +216,7 @@ const MonthlySalary = () => {
       `₹${item.netPay?.toLocaleString() || '0'}`,
       item.status
     ]);
-    
+
     // Generate table
     doc.autoTable({
       head: headers,
@@ -226,20 +227,20 @@ const MonthlySalary = () => {
       headStyles: { fillColor: [51, 51, 51], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] }
     });
-    
+
     // Footer
     const finalY = doc.lastAutoTable.finalY || 40;
     doc.setFontSize(10);
     doc.text(`Total Records: ${totalRecords}`, 14, finalY + 10);
-    
+
     doc.save(`Salary_Report_${monthYear.replace(/\s+/g, '_')}.pdf`);
     toast.success('PDF exported successfully');
   };
-  
+
   // Export to Excel
   const exportToExcel = () => {
     const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
-    
+
     // Prepare data
     const ws_data = [
       [`Monthly Salary Report - ${monthYear}`],
@@ -282,24 +283,24 @@ const MonthlySalary = () => {
         item.status
       ])
     ];
-    
+
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Salary Report');
-    
+
     // Merge header cells
     if (!ws['!merges']) ws['!merges'] = [];
     ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 25 } });
-    
+
     XLSX.writeFile(wb, `Salary_Report_${monthYear.replace(/\s+/g, '_')}.xlsx`);
     toast.success('Excel exported successfully');
   };
-  
+
   // Print report
   const printReport = () => {
     const printWindow = window.open('', '_blank');
     const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
-    
+
     const content = `
       <!DOCTYPE html>
       <html>
@@ -339,37 +340,37 @@ const MonthlySalary = () => {
       </body>
       </html>
     `;
-    
+
     printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
   };
-  
+
   // View details
   const viewDetails = (employee) => {
     toast.info(`Viewing details for ${employee.empName}`);
     // Implement modal or navigate to detail page
     console.log('Employee details:', employee);
   };
-  
+
   // Edit salary
   const editSalary = (employee) => {
     toast.info(`Editing salary for ${employee.empName}`);
     // Implement edit functionality
     console.log('Edit employee:', employee);
   };
-  
+
   // Initialize
   useEffect(() => {
     const currentMonth = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`;
     setFilters(prev => ({ ...prev, month: currentMonth }));
   }, []);
-  
+
   // Fetch data when dependencies change
   useEffect(() => {
     fetchSalaryData();
   }, [fetchSalaryData]);
-  
+
   return (
     <div className="container-fluid px-4 py-6">
       {/* Page Header */}
@@ -399,11 +400,11 @@ const MonthlySalary = () => {
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
-                <IndianRupee  className="text-green-600" size={24} />
+                <IndianRupee className="text-green-600" size={24} />
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -417,7 +418,7 @@ const MonthlySalary = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -427,11 +428,11 @@ const MonthlySalary = () => {
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
-                <IndianRupee  className="text-blue-600" size={24} />
+                <IndianRupee className="text-blue-600" size={24} />
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -441,79 +442,82 @@ const MonthlySalary = () => {
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
-                <IndianRupee  className="text-purple-600" size={24} />
+                <IndianRupee className="text-purple-600" size={24} />
               </div>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Filter Row */}
       <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
         <form onSubmit={applyFilters}>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Employee Name Search */}
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Name/ID
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  name="employeeName"
-                  placeholder="Search by name or ID..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={filters.employeeName}
+          <div className='flex items-end justify-between'>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              {/* Employee Name Search */}
+              <div className="md:col-span-">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Employee Name/ID
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    name="employeeName"
+                    placeholder="Search by name or ID..."
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={filters.employeeName}
+                    onChange={handleFilterChange}
+                  />
+                </div>
+              </div>
+
+              {/* Month-Year Select */}
+              <div className="md:col-span-">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Month & Year
+                </label>
+                <select
+                  name="month"
+                  className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={filters.month}
                   onChange={handleFilterChange}
-                />
+                >
+                  <option value="">---- Select Month & Year ----</option>
+                  {getMonthYearOptions().map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Button */}
+              <div className="md:col-span- flex gap-2">
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
+                >
+                  <Filter size={18} />
+                  Apply Filters
+                </button>
+                {/* Clear Button */}
+                <div className="">
+                  <button
+                    title='clear filters'
+                    type="button"
+                    onClick={clearFilters}
+                    className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-4 rounded-lg transition duration-200"
+                  >
+                    <RotateCcw size={18} />
+                    {/* <span>Clear</span> */}
+                  </button>
+                </div>
               </div>
             </div>
-            
-            {/* Month-Year Select */}
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Month & Year
-              </label>
-              <select
-                name="month"
-                className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={filters.month}
-                onChange={handleFilterChange}
-              >
-                <option value="">---- Select Month & Year ----</option>
-                {getMonthYearOptions().map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Filter Button */}
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
-              >
-                <Filter size={18} />
-                Apply Filters
-              </button>
-            </div>
-            
-            {/* Clear Button */}
-            <div className="md:col-span-2">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded-lg transition duration-200"
-              >
-                <span>Clear</span>
-              </button>
-            </div>
-            
+
             {/* Action Buttons */}
-            <div className="md:col-span-2 flex gap-2">
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={printReport}
@@ -521,9 +525,9 @@ const MonthlySalary = () => {
                 title="Print Report"
               >
                 <Printer size={18} />
-                <span className="hidden sm:inline">Print</span>
+                {/* <span className="hidden sm:inline">Print</span> */}
               </button>
-              
+
               <button
                 type="button"
                 onClick={exportToExcel}
@@ -531,13 +535,13 @@ const MonthlySalary = () => {
                 title="Download Excel"
               >
                 <Download size={18} />
-                <span className="hidden sm:inline">Excel</span>
+                {/* <span className="hidden sm:inline">Excel</span> */}
               </button>
             </div>
           </div>
         </form>
       </div>
-      
+
       {/* Salary Report Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         {loading ? (
@@ -631,7 +635,7 @@ const MonthlySalary = () => {
                     </th>
                   </tr>
                 </thead>
-                
+
                 <tbody className="divide-y divide-gray-200">
                   {salaryData.length > 0 ? (
                     salaryData.map((item, index) => (
@@ -717,7 +721,21 @@ const MonthlySalary = () => {
                           ₹{item.loanReceived?.toLocaleString() || '0'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.loanDeduct?.toLocaleString() || '0'}
+                          <input
+                            type="number"
+                            className="w-auto min-w-20 max-w-25 border rounded px-2 py-1"
+                            value={item.loanDeduct || 0}
+                            onChange={(e) => {
+                              // update your state here
+                              const updatedValue = Number(e.target.value);
+                              // Example: if items is in state
+                              setItems((prev) =>
+                                prev.map((i) =>
+                                  i._id === item._id ? { ...i, loanDeduct: updatedValue } : i
+                                )
+                              );
+                            }}
+                          />
                         </td>
                         <td className="px-4 py-3 text-sm font-bold text-yellow-700 bg-yellow-50 border">
                           ₹{item.totalDeductions?.toLocaleString() || '0'}
@@ -766,7 +784,7 @@ const MonthlySalary = () => {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination */}
             {salaryData.length > 0 && (
               <div className="border-t px-4 py-4">
@@ -775,7 +793,7 @@ const MonthlySalary = () => {
                     <div className="text-sm text-gray-600">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords}
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">Rows per page:</span>
                       <select
@@ -793,7 +811,7 @@ const MonthlySalary = () => {
                       </select>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       disabled={currentPage === 1}
@@ -802,7 +820,7 @@ const MonthlySalary = () => {
                     >
                       <ChevronLeft size={20} />
                     </button>
-                    
+
                     <div className="flex items-center gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
@@ -815,22 +833,21 @@ const MonthlySalary = () => {
                         } else {
                           pageNum = currentPage - 2 + i;
                         }
-                        
+
                         return (
                           <button
                             key={pageNum}
                             onClick={() => goToPage(pageNum)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
-                            }`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium ${currentPage === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
+                              }`}
                           >
                             {pageNum}
                           </button>
                         );
                       })}
-                      
+
                       {totalPages > 5 && currentPage < totalPages - 2 && (
                         <>
                           <span className="px-2">...</span>
@@ -843,7 +860,7 @@ const MonthlySalary = () => {
                         </>
                       )}
                     </div>
-                    
+
                     <button
                       disabled={currentPage === totalPages || totalPages === 0}
                       onClick={goNext}
