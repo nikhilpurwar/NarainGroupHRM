@@ -1,4 +1,4 @@
-import User from '../../models/user.model.js'
+import User from '../../models/setting.model/user.model.js'
 import bcrypt from 'bcrypt'
 
 const normalizeRole = (r) => {

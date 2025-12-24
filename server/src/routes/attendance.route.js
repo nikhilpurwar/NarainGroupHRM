@@ -5,7 +5,7 @@ const router = express.Router()
 
 router.get('/', attendanceReport)
 
-// today's attendance (attendance day computed using 8:00 AM boundary)
+// today's attendance (attendance day computed using 07:00 AM boundary)
 router.get('/today', (req, res) => {
 	// delegate to controller
 	return import('../controllers/attendance.controller.js').then(m => m.todaysAttendance(req, res)).catch(err => res.status(500).json({ success: false, message: err.message }))

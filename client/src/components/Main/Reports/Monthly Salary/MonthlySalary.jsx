@@ -86,7 +86,30 @@ const MonthlySalary = () => {
       const response = await axios.get(`${API_URL}/api/salary/monthly-report`, { params });
 
       if (response.data.success) {
-        setSalaryData(response.data.data.salaries || []);
+        const salaries = response.data.data.salaries || [];
+        // map to UI-friendly structure
+        const mapped = salaries.map(r => {
+          const emp = r.employee || {};
+          const comp = r.salary || {};
+          return {
+            id: emp._id,
+            empId: emp.empId || (emp._id || '').toString().slice(-6),
+            empName: emp.name || '',
+            salary: comp.baseSalary || emp.salary || 0,
+            salaryPerDay: comp.breakdown && comp.breakdown.dailyRate ? comp.breakdown.dailyRate : Math.round((comp.baseSalary || emp.salary || 0) / (comp.breakdown?.totalDaysInMonth || new Date(comp.year || filters.year, (comp.month || filters.month)-1, 0).getDate() || 30)),
+            presentDays: comp.presentDays || 0,
+            basicHours: comp.totalHours || 0,
+            basicPay: Math.round(comp.baseSalary || 0),
+            otHours: comp.overtimeHours || 0,
+            otPay: comp.otPay || 0,
+            totalHours: comp.totalHours || 0,
+            totalPay: (comp.baseSalary || 0) + (comp.otPay || 0),
+            totalDeductions: comp.deductions || 0,
+            netPay: comp.netPay || 0,
+            status: 'Calculated'
+          }
+        })
+        setSalaryData(mapped);
         setTotalRecords(response.data.data.total || 0);
       } else {
         toast.error(response.data.message || 'Failed to fetch salary data');
@@ -354,11 +377,11 @@ const MonthlySalary = () => {
   };
 
   // Edit salary
-  const editSalary = (employee) => {
-    toast.info(`Editing salary for ${employee.empName}`);
-    // Implement edit functionality
-    console.log('Edit employee:', employee);
-  };
+  // const editSalary = (employee) => {
+  //   toast.info(`Editing salary for ${employee.empName}`);
+  //   // Implement edit functionality
+  //   console.log('Edit employee:', employee);
+  // };
 
   // Initialize
   useEffect(() => {
@@ -562,35 +585,41 @@ const MonthlySalary = () => {
                       Emp. Name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Salary
+                      Sub Dept.
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Emp. Group
+                      Salary
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Salary/Day
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Present Days
+                      Salary/Hour
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Present Days
+                    </th>
+                    <th title='total basic hours in month from attendance.model.js' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Basic Hours
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Basic Pay
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th title='total over time hours in month from attendance.model.js' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       OT Hours
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       OT Pay
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th title='Basic Hours + OT Hours' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Total Hours
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border">
                       Total Pay
                     </th>
+
+                    (
+                      {/* check employee model if applicable then apply as per values */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       TDS
                     </th>
@@ -612,6 +641,9 @@ const MonthlySalary = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Insurance
                     </th>
+                    )
+                    (
+                      {/* from advance.model.js */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Advance
                     </th>
@@ -623,7 +655,8 @@ const MonthlySalary = () => {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Loan Deduct
-                    </th>
+                    </th> )
+
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-yellow-50 text-yellow-900 border">
                       Total Deductions
                     </th>
@@ -652,25 +685,32 @@ const MonthlySalary = () => {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">{item.empName}</div>
-                              <div className="text-xs text-gray-500">{item.department || 'N/A'}</div>
+                              <div className="text-xs text-gray-500">{item.headDepartment || 'N/A'}</div>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {item.subDepartment || 'N/A'}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           ₹{item.salary?.toLocaleString() || '0'}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {item.group}
-                          </span>
-                        </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           ₹{item.salaryPerDay?.toLocaleString() || '0'}
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          ₹{item.salaryPerHour?.toLocaleString() || '0'}
+                        </td>
                         <td className="px-4 py-3 text-sm text-center">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${item.presentDays >= 22 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          <div className={`border-b items-center px-3 py-1 rounded-full text-xs font-medium ${item.presentDays >= 22 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                             {item.presentDays}
-                          </span>
+                          </div>
+                          <small title='festival count from holidays.model.js' className="font-semibold text-gray-700">
+                            S:{item.successCount ?? 0} | F:{item.festivalCount ?? 0}
+                          </small>
+                          <input type="hidden" name="presentDays[]" value={item.presentDays} />
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-center">
                           {item.basicHours}
@@ -747,24 +787,24 @@ const MonthlySalary = () => {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => viewDetails(item)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                               title="View Details"
                             >
-                              <Eye size={16} />
+                              <Eye size={16} className='hover:scale-110' />
                             </button>
-                            <button
+                            {/* <button
                               onClick={() => editSalary(item)}
                               className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition"
                               title="Edit Salary"
                             >
                               <Edit size={16} />
-                            </button>
+                            </button> */}
                             <button
                               onClick={() => exportToPDF()}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition cursor-pointer"
                               title="Download PDF"
                             >
-                              <FileText size={16} />
+                              <FileText size={16} className='hover:scale-110' />
                             </button>
                           </div>
                         </td>

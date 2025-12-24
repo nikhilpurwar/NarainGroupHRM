@@ -8,6 +8,7 @@ import { useHierarchy } from '../../../../context/HierarchyContext'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
 const DEDUCTION_API = `${API_URL}/api/charges`
+const SHIFT_API = `${API_URL}/api/break-times`
 
 const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (
     <div>
@@ -77,6 +78,7 @@ const AddEditEmployee = () => {
     const [form, setForm] = useState(defaultForm)
     const [employees, setEmployees] = useState([])
     const [deductions, setDeductions] = useState([])
+    const [shifts, setShifts] = useState([])
     const [errors, setErrors] = useState({})
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
@@ -159,6 +161,19 @@ const AddEditEmployee = () => {
             }
         }
         fetchDeductions()
+    }, [])
+
+    // fetch shift list
+    useEffect(() => {
+        const fetchShifts = async () => {
+            try {
+                const res = await axios.get(SHIFT_API)
+                setShifts(res.data?.data || [])
+            } catch (e) {
+                toast.error('Failed to fetch shifts:', e)
+            }
+        }
+        fetchShifts()
     }, [])
 
     // compute salaryPerHour on render if not provided
@@ -442,7 +457,7 @@ const AddEditEmployee = () => {
                             name="shift"
                             value={form.shift}
                             onChange={handleChange}
-                            options={["8-hour", "9-hour", "10-hour", "12-hour"]}
+                            options={shifts.map(s => `${s.shiftName} (${s.shiftHour} hours)`)}
                         />
                     </div>
                 </div>

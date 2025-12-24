@@ -53,7 +53,7 @@ const DailySalary = () => {
   const fetchEmployees = useCallback(async () => {
     try {
       setLoadingEmployees(true);
-      const response = await axios.get(`${API_URL}/api/employees/active`);
+      const response = await axios.get(`${API_URL}/api/employees`);
       
       if (response.data.success) {
         setEmployees(response.data.data || []);
@@ -141,7 +141,28 @@ const DailySalary = () => {
       const response = await axios.get(`${API_URL}/api/salary/daily-report`, { params });
       
       if (response.data.success) {
-        setDailySalaryData(response.data.data.reports || []);
+        const reports = response.data.data.reports || [];
+        const mapped = reports.map(r => {
+          const emp = r.employee || {};
+          return {
+            empId: emp.empId || (emp._id || '').toString().slice(-6),
+            empName: emp.name || '',
+            department: emp.headDepartment?.name || '',
+            subDepartment: emp.subDepartment?.name || emp.subDepartment || '',
+            group: emp.group || '',
+            salaryType: emp.salary ? 'Monthly' : 'Daily',
+            salaryPerHr: emp.salary ? Math.round((emp.salary / (30 * (emp.shiftHours || 8)))) : 0,
+            present: null,
+            workingHrs: r.totalWorkingHours || 0,
+            overtimeHrs: null,
+            overtimePayable: r.otTotal || 0,
+            totalWorkingHrs: r.totalWorkingHours || 0,
+            inOutTime: '',
+            payableAmount: r.payable || r.payable === 0 ? r.payable : r.payableAmount || 0,
+            date: `${filters.fromDate} to ${filters.toDate}`
+          }
+        })
+        setDailySalaryData(mapped);
         setTotalRecords(response.data.data.total || 0);
         setSummary(response.data.data.summary || {
           totalPayable: 0,
@@ -621,12 +642,9 @@ const DailySalary = () => {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Department
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Sub Department
-                    </th>
+                    </th>                  
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900 border whitespace-nowrap">
-                      Emp. Group
+                      Sub Department
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Salary Type
@@ -681,12 +699,12 @@ const DailySalary = () => {
                             {item.department}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.subDepartment}
-                        </td>
+                        {/* <td className="px-4 py-3 text-sm text-gray-900">
+                          
+                        </td> */}
                         <td className="px-4 py-3 text-sm font-medium bg-blue-50 border">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.group}
+                            {item.subDepartment}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">

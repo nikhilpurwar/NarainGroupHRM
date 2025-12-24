@@ -4,44 +4,6 @@ import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import { getIO } from "../utils/socket.util.js";
 
-// Helper: determine attendance day ISO (YYYY-MM-DD) based on 8AM boundary
-// Uses timezone-aware calculation (default: Asia/Kolkata) so that
-// the attendance day matches local date when punch was made.
-const getAttendanceIsoForTimestamp = (ts) => {
-  const timeZone = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    hour12: false,
-  });
-
-  const parts = fmt.formatToParts(new Date(ts)).reduce((acc, p) => {
-    if (p.type === 'year') acc.year = Number(p.value);
-    if (p.type === 'month') acc.month = Number(p.value);
-    if (p.type === 'day') acc.day = Number(p.value);
-    if (p.type === 'hour') acc.hour = Number(p.value);
-    return acc;
-  }, { year: 0, month: 0, day: 0, hour: 0 });
-
-  const { year, month, day, hour } = parts;
-  let baseYear = year;
-  let baseMonth = month;
-  let baseDay = day;
-  if (hour < 8) {
-    const dt = new Date(Date.UTC(year, month - 1, day));
-    dt.setUTCDate(dt.getUTCDate() - 1);
-    baseYear = dt.getUTCFullYear();
-    baseMonth = dt.getUTCMonth() + 1;
-    baseDay = dt.getUTCDate();
-  }
-  const mm = String(baseMonth).padStart(2, '0');
-  const dd = String(baseDay).padStart(2, '0');
-  return `${baseYear}-${mm}-${dd}`;
-}
-
 const monthDays = (year, month) => {
   // month: 1-12
   const m = parseInt(month, 10);
@@ -91,7 +53,9 @@ export const attendanceReport = async (req, res) => {
         for (let i = 0; i < atts.length; i++) {
           const a = atts[i];
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
-            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, 8);
+            const shiftCfg = await attendanceService.getShiftConfig();
+            const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
+            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, shiftHours);
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
             a.overtimeHours = computed.overtimeHours;
@@ -210,10 +174,12 @@ export const attendanceReport = async (req, res) => {
 
     const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
     // Ensure each attendance doc has computed totals and last in/out based on punchLogs
-    for (let i = 0; i < atts.length; i++) {
+        for (let i = 0; i < atts.length; i++) {
       const a = atts[i];
       if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
-        const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, emp.workHours || 8);
+        const shiftCfg = await attendanceService.getShiftConfig();
+        const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
+        const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, shiftHours);
         a.totalHours = computed.totalHours;
         a.regularHours = computed.regularHours;
         a.overtimeHours = computed.overtimeHours;
@@ -310,13 +276,13 @@ export const attendanceReport = async (req, res) => {
   }
 };
 
-// Return all attendance records for the current attendance-day (8:00 AM boundary)
+// Return all attendance records for the current attendance-day (07:00 AM boundary)
 export const todaysAttendance = async (req, res) => {
   try {
     // allow overriding time via query (ISO or timestamp) for testing
     const now = req.query.now ? new Date(req.query.now) : new Date();
-    // Determine attendance date based on 8AM boundary
-    const attendanceIso = getAttendanceIsoForTimestamp(now);
+    // Determine attendance date based on configured boundary (default 07:00AM)
+    const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
     const start = new Date(`${attendanceIso}T00:00:00Z`);
     const end = new Date(`${attendanceIso}T23:59:59Z`);
 
@@ -368,8 +334,8 @@ export const scanAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Duplicate punch detected. Please try again after a few seconds.' });
     }
 
-    // Determine attendance date based on 8AM boundary (timezone-aware helper above)
-    const attendanceIso = getAttendanceIsoForTimestamp(now);
+    // Determine attendance date based on configured boundary (default 07:00) (timezone-aware helper above)
+    const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
     const attendanceDoc = await Attendance.findOne({
       employee: emp._id,
       date: {
@@ -413,7 +379,9 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
       existingAttendance.inTime = currentTimeString;
       // Recompute totals (no OUT yet, totals will be zero or previous)
-      const computed = attendanceService.computeTotalsFromPunchLogs(existingAttendance.punchLogs, 8);
+      const shiftCfg_exist = await attendanceService.getShiftConfig();
+      const shiftHours_exist = emp.workHours || emp.shift || shiftCfg_exist.shiftHours || 8;
+      const computed = attendanceService.computeTotalsFromPunchLogs(existingAttendance.punchLogs, shiftHours_exist);
       existingAttendance.totalHours = computed.totalHours;
       existingAttendance.regularHours = computed.regularHours;
       existingAttendance.overtimeHours = computed.overtimeHours;
@@ -426,7 +394,7 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
       
-      // Check for continuous IN across 8AM boundary
+      // Check for continuous IN across configured boundary (e.g., 7AM)
       await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
 
       await emp.populate('headDepartment');
@@ -482,7 +450,7 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     // Record punch in debounce cache
     attendanceService.recordPunch(emp._id.toString(), 'IN');
     
-    // Check for continuous IN across 8AM boundary
+    // Check for continuous IN across configured boundary (e.g., 7AM)
     await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
 
     // Re-populate employee relations for response
@@ -524,7 +492,9 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     attendance.punchLogs = attendance.punchLogs || [];
     attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
 
-    const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, 8);
+    const shiftCfg_out = await attendanceService.getShiftConfig();
+    const shiftHours_out = emp.workHours || emp.shift || shiftCfg_out.shiftHours || 8;
+    const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, shiftHours_out);
     const totalHours = computed.totalHours;
     const regularHours = computed.regularHours;
     const overtimeHours = computed.overtimeHours;

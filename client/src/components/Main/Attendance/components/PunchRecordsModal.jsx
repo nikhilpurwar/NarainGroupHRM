@@ -28,7 +28,7 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
           <div>
             <p className="text-xs text-gray-600">Shift Hours</p>
-            <p className="text-lg font-semibold">{shiftHours}h</p>
+            <p className="text-sm font-semibold">{shiftHours}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Worked Hours</p>

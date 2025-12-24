@@ -8,12 +8,14 @@ const API = `${API_URL}/api/break-times`
 
 const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
   const [form, setForm] = useState({
-    timestart: "",
-    endtime: "",
-    inTime: "",
-    outTime: "",
-    nightIn: "",
-    nightOut: "",
+    shiftName: "",
+    shiftHour: "",
+    shiftStart: "",
+    shiftEnd: "",
+    breakInTime: "",
+    breakOutTime: "",
+    // nightIn: "",
+    // nightOut: "",
   })
 
   const [loading, setLoading] = useState(false)
@@ -22,21 +24,25 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
   useEffect(() => {
     if (isEdit && timing) {
       setForm({
-        timestart: timing.timestart || "",
-        endtime: timing.endtime || "",
-        inTime: timing.inTime || "",
-        outTime: timing.outTime || "",
-        nightIn: timing.nightIn || "",
-        nightOut: timing.nightOut || "",
+        shiftName: timing.shiftName || "",
+        shiftHour: timing.shiftHour || "",
+        shiftStart: timing.shiftStart || "",
+        shiftEnd: timing.shiftEnd || "",
+        breakInTime: timing.breakInTime || "",
+        breakOutTime: timing.breakOutTime || "",
+        // nightIn: timing.nightIn || "",
+        // nightOut: timing.nightOut || "",
       })
     } else {
       setForm({
-        timestart: "",
-        endtime: "",
-        inTime: "",
-        outTime: "",
-        nightIn: "",
-        nightOut: "",
+        shiftName: "",
+        shiftHour: "",
+        shiftStart: "",
+        shiftEnd: "",
+        breakInTime: "",
+        breakOutTime: "",
+        // nightIn: "",
+        // nightOut: "",
       })
     }
   }, [isEdit, timing, isOpen])
@@ -88,23 +94,50 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
 
+
+
+          <div className="grid grid-cols-2 gap-3">
+          {/* Shift Name */}
+            <div>
+            <label className="block mb-1 font-medium">Shift Name *</label>
+            <input
+              type="text"
+              name="shiftName"
+              value={form.shiftName}
+              onChange={handleChange}
+              className="w-full border px-3 py-2 rounded"
+            />
+            </div>
+          {/* Shift Hours */}
+            <div>
+            <label className="block mb-1 font-medium">Shift Hours *</label>
+            <input
+              type="number"
+              name="shiftHour"
+              value={form.shiftHour}
+              onChange={handleChange}
+              className="w-full border px-3 py-2 rounded"
+            />
+            </div>
+          </div>
+
           {/* Working Hours */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Office Start Time" name="timestart" value={form.timestart} onChange={handleChange} />
-            <Input label="Office End Time" name="endtime" value={form.endtime} onChange={handleChange} />
+            <Input label="Shift Start Time" name="shiftStart" value={form.shiftStart} onChange={handleChange} />
+            <Input label="Shift End Time" name="shiftEnd" value={form.shiftEnd} onChange={handleChange} />
           </div>
 
           {/* Break */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Break Start Time" name="inTime" value={form.inTime} onChange={handleChange} />
-            <Input label="Break End Time" name="outTime" value={form.outTime} onChange={handleChange} />
+            <Input label="Break Start Time" name="breakInTime" value={form.breakInTime} onChange={handleChange} />
+            <Input label="Break End Time" name="breakOutTime" value={form.breakOutTime} onChange={handleChange} />
           </div>
 
           {/* Night */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <Input label="Night Start Time" name="nightIn" value={form.nightIn} onChange={handleChange} />
             <Input label="Night End Time" name="nightOut" value={form.nightOut} onChange={handleChange} />
-          </div>
+          </div> */}
 
           <button
             type="submit"
@@ -124,7 +157,6 @@ const Input = ({ label, ...props }) => (
     <label className="block mb-1 font-medium">{label} *</label>
     <input
       type="time"
-      required
       className="w-full border px-3 py-2 rounded"
       {...props}
     />
