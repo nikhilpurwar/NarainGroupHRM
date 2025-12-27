@@ -53,7 +53,7 @@ import userRoutes from "./src/routes/settings/user.route.js";
 // attendance imports
 import attendanceRoutes from "./src/routes/attendance.route.js";
 import advanceRoutes from "./src/routes/advance.route.js";
-// import salaryRoutes from "./src/routes/salary.route.js";
+import salaryRoutes from "./src/routes/salary.route.js";
 
 // Security
 app.use(helmet());
@@ -75,7 +75,7 @@ app.use("/api", attendanceRoutes);
 // Advances (loans/advances)
 app.use("/api/advance", advanceRoutes);
 // Salary endpoints
-// app.use('/api/salary', salaryRoutes);
+app.use('/api/salary', salaryRoutes);
 
 // Serve client in production if built
 if (process.env.NODE_ENV === 'production') {

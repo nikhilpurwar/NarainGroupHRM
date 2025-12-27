@@ -70,104 +70,61 @@ const MonthlySalary = () => {
     return options;
   };
 
-  // Fetch salary data
+  // Fetch salary data (calls backend monthly salary endpoint)
   const fetchSalaryData = useCallback(async () => {
     setLoading(true);
     try {
-      const [year, month] = filters.month.split('-').map(Number);
       const params = {
         employeeName: filters.employeeName,
-        month,
-        year,
+        month: filters.month,
+        year: filters.year,
         page: currentPage,
-        limit: pageSize
+        pageSize
       };
 
-      const response = await axios.get(`${API_URL}/api/salary/monthly-report`, { params });
+      const response = await axios.get(`${API_URL}/api/salary/monthly`, { params });
 
-      if (response.data.success) {
-        const salaries = response.data.data.salaries || [];
-        // map to UI-friendly structure
-        const mapped = salaries.map(r => {
-          const emp = r.employee || {};
-          const comp = r.salary || {};
-          return {
-            id: emp._id,
-            empId: emp.empId || (emp._id || '').toString().slice(-6),
-            empName: emp.name || '',
-            salary: comp.baseSalary || emp.salary || 0,
-            salaryPerDay: comp.breakdown && comp.breakdown.dailyRate ? comp.breakdown.dailyRate : Math.round((comp.baseSalary || emp.salary || 0) / (comp.breakdown?.totalDaysInMonth || new Date(comp.year || filters.year, (comp.month || filters.month)-1, 0).getDate() || 30)),
-            presentDays: comp.presentDays || 0,
-            basicHours: comp.totalHours || 0,
-            basicPay: Math.round(comp.baseSalary || 0),
-            otHours: comp.overtimeHours || 0,
-            otPay: comp.otPay || 0,
-            totalHours: comp.totalHours || 0,
-            totalPay: (comp.baseSalary || 0) + (comp.otPay || 0),
-            totalDeductions: comp.deductions || 0,
-            netPay: comp.netPay || 0,
-            status: 'Calculated'
-          }
-        })
-        setSalaryData(mapped);
-        setTotalRecords(response.data.data.total || 0);
+      if (response.data && response.data.success) {
+        const data = response.data.data || {}
+        const items = data.items || []
+        // Map backend items to UI expected shape
+        const mapped = items.map(it => ({
+          id: it.empId || it.empId,
+          empId: it.empId || '',
+          empName: it.empName || '',
+          headDepartment: it.headDepartment || null,
+          subDepartment: it.subDepartment || null,
+          salary: it.salary || it.monthlySalary || 0,
+          salaryPerDay: it.salaryPerDay || Math.round((it.salary || 0) / 30),
+          presentDays: it.present || 0,
+          basicHours: it.workingHrs || it.basicHours || 0,
+          basicPay: it.workingHrs ? Number(((it.workingHrs) * (it.salaryPerHr || 0)).toFixed(2)) : 0,
+          otHours: it.overtimeHrs || 0,
+          otPay: it.overtimePayable || 0,
+          totalHours: ((it.workingHrs || 0) + (it.overtimeHrs || 0)),
+          totalPay: (it.payableAmount || 0),
+          totalDeductions: 0,
+          netPay: it.payableAmount || 0,
+          status: 'Calculated'
+        }))
+        setSalaryData(mapped)
+        setTotalRecords(data.totalRecords || 0)
       } else {
-        toast.error(response.data.message || 'Failed to fetch salary data');
+        toast.error(response.data?.message || 'Failed to fetch salary data')
+        setSalaryData([])
+        setTotalRecords(0)
       }
     } catch (error) {
       console.error('Error fetching salary data:', error);
       toast.error('Failed to load salary report');
-      // Mock data for demonstration
-      setSalaryData(generateMockData());
-      setTotalRecords(15);
+      setSalaryData([])
+      setTotalRecords(0)
     } finally {
       setLoading(false);
     }
   }, [filters, currentPage, pageSize]);
 
-  // Generate mock data for demonstration
-  const generateMockData = () => {
-    const mockData = [];
-    for (let i = 1; i <= 15; i++) {
-      const basicPay = Math.floor(Math.random() * 30000) + 20000;
-      const otHours = Math.floor(Math.random() * 40);
-      const otPay = otHours * 200;
-      const totalPay = basicPay + otPay;
-      const deductions = Math.floor(Math.random() * 5000);
-      const netPay = totalPay - deductions;
-
-      mockData.push({
-        id: i,
-        empId: `EMP${1000 + i}`,
-        empName: `Employee ${i}`,
-        salary: 30000 + i * 1000,
-        group: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
-        salaryPerDay: Math.floor((30000 + i * 1000) / 30),
-        presentDays: 22 + Math.floor(Math.random() * 6),
-        basicHours: 176,
-        basicPay,
-        otHours,
-        otPay,
-        totalHours: 176 + otHours,
-        totalPay,
-        tds: Math.floor(Math.random() * 1000),
-        pTax: Math.floor(Math.random() * 500),
-        lwf: Math.floor(Math.random() * 300),
-        esi: Math.floor(Math.random() * 800),
-        basicPF: Math.floor(Math.random() * 1200),
-        otPF: Math.floor(Math.random() * 600),
-        insurance: Math.floor(Math.random() * 700),
-        advance: Math.floor(Math.random() * 2000),
-        loanPending: Math.floor(Math.random() * 5000),
-        loanReceived: Math.floor(Math.random() * 3000),
-        loanDeduct: Math.floor(Math.random() * 1500),
-        totalDeductions: deductions,
-        netPay,
-        status: ['Paid', 'Pending', 'Processing'][Math.floor(Math.random() * 3)]
-      });
-    }
-    return mockData;
-  };
+  // No client-side mock data generation — fetch live results from backend
 
   // Handle filter change
   const handleFilterChange = (e) => {
@@ -618,7 +575,7 @@ const MonthlySalary = () => {
                       Total Pay
                     </th>
 
-                    (
+                    
                       {/* check employee model if applicable then apply as per values */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       TDS
@@ -641,8 +598,8 @@ const MonthlySalary = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Insurance
                     </th>
-                    )
-                    (
+                    
+                    
                       {/* from advance.model.js */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Advance
@@ -655,7 +612,7 @@ const MonthlySalary = () => {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Loan Deduct
-                    </th> )
+                    </th> 
 
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-yellow-50 text-yellow-900 border">
                       Total Deductions
@@ -685,17 +642,17 @@ const MonthlySalary = () => {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">{item.empName}</div>
-                              <div className="text-xs text-gray-500">{item.headDepartment || 'N/A'}</div>
+                              <div className="text-xs text-gray-500">{item.headDepartment?.name || 'N/A'}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {item.subDepartment || 'N/A'}
+                            {item.subDepartment?.name || 'N/A'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.salary?.toLocaleString() || '0'}
+                          ₹{item.salary || '0'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           ₹{item.salaryPerDay?.toLocaleString() || '0'}
@@ -766,12 +723,10 @@ const MonthlySalary = () => {
                             className="w-auto min-w-20 max-w-25 border rounded px-2 py-1"
                             value={item.loanDeduct || 0}
                             onChange={(e) => {
-                              // update your state here
                               const updatedValue = Number(e.target.value);
-                              // Example: if items is in state
-                              setItems((prev) =>
+                              setSalaryData((prev) =>
                                 prev.map((i) =>
-                                  i._id === item._id ? { ...i, loanDeduct: updatedValue } : i
+                                  (i.empId || i.id) === (item.empId || item.id) ? { ...i, loanDeduct: updatedValue } : i
                                 )
                               );
                             }}

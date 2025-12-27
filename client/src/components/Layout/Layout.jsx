@@ -29,6 +29,7 @@ const Layout = () => {
     breaks: { path: '/breaks', title: 'Working Hours', subtitle: 'Settings' },
     festival: { path: '/festival', title: 'Holidays', subtitle: 'Settings' },
     charges: { path: '/charges', title: 'Charges', subtitle: 'Settings' },
+    'salary-rules': { path: '/salary-rules', title: 'Salary Rules', subtitle: 'Settings' },
   }
 
   const pathname = location.pathname
