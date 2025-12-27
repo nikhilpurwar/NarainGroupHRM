@@ -116,12 +116,12 @@ const WorkingHours = () => {
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">Shift Name</th>
+                <th className="px-4 py-3">Shift Hour</th>
                 <th className="px-4 py-3">Working Start</th>
                 <th className="px-4 py-3">Working End</th>
                 <th className="px-4 py-3">Break Start</th>
                 <th className="px-4 py-3">Break End</th>
-                <th className="px-4 py-3">Night Start</th>
-                <th className="px-4 py-3">Night End</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -133,12 +133,12 @@ const WorkingHours = () => {
                   className="border-t hover:bg-gray-50 text-center"
                 >
                   <td className="px-4 py-3">{i + 1}</td>
-                  <td>{item.timestart}</td>
-                  <td>{item.endtime}</td>
-                  <td>{item.inTime}</td>
-                  <td>{item.outTime}</td>
-                  <td>{item.nightIn}</td>
-                  <td>{item.nightOut}</td>
+                  <td>{item.shiftName}</td>
+                  <td>{item.shiftHour}</td>
+                  <td>{item.shiftStart}</td>
+                  <td>{item.shiftEnd}</td>
+                  <td>{item.breakInTime}</td>
+                  <td>{item.breakOutTime}</td>
                   <td className="flex justify-center gap-3 py-3">
                     {role === 'admin' ? (
                       <>

@@ -53,7 +53,7 @@ const DailySalary = () => {
   const fetchEmployees = useCallback(async () => {
     try {
       setLoadingEmployees(true);
-      const response = await axios.get(`${API_URL}/api/employees/active`);
+      const response = await axios.get(`${API_URL}/api/employees`);
       
       if (response.data.success) {
         setEmployees(response.data.data || []);
@@ -62,69 +62,14 @@ const DailySalary = () => {
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
-      // Mock employees for demonstration
-      setEmployees([
-        { _id: '1', empId: 'EMP1001', name: 'CHAMAN LAL BHATIA', department: 'Production' },
-        { _id: '2', empId: 'EMP1002', name: 'RAJESH KUMAR', department: 'Quality Control' },
-        { _id: '3', empId: 'EMP1003', name: 'PRIYA SHARMA', department: 'Packaging' },
-        { _id: '4', empId: 'EMP1004', name: 'AMIT VERMA', department: 'Dispatch' },
-        { _id: '5', empId: 'EMP1005', name: 'NEHA SINGH', department: 'Production' }
-      ]);
+      setEmployees([]);
+      toast.error('Failed to load employees');
     } finally {
       setLoadingEmployees(false);
     }
   }, []);
   
-  // Generate mock daily salary data
-  const generateMockDailyData = () => {
-    const mockData = [];
-    const departments = ['Production', 'Quality Control', 'Packaging', 'Dispatch', 'Maintenance'];
-    const salaryTypes = ['Monthly', 'Daily', 'Hourly'];
-    const groups = ['A', 'B', 'C', 'D'];
-    
-    for (let i = 1; i <= 25; i++) {
-      const salaryPerHr = Math.floor(Math.random() * 300) + 150;
-      const presentDays = Math.floor(Math.random() * 8) + 1;
-      const workingHrs = presentDays * 8;
-      const overtimeHrs = Math.floor(Math.random() * 4);
-      const overtimePayable = overtimeHrs * (salaryPerHr * 1.5);
-      const totalWorkingHrs = workingHrs + overtimeHrs;
-      const payableAmount = (workingHrs * salaryPerHr) + overtimePayable;
-      
-      mockData.push({
-        id: i,
-        empId: `EMP${1000 + i}`,
-        empName: `Employee ${i}`,
-        department: departments[Math.floor(Math.random() * departments.length)],
-        subDepartment: ['Line 1', 'Line 2', 'Section A', 'Section B'][Math.floor(Math.random() * 4)],
-        group: groups[Math.floor(Math.random() * groups.length)],
-        salaryType: salaryTypes[Math.floor(Math.random() * salaryTypes.length)],
-        salaryPerHr: salaryPerHr,
-        present: presentDays,
-        workingHrs: workingHrs,
-        overtimeHrs: overtimeHrs,
-        overtimePayable: overtimePayable,
-        totalWorkingHrs: totalWorkingHrs,
-        inOutTime: ['08:00-17:00', '09:00-18:00', '07:00-16:00', '10:00-19:00'][Math.floor(Math.random() * 4)],
-        payableAmount: payableAmount,
-        date: new Date().toISOString().split('T')[0]
-      });
-    }
-    
-    // Calculate summary
-    const totalPayable = mockData.reduce((sum, item) => sum + item.payableAmount, 0);
-    const totalOvertime = mockData.reduce((sum, item) => sum + item.overtimePayable, 0);
-    const totalWorkingHours = mockData.reduce((sum, item) => sum + item.totalWorkingHrs, 0);
-    
-    setSummary({
-      totalPayable,
-      totalOvertime,
-      totalEmployees: mockData.length,
-      totalWorkingHours
-    });
-    
-    return mockData;
-  };
+  // No client-side dummy data generation — fetch from backend API instead
   
   // Fetch daily salary data
   const fetchDailySalaryData = useCallback(async () => {
@@ -135,33 +80,27 @@ const DailySalary = () => {
         toDate: filters.toDate,
         employeeId: filters.employeeId,
         page: currentPage,
-        limit: pageSize
+        pageSize
       };
       
-      const response = await axios.get(`${API_URL}/api/salary/daily-report`, { params });
-      
-      if (response.data.success) {
-        setDailySalaryData(response.data.data.reports || []);
-        setTotalRecords(response.data.data.total || 0);
-        setSummary(response.data.data.summary || {
-          totalPayable: 0,
-          totalOvertime: 0,
-          totalEmployees: 0,
-          totalWorkingHours: 0
-        });
+      const response = await axios.get(`${API_URL}/api/salary/daily`, { params });
+
+      if (response.data && response.data.success) {
+        const data = response.data.data || {}
+        const items = data.items || []
+        setDailySalaryData(items)
+        setTotalRecords(data.totalRecords || 0)
+        setSummary(data.summary || { totalPayable: 0, totalOvertime: 0, totalEmployees: 0, totalWorkingHours: 0 })
       } else {
-        toast.error(response.data.message || 'Failed to fetch daily salary data');
-        // Use mock data for demonstration
-        const mockData = generateMockDailyData();
-        setDailySalaryData(mockData.slice(0, pageSize));
-        setTotalRecords(mockData.length);
+        toast.error(response.data?.message || 'Failed to fetch daily salary data')
+        setDailySalaryData([])
+        setTotalRecords(0)
+        setSummary({ totalPayable: 0, totalOvertime: 0, totalEmployees: 0, totalWorkingHours: 0 })
       }
     } catch (error) {
       console.error('Error fetching daily salary data:', error);
-      // Use mock data for demonstration
-      const mockData = generateMockDailyData();
-      setDailySalaryData(mockData.slice(0, pageSize));
-      setTotalRecords(mockData.length);
+      setDailySalaryData([])
+      setTotalRecords(0)
       toast.error('Failed to load daily salary report');
     } finally {
       setLoading(false);
@@ -621,12 +560,9 @@ const DailySalary = () => {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Department
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Sub Department
-                    </th>
+                    </th>                  
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900 border whitespace-nowrap">
-                      Emp. Group
+                      Sub Department
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                       Salary Type
@@ -681,12 +617,12 @@ const DailySalary = () => {
                             {item.department}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.subDepartment}
-                        </td>
+                        {/* <td className="px-4 py-3 text-sm text-gray-900">
+                          
+                        </td> */}
                         <td className="px-4 py-3 text-sm font-medium bg-blue-50 border">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.group}
+                            {item.subDepartment}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">

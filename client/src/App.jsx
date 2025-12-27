@@ -27,6 +27,7 @@ import ManageUsers from './components/Main/Settings/Manage Users/ManageUsers'
 import WorkingHours from './components/Main/Settings/Working Hours/WorkingHours'
 import Holidays from './components/Main/Settings/Holidays/Holidays'
 import Charges from './components/Main/Settings/Charges/Charges'
+import SalaryRules from './components/Main/Settings/Salary Rules/SalaryRules'
 import AddEditEmployee from './components/Main/All Employees/components/AddEditEmployee'
 
 function App() {
@@ -64,6 +65,7 @@ function App() {
             <Route path="/breaks" element={<WorkingHours />} />
             <Route path="/festival" element={<Holidays />} />
             <Route path="/charges" element={<Charges />} />
+            <Route path="/salary-rules" element={<SalaryRules />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

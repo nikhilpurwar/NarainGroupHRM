@@ -85,13 +85,35 @@ const EmployeeTable = ({
     // Precompute present/absent counts for employees on the current page (optimized)
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
     const currentYear = String(new Date().getFullYear())
+    const [attendanceMap, setAttendanceMap] = useState({})
+
+    // When table requires action columns (present/absent) fetch attendances for employees on current page
+    useEffect(() => {
+        let mounted = true
+        if (!renderActions || currentData.length === 0) return
+        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
+        const fetchForPage = async () => {
+            try {
+                const promises = currentData.map(e => axios.get(`${apiUrl}/api/attendance-report`, { params: { employeeId: e._id || e.id, month: currentMonth, year: currentYear } }).then(r => ({ id: e._id || e.id, data: r.data?.data?.employee?.attendance || [] })).catch(() => ({ id: e._id || e.id, data: [] })))
+                const results = await Promise.all(promises)
+                if (!mounted) return
+                const map = {}
+                for (const r of results) map[r.id] = r.data
+                setAttendanceMap(map)
+            } catch (err) {
+                console.error('Error fetching attendances for page', err)
+            }
+        }
+        fetchForPage()
+        return () => { mounted = false }
+    }, [renderActions, currentData, currentMonth, currentYear])
     const countsMap = useMemo(() => {
         const map = {}
         for (const emp of currentData) {
             const key = emp._id || emp.id
             let present = 0
             let absent = 0
-            const attends = emp.attendance || emp.attendanceRaw || []
+            const attends = attendanceMap[key] || emp.attendance || emp.attendanceRaw || []
             if (Array.isArray(attends) && attends.length) {
                 for (const a of attends) {
                     try {
@@ -198,7 +220,10 @@ const EmployeeTable = ({
 
             <div className="bg-white py-4 rounded-xl shadow-md overflow-x-auto">
                 {loading ? (
-                    <p className="text-center py-6 text-gray-500">Loading employees...</p>
+                    <div className="flex justify-center items-center p-10 gap-4">
+                        <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
+                        <p className="text-center py-6 text-gray-500">Loading employees...</p>
+                    </div>
                 ) : (
                     <table className="w-full min-w-7xl table-auto">
                         <thead>
@@ -326,7 +351,7 @@ const EmployeeTable = ({
                                                     </div>
                                                 )}
                                             </td>
-                                        </tr>
+                                        </tr> 
                                     )
                                 })
                             ) : (

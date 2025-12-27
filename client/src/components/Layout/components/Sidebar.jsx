@@ -56,6 +56,7 @@ const Sidebar = ({ isCollapsed }) => {
     { path: "/breaks", label: "Working Hours" },
     { path: "/festival", label: "Holidays" },
     { path: "/charges", label: "Charges" },
+    { path: "/salary-rules", label: "Salary Rules" },
   ]
 
   /* ---------------- AUTO OPEN DROPDOWNS ---------------- */

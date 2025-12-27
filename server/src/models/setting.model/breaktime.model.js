@@ -2,12 +2,14 @@ import mongoose from 'mongoose'
 
 const BreakSchema = new mongoose.Schema({
   // Align with client AddEditTimings payload
-  timestart: { type: String },
-  endtime: { type: String },
-  inTime: { type: String },
-  outTime: { type: String },
-  nightIn: { type: String },
-  nightOut: { type: String },
+  shiftName: { type: String },
+  shiftHour: { type: Number },
+  shiftStart: { type: String },
+  shiftEnd: { type: String },
+  breakInTime: { type: String },
+  breakOutTime: { type: String },
+  // nightIn: { type: String },
+  // nightOut: { type: String },
   status: { type: Number, default: 1 }
 }, { timestamps: true })
 

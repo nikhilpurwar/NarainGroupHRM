@@ -1,11 +1,12 @@
 import Attendance from '../models/attendance.model.js'
+import BreakTime from '../models/setting.model/breaktime.model.js'
 import createHttpError from 'http-errors'
 
 // Configurable business rules
 const DEFAULT_CONFIG = {
   absentMarkingCutoffMinutes: 60 * 24, // by default consider past-day cutoff (can be overridden)
   PUNCH_DEBOUNCE_SECONDS: 10, // debounce within 10 seconds
-  ATTENDANCE_DAY_START_HOUR: 8, // attendance day starts at 8 AM
+  ATTENDANCE_DAY_START_HOUR: 7, // attendance day starts at 7 AM
 }
 
 // In-memory debounce cache: employeeId => { lastPunchTime, lastPunchType }
@@ -55,6 +56,85 @@ export async function findIncompleteAttendance(employeeId) {
     employee: employeeId,
     $expr: { $eq: [ { $arrayElemAt: ["$punchLogs.punchType", -1] }, "IN" ] }
   }).sort({ date: -1, createdAt: -1 });
+}
+
+// Cache for boundary hour (minutes TTL)
+let _boundaryCache = { hour: null, ts: 0 }
+export async function getBoundaryHour() {
+  // return cached if within 5 minutes
+  const now = Date.now()
+  if (_boundaryCache.hour !== null && (now - _boundaryCache.ts) < 5 * 60 * 1000) return _boundaryCache.hour
+  try {
+    const bt = await BreakTime.findOne({ status: 1 }).sort({ createdAt: -1 }).lean()
+    // prefer explicit shiftStart, breakInTime, inTime or timestart
+    let val = bt?.shiftStart || bt?.breakInTime || bt?.inTime || bt?.timestart || bt?.timeStart || null
+    if (!val) {
+      _boundaryCache = { hour: (DEFAULT_CONFIG.ATTENDANCE_DAY_START_HOUR || 7), ts: now }
+      return _boundaryCache.hour
+    }
+    // extract hour number
+    const m = String(val).trim().match(/(\d{1,2})/) 
+    const hour = m ? Number(m[1]) : (DEFAULT_CONFIG.ATTENDANCE_DAY_START_HOUR || 7)
+    _boundaryCache = { hour, ts: now }
+    return hour
+  } catch (err) {
+    _boundaryCache = { hour: (DEFAULT_CONFIG.ATTENDANCE_DAY_START_HOUR || 7), ts: now }
+    return _boundaryCache.hour
+  }
+}
+
+// Return aggregated shift configuration from BreakTime (boundary hour and shift length)
+let _shiftConfigCache = { cfg: null, ts: 0 }
+export async function getShiftConfig() {
+  const now = Date.now()
+  if (_shiftConfigCache.cfg && (now - _shiftConfigCache.ts) < 5 * 60 * 1000) return _shiftConfigCache.cfg
+  try {
+    const bt = await BreakTime.findOne({ status: 1 }).sort({ createdAt: -1 }).lean()
+    const shiftStart = bt?.shiftStart || bt?.breakInTime || bt?.inTime || bt?.timestart || null
+    const shiftEnd = bt?.shiftEnd || bt?.breakOutTime || bt?.outTime || null
+    const shiftHours = (typeof bt?.shiftHour === 'number' && bt.shiftHour > 0) ? bt.shiftHour : (DEFAULT_CONFIG.ATTENDANCE_DAY_START_HOUR ? 8 : 8)
+    const boundaryHour = await getBoundaryHour()
+    const cfg = { shiftStart, shiftEnd, shiftHours, boundaryHour }
+    _shiftConfigCache = { cfg, ts: now }
+    return cfg
+  } catch (err) {
+    return { shiftStart: null, shiftEnd: null, shiftHours: 8, boundaryHour: (DEFAULT_CONFIG.ATTENDANCE_DAY_START_HOUR || 7) }
+  }
+}
+
+// Determine attendance ISO (YYYY-MM-DD) for a timestamp using configured boundary hour
+export async function getAttendanceIsoForTimestamp(ts) {
+  const timeZone = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date(ts)).reduce((acc, p) => {
+    if (p.type === 'year') acc.year = Number(p.value);
+    if (p.type === 'month') acc.month = Number(p.value);
+    if (p.type === 'day') acc.day = Number(p.value);
+    if (p.type === 'hour') acc.hour = Number(p.value);
+    return acc;
+  }, { year: 0, month: 0, day: 0, hour: 0 });
+  const { year, month, day, hour } = parts;
+  let baseYear = year;
+  let baseMonth = month;
+  let baseDay = day;
+  const boundary = await getBoundaryHour()
+  if (hour < boundary) {
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    dt.setUTCDate(dt.getUTCDate() - 1);
+    baseYear = dt.getUTCFullYear();
+    baseMonth = dt.getUTCMonth() + 1;
+    baseDay = dt.getUTCDate();
+  }
+  const mm = String(baseMonth).padStart(2, '0');
+  const dd = String(baseDay).padStart(2, '0');
+  return `${baseYear}-${mm}-${dd}`;
 }
 
 export async function createAttendance(payload) {
@@ -241,10 +321,10 @@ export function parseDateTime(dateIso, timeStr) {
   }
 }
 
-// Check if employee has open IN that crosses 8AM boundary to next day
+// Check if employee has open IN that crosses attendance-day boundary to next day
 export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Attendance) {
   try {
-    // Get attendance for today (computed by 8AM boundary)
+    // Get attendance for today (computed by configured boundary hour)
     const todayAtt = await Attendance.findOne({
       employee: employeeId,
       date: {
@@ -267,10 +347,11 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
     const lastInTime = new Date(lastPunch.punchTime);
     const lastInHour = lastInTime.getHours();
 
-    // If IN was before 8AM (assigned to previous day), check if it should span to today
-    if (lastInHour < 8 && attendanceIso !== lastInTime.toISOString().slice(0, 10)) {
-      // IN was yesterday before 8AM, and we're now computing today
-      // This means employee was IN from yesterday before 8AM and is still IN today
+    // If IN was before configured boundary hour (assigned to previous day), check if it should span to today
+    const boundaryHour = await getBoundaryHour()
+    if (lastInHour < boundaryHour && attendanceIso !== lastInTime.toISOString().slice(0, 10)) {
+      // IN was yesterday before boundary hour, and we're now computing today
+      // This means employee was IN from yesterday before the boundary hour and is still IN today
       // Mark today as Present automatically
       const nextDayIso = attendanceIso;
       const nextDayDateObj = new Date(`${nextDayIso}T00:00:00Z`);
@@ -286,12 +367,12 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
       });
 
       if (!nextDayAtt) {
-        // Create new attendance for next day with IN at 8AM boundary
+        // Create new attendance for next day with IN at configured boundary hour
         nextDayAtt = await Attendance.create({
           employee: employeeId,
           date: nextDayDateObj,
           status: 'present',
-          inTime: '08:00:00',
+          inTime: `${String(boundaryHour).padStart(2,'0')}:00:00`,
           outTime: null,
           totalHours: 0,
           regularHours: 0,
@@ -301,9 +382,9 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
           isHoliday: false,
           punchLogs: [{ 
             punchType: 'IN', 
-            punchTime: new Date(`${nextDayIso}T08:00:00Z`)
+            punchTime: new Date(`${nextDayIso}T${String(boundaryHour).padStart(2,'0')}:00:00Z`)
           }],
-          note: 'Continuous IN from previous day (auto-marked at 8AM boundary)'
+          note: `Continuous IN from previous day (auto-marked at ${String(boundaryHour).padStart(2,'0')}:00 boundary)`
         });
       }
 

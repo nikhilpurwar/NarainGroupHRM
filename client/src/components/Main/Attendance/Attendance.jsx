@@ -37,6 +37,8 @@ const Attendance = () => {
   const [holidays, setHolidays] = useState([])
   const fetchInProgressRef = useRef(false)
   const lastRequestedRef = useRef(null)
+  const loadEmployeesRef = useRef(null)
+  const loadHolidaysRef = useRef(null)
 
   /* ---------------- Resize ---------------- */
   useEffect(() => {
@@ -47,6 +49,7 @@ const Attendance = () => {
 
   /* ---------------- Load Employees & Holidays ---------------- */
   useEffect(() => {
+    // Extract loaders so they can be reused after barcode/punch actions
     const loadEmployees = async () => {
       try {
         setEmpsLoading(true)
@@ -77,12 +80,21 @@ const Attendance = () => {
     }
 
     const loadHolidays = async () => {
-      const res = await axios.get(`${API_URL}/api/holidays`)
-      setHolidays(res.data?.data || [])
+      try {
+        const res = await axios.get(`${API_URL}/api/holidays`)
+        setHolidays(res.data?.data || [])
+      } catch (err) {
+        console.error('Failed to load holidays', err)
+      }
     }
 
+    // initial load
     loadEmployees()
     loadHolidays()
+
+    // expose loaders to refs for later use
+    loadEmployeesRef.current = loadEmployees
+    loadHolidaysRef.current = loadHolidays
   }, [])
 
   /* ---------------- Fetch Report ---------------- */
@@ -172,8 +184,13 @@ const Attendance = () => {
         )
       )
 
-      // If the currently viewed report belongs to this employee, refresh it
+      // Refresh employees list so badges/counts update across UI
+      try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }
+
+      // If the currently viewed report belongs to this employee, force refresh it
       if (report?.employee?._id === emp._id) {
+        // clear lastRequestedRef so fetchReport will actually refetch updated data
+        lastRequestedRef.current = null
         await fetchReport({
           employeeId: emp._id,
           month: filters.month,
@@ -202,7 +219,7 @@ const Attendance = () => {
   return (
     <div className="w-full min-h-screen flex flex-col">
 
-      {/* Back Button */}    
+      {/* Back Button */}
       {!isMobile && viewMode === "report" && (
         <div className="p-6 pb-0">
           <button
@@ -313,8 +330,11 @@ const Attendance = () => {
           />
         ) : (
           <>
-            {loading && <p className="text-center py-10">Loading...</p>}
-
+            {loading &&
+              <div className="flex justify-center items-center p-10">
+                <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
+              </div>
+            }
             {!loading && report && (
               <>
                 <EmployeeSummary emp={report.employee} isMobile={isMobile} />
@@ -345,10 +365,13 @@ const Attendance = () => {
       <BarcodeScanner
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        onAttendanceMarked={() => {
-          refreshReport()
-          setScannerOpen(false)
-        }}
+          onAttendanceMarked={async () => {
+            // scanner marked attendance on server — refresh employees and report
+            try { await loadEmployeesRef.current?.() } catch (e) { }
+            lastRequestedRef.current = null
+            refreshReport()
+            setScannerOpen(false)
+          }}
       />
 
       {/* Punch Records Modal */}
@@ -362,7 +385,7 @@ const Attendance = () => {
           attendance={selectedPunchDate.attendance}
           date={selectedPunchDate.date}
           employeeName={report?.employee?.name}
-          shiftHours={report?.employee?.workHours || 8}
+          shiftHours={report?.employee?.shift || 8}
         />
       )}
     </div>
