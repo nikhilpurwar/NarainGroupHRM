@@ -23,15 +23,17 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
 
 const MonthlySalary = () => {
   // State for filters
+  const currentMonthStr = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`
   const [filters, setFilters] = useState({
     employeeName: '',
-    month: new Date().getMonth() + 1, // Current month
-    year: new Date().getFullYear()
+    month: currentMonthStr
   });
 
   // State for salary data
   const [salaryData, setSalaryData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dataExists, setDataExists] = useState(false);
+  const [checkedMonth, setCheckedMonth] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,59 +72,136 @@ const MonthlySalary = () => {
     return options;
   };
 
-  // Fetch salary data (calls backend monthly salary endpoint)
+  // Format selected month-year for display (handles both "YYYY-M" and separate month/year)
+  const getSelectedMonthYearLabel = () => {
+    if (!filters.month) return 'Current Month'
+    const [y, m] = String(filters.month).split('-')
+    const monthObj = months.find(ms => String(ms.value) === String(m))
+    return `${y} | ${monthObj ? monthObj.label : `Month ${m}`}`
+  }
+
+  // Check if salary data exists for the selected month
+  const checkDataExists = useCallback(async () => {
+    try {
+      const params = {
+        month: filters.month
+      };
+      
+      const response = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
+
+      if (response.data && response.data.success) {
+        const exists = response.data.data?.exists || false;
+        setDataExists(exists);
+        setCheckedMonth(filters.month);
+        return exists;
+      } else {
+        setDataExists(false);
+        setCheckedMonth(filters.month);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking salary data:', error);
+      setDataExists(false);
+      setCheckedMonth(filters.month);
+      return false;
+    }
+  }, [filters.month]);
+
+  // Fetch salary data (only if data exists)
   const fetchSalaryData = useCallback(async () => {
+    if (!dataExists) {
+      setSalaryData([]);
+      setTotalRecords(0);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = {
         employeeName: filters.employeeName,
         month: filters.month,
-        year: filters.year,
         page: currentPage,
         pageSize
       };
-
+      
       const response = await axios.get(`${API_URL}/api/salary/monthly`, { params });
 
       if (response.data && response.data.success) {
-        const data = response.data.data || {}
-        const items = data.items || []
+        const data = response.data.data || {};
+        const items = data.items || [];
+        
         // Map backend items to UI expected shape
-        const mapped = items.map(it => ({
-          id: it.empId || it.empId,
-          empId: it.empId || '',
-          empName: it.empName || '',
-          headDepartment: it.headDepartment || null,
-          subDepartment: it.subDepartment || null,
-          salary: it.salary || it.monthlySalary || 0,
-          salaryPerDay: it.salaryPerDay || Math.round((it.salary || 0) / 30),
-          presentDays: it.present || 0,
-          basicHours: it.workingHrs || it.basicHours || 0,
-          basicPay: it.workingHrs ? Number(((it.workingHrs) * (it.salaryPerHr || 0)).toFixed(2)) : 0,
-          otHours: it.overtimeHrs || 0,
-          otPay: it.overtimePayable || 0,
-          totalHours: ((it.workingHrs || 0) + (it.overtimeHrs || 0)),
-          totalPay: (it.payableAmount || 0),
-          totalDeductions: 0,
-          netPay: it.payableAmount || 0,
-          status: 'Calculated'
-        }))
-        setSalaryData(mapped)
-        setTotalRecords(data.totalRecords || 0)
+        const mapped = items.map(it => {
+          const salary = it.salary || it.monthlySalary || 0;
+          const salaryPerDayBackend = (it.salaryPerDay !== undefined && it.salaryPerDay !== null) ? it.salaryPerDay : undefined;
+          const salaryPerDay30 = (it.salaryPerDay30 !== undefined) ? it.salaryPerDay30 : undefined;
+          const salaryPerDayComputed = Number((salary / 30).toFixed(2));
+          const salaryPerDay = salaryPerDayBackend ?? salaryPerDay30 ?? salaryPerDayComputed;
+
+          const salaryPerHourBackend = (it.salaryPerHour !== undefined && it.salaryPerHour !== null) ? it.salaryPerHour : undefined;
+          const salaryPerHour30 = (it.salaryPerHourFrom30 !== undefined) ? it.salaryPerHourFrom30 : undefined;
+          const shiftHours = it.shiftHours || 8;
+          const salaryPerHourComputed = Number((salaryPerDay / shiftHours).toFixed(2));
+          const salaryPerHour = salaryPerHourBackend ?? salaryPerHour30 ?? salaryPerHourComputed;
+
+          const presentDays = (it.present !== undefined) ? it.present : (it.presentDays !== undefined ? it.presentDays : 0);
+          const basicHours = it.workingHrs || it.basicHours || 0;
+          const otHours = it.overtimeHrs || it.otHours || 0;
+          const basicPay = (it.basicPay !== undefined) ? it.basicPay : (basicHours ? Number((basicHours * (it.salaryPerHr || salaryPerHour || 0)).toFixed(2)) : 0);
+          const otPay = it.overtimePayable || it.otPay || 0;
+          const totalHours = Number((basicHours + otHours).toFixed(2));
+          const totalPay = (it.payableAmount || it.totalPay || 0);
+
+          return {
+            id: it.id || it._id || it.empId,
+            empId: it.empId || '',
+            empName: it.empName || '',
+            headDepartment: it.headDepartment || null,
+            subDepartment: it.subDepartment || null,
+            salary,
+            salaryPerDay,
+            salaryPerHour,
+            presentDays,
+            basicHours,
+            basicPay,
+            otHours,
+            otPay,
+            totalHours,
+            totalPay,
+            tds: it.tds || 0,
+            pTax: it.pTax || it.ptax || 0,
+            lwf: it.lwf || 0,
+            esi: it.esi || 0,
+            basicPF: it.basicPF || it.pf || 0,
+            otPF: it.otPF || 0,
+            insurance: it.insurance || 0,
+            advance: it.advance || 0,
+            loanPending: it.loanPending || 0,
+            loanReceived: it.loanReceived || 0,
+            loanDeduct: it.loanDeduct || 0,
+            totalDeductions: (it.totalDeductions !== undefined) ? it.totalDeductions : 0,
+            netPay: (it.netPay !== undefined) ? it.netPay : totalPay,
+            group: it.group || (it.subDepartment && it.subDepartment.name) || '',
+            status: it.status || 'Calculated'
+          };
+        });
+        
+        setSalaryData(mapped);
+        setTotalRecords(data.totalRecords || 0);
       } else {
-        toast.error(response.data?.message || 'Failed to fetch salary data')
-        setSalaryData([])
-        setTotalRecords(0)
+        toast.error(response.data?.message || 'Failed to fetch salary data');
+        setSalaryData([]);
+        setTotalRecords(0);
       }
     } catch (error) {
       console.error('Error fetching salary data:', error);
       toast.error('Failed to load salary report');
-      setSalaryData([])
-      setTotalRecords(0)
+      setSalaryData([]);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }
-  }, [filters, currentPage, pageSize]);
+  }, [filters, currentPage, pageSize, dataExists]);
 
   // No client-side mock data generation — fetch live results from backend
 
@@ -139,7 +218,15 @@ const MonthlySalary = () => {
   const applyFilters = (e) => {
     e?.preventDefault();
     setCurrentPage(1); // Reset to first page
-    fetchSalaryData();
+    checkDataExists().then(exists => {
+      if (exists) {
+        fetchSalaryData();
+      } else {
+        setSalaryData([]);
+        setTotalRecords(0);
+        toast.info('No salary data available for the selected month');
+      }
+    });
   };
 
   // Clear filters
@@ -149,6 +236,9 @@ const MonthlySalary = () => {
       month: `${new Date().getFullYear()}-${new Date().getMonth() + 1}`
     });
     setCurrentPage(1);
+    setDataExists(false);
+    setSalaryData([]);
+    setTotalRecords(0);
   };
 
   // Handle pagination
@@ -166,7 +256,7 @@ const MonthlySalary = () => {
   // Export to PDF
   const exportToPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
-    const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
+    const monthYear = getSelectedMonthYearLabel();
 
     // Title
     doc.setFontSize(18);
@@ -219,7 +309,7 @@ const MonthlySalary = () => {
 
   // Export to Excel
   const exportToExcel = () => {
-    const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
+    const monthYear = getSelectedMonthYearLabel();
 
     // Prepare data
     const ws_data = [
@@ -279,7 +369,7 @@ const MonthlySalary = () => {
   // Print report
   const printReport = () => {
     const printWindow = window.open('', '_blank');
-    const monthYear = filters.month ? getMonthYearOptions().find(opt => opt.value === filters.month)?.label : 'Current Month';
+    const monthYear = getSelectedMonthYearLabel();
 
     const content = `
       <!DOCTYPE html>
@@ -346,10 +436,19 @@ const MonthlySalary = () => {
     setFilters(prev => ({ ...prev, month: currentMonth }));
   }, []);
 
-  // Fetch data when dependencies change
+  // Check if data exists when month changes
   useEffect(() => {
-    fetchSalaryData();
-  }, [fetchSalaryData]);
+    if (checkedMonth !== filters.month) {
+      checkDataExists();
+    }
+  }, [filters.month, checkedMonth, checkDataExists]);
+
+  // Fetch data when data exists and pagination changes
+  useEffect(() => {
+    if (dataExists) {
+      fetchSalaryData();
+    }
+  }, [dataExists, currentPage, pageSize, filters.employeeName, fetchSalaryData]);
 
   return (
     <div className="container-fluid px-4 py-6">
@@ -524,7 +623,15 @@ const MonthlySalary = () => {
 
       {/* Salary Report Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        {loading ? (
+        <div className="px-4 py-4 border-b bg-gray-50">
+          <h2 className="text-lg font-semibold">Monthly Salary Report - {getSelectedMonthYearLabel()}</h2>
+        </div>
+        {!dataExists && !loading ? (
+          <div className="py-12 text-center">
+            <p className="text-gray-600 text-lg">No salary data available for the selected month.</p>
+            <p className="text-gray-500 text-sm mt-2">Please select a different month or click "Apply Filters" to check.</p>
+          </div>
+        ) : loading ? (
           <div className="py-12 text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">Loading salary report...</p>
@@ -770,7 +877,7 @@ const MonthlySalary = () => {
                       <td colSpan="27" className="px-4 py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-gray-500">
                           <Calendar size={48} className="mb-4 text-gray-300" />
-                          <p className="text-lg font-medium mb-2">No salary records found</p>
+                          <p className="text-lg font-medium mb-2">Data not found{filters.month ? ` for ${getSelectedMonthYearLabel()}` : ''}</p>
                           <p className="text-sm">Try changing your filters or add salary data</p>
                         </div>
                       </td>

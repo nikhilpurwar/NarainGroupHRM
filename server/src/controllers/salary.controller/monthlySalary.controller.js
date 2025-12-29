@@ -39,7 +39,8 @@ export const monthlySalaryReport = asyncHandler(async (req, res) => {
 	}
 
 	const report = await salaryService.computeSalaryReport({ fromDate: fromDate.toISOString(), toDate: toDate.toISOString(), employeeId, page: Number(page) || 1, pageSize: Number(pageSize) || 15 })
-	res.json({ success: true, data: report, message: 'Monthly salary report' })
+	const monthKey = `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}`
+	res.json({ success: true, data: { ...report, monthKey, fromDate: fromDate.toISOString(), toDate: toDate.toISOString() }, message: 'Monthly salary report' })
 })
 
 export default { monthlySalaryReport }

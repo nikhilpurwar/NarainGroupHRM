@@ -2,20 +2,50 @@ import Attendance from '../models/attendance.model.js'
 import Employee from '../models/employee.model.js'
 import Advance from '../models/advance.model.js'
 import SalaryRule from '../models/setting.model/salaryRule.model.js'
+import workingHours from '../models/setting.model/workingHours.model.js'
 import { SubDepartment } from '../models/department.model.js'
+import MonthlySalaryModel from '../models/salary.model/monthlySalary.model.js'
 
-/**
- * Helper: get or derive salary rule for a subDepartment
- */
+/* -------------------------------------------------------------------------- */
+/*                               DEFAULT RULE                                 */
+/* -------------------------------------------------------------------------- */
+
+const DEFAULT_SALARY_RULE = {
+  fixedSalary: false,
+  allowFestivalOT: true,
+  allowDailyOT: true,
+  allowSundayOT: true,
+  allowNightOT: true,
+  absenceDeduction: true,
+  gatePassDeduction: true,
+  shiftHours: 8,
+  oneHolidayPerMonth: false,
+  sundayAutopayRequiredLastWorkingDays: 4,
+  festivalAutopayRequiredPrevDays: 2
+}
+
+/* -------------------------------------------------------------------------- */
+/*                  GET SALARY RULE FOR SUB-DEPARTMENT                         */
+/* -------------------------------------------------------------------------- */
+
 export async function getSalaryRuleForSubDepartment(subDeptId) {
   if (!subDeptId) return null
-  const rule = await SalaryRule.findOne({ subDepartment: subDeptId })
-  if (rule) return rule
-  // fallback: derive from SubDepartment name
-  const sub = await SubDepartment.findById(subDeptId)
-  if (!sub) return null
-  const name = (sub.name || '').toLowerCase()
-  // Defaults per business rules provided
+
+  /* 1️⃣ Try DB configured salary rule */
+  const ruleFromDB = await SalaryRule
+    .findOne({ subDepartment: subDeptId })
+    .lean()
+
+  if (ruleFromDB) {
+    return { ...DEFAULT_SALARY_RULE, ...ruleFromDB }
+  }
+
+  /* 2️⃣ Fallback → derive from SubDepartment name */
+  const subDept = await SubDepartment.findById(subDeptId)
+  if (!subDept) return null
+
+  const name = (subDept.name || '').toLowerCase()
+
   if (name.includes('head')) {
     return {
       fixedSalary: true,
@@ -28,6 +58,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       shiftHours: 8
     }
   }
+
   if (name.includes('foreman')) {
     return {
       fixedSalary: true,
@@ -40,7 +71,8 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       shiftHours: 8
     }
   }
-  if (name.includes('management') || name.includes('management')) {
+
+  if (name.includes('management')) {
     return {
       fixedSalary: true,
       allowFestivalOT: true,
@@ -54,20 +86,14 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       festivalAutopayRequiredPrevDays: 2
     }
   }
+
   if (name.includes('general')) {
     return {
-      fixedSalary: false,
-      allowFestivalOT: true,
-      allowDailyOT: true,
-      allowSundayOT: true,
-      allowNightOT: true,
-      absenceDeduction: true,
-      gatePassDeduction: true,
-      shiftHours: 8,
-      sundayAutopayRequiredLastWorkingDays: 4,
-      festivalAutopayRequiredPrevDays: 2
+      ...DEFAULT_SALARY_RULE,
+      fixedSalary: false
     }
   }
+
   if (name.includes('driver')) {
     return {
       fixedSalary: true,
@@ -77,11 +103,10 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       allowNightOT: true,
       absenceDeduction: true,
       gatePassDeduction: false,
-      shiftHours: 8,
-      sundayAutopayRequiredLastWorkingDays: 4,
-      festivalAutopayRequiredPrevDays: 2
+      shiftHours: 8
     }
   }
+
   if (name.includes('office staff')) {
     return {
       fixedSalary: false,
@@ -95,6 +120,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       shiftHours: 8
     }
   }
+
   if (name.includes('senior office')) {
     return {
       fixedSalary: true,
@@ -107,71 +133,82 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
       shiftHours: 8
     }
   }
+
   if (name.includes('dressing') || name.includes('finish')) {
     return {
-      fixedSalary: false,
-      allowFestivalOT: true,
-      allowDailyOT: true,
-      allowSundayOT: true,
-      allowNightOT: true,
-      absenceDeduction: true,
-      gatePassDeduction: true,
+      ...DEFAULT_SALARY_RULE,
       shiftHours: 10
     }
   }
 
-  // generic default
-  return {
-    fixedSalary: false,
-    allowFestivalOT: true,
-    allowDailyOT: true,
-    allowSundayOT: true,
-    allowNightOT: true,
-    absenceDeduction: true,
-    gatePassDeduction: true,
-    shiftHours: 8
-  }
+  /* 3️⃣ Generic fallback */
+  return DEFAULT_SALARY_RULE
 }
+
+/* -------------------------------------------------------------------------- */
+/*                         SALARY CALCULATION HELPERS                          */
+/* -------------------------------------------------------------------------- */
 
 function hourlyRateFromMonthlySalary(monthlySalary = 0, shiftHours = 8, workingDays = 22) {
   if (!monthlySalary) return 0
   return monthlySalary / (workingDays * shiftHours)
 }
 
-/**
- * Compute salary summary for an employee over a date range.
- * Returns { empId, empName, basicHours, otHours, basicPay, otPay, totalPay, presentDays }
- */
-export async function computeSalaryForEmployee(employee, fromDate, toDate, opts = {}) {
-  const rule = await getSalaryRuleForSubDepartment(employee.subDepartment && employee.subDepartment._id ? employee.subDepartment._id : employee.subDepartment)
-  const shiftHours = (rule && rule.shiftHours) || 8
+/* -------------------------------------------------------------------------- */
+/*                    COMPUTE SALARY FOR SINGLE EMPLOYEE                       */
+/* -------------------------------------------------------------------------- */
 
+export async function computeSalaryForEmployee(employee, fromDate, toDate) {
+
+  /* Resolve salary rule */
+  const rule = await getSalaryRuleForSubDepartment(
+    employee.subDepartment?._id || employee.subDepartment
+  )
+
+  const shiftHours = rule?.shiftHours || 8
+
+  /* Date range */
   const from = new Date(fromDate)
   const to = new Date(toDate)
-  to.setHours(23,59,59,999)
+  to.setHours(23, 59, 59, 999)
 
-  const atts = await Attendance.find({ employee: employee._id, date: { $gte: from, $lte: to } })
+  /* Attendance records */
+  const attendances = await Attendance.find({
+    employee: employee._id,
+    date: { $gte: from, $lte: to }
+  })
 
+  /* Aggregate attendance */
   let basicHours = 0
   let otHours = 0
   let presentDays = 0
 
-  atts.forEach(a => {
-    basicHours += (a.regularHours || 0)
-    otHours += (a.overtimeHours || 0)
-    if (a.status === 'present') presentDays += 1
+  attendances.forEach(a => {
+    basicHours += a.regularHours || 0
+    otHours += a.overtimeHours || 0
+    if (a.status === 'present') presentDays++
   })
 
+  /* Rates */
   const hourlyRate = hourlyRateFromMonthlySalary(employee.salary, shiftHours)
   const otRate = hourlyRate * 1.5
 
+  /* Daily/hour fallback values */
+  const salaryPerDay = employee.salary ? +(employee.salary / 30).toFixed(2) : 0
+  const salaryPerHour = salaryPerDay ? +(salaryPerDay / shiftHours).toFixed(2) : 0
+
+  /* Salary calculation */
   let basicPay = 0
   let otPay = 0
-  if (rule && rule.fixedSalary) {
-    // For fixed salary employees, basic monthly salary is paid (do not pro-rate here)
+
+  if (rule?.fixedSalary) {
     basicPay = employee.salary || 0
-    // OT only if allowed
-    if (rule.allowDailyOT || rule.allowFestivalOT || rule.allowSundayOT || rule.allowNightOT) {
+    if (
+      rule.allowDailyOT ||
+      rule.allowFestivalOT ||
+      rule.allowSundayOT ||
+      rule.allowNightOT
+    ) {
       otPay = otHours * otRate
     }
   } else {
@@ -181,44 +218,120 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate, opts 
 
   const totalPay = basicPay + otPay
 
-  // Advance / loan summary for employee
-  const advances = await Advance.find({ employee: employee._id, status: 'active' })
-  const advanceTotal = advances.filter(a => a.type === 'advance').reduce((s, a) => s + (a.amount || 0), 0)
-  const loanPending = advances.filter(a => a.type === 'loan').reduce((s, a) => s + (a.balance || 0), 0)
-  const loanReceived = advances.filter(a => a.type === 'loan').reduce((s, a) => s + (a.amount || 0), 0)
-  const loanDeduct = advances.filter(a => a.type === 'loan').reduce((s, a) => s + (a.deduction || 0), 0)
+  /* ------------------------------------------------------------------------ */
+  /*                         ADVANCE / LOAN DETAILS                            */
+  /* ------------------------------------------------------------------------ */
 
-  // Deductions based on employee.deductions array (if present)
+  const advances = await Advance.find({
+    employee: employee._id,
+    status: 'active'
+  })
+
+  const advanceTotal = advances
+    .filter(a => a.type === 'advance')
+    .reduce((s, a) => s + (a.amount || 0), 0)
+
+  const loanData = advances.filter(a => a.type === 'loan')
+
+  // Helper: count installments paid up to a date (inclusive) based on loan.start_from
+  const installmentsPaidUpTo = (loan, date) => {
+    if (!loan.start_from) return 0
+    const start = new Date(loan.start_from)
+    const d = new Date(date)
+    if (d < start) return 0
+    const months = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth()) + 1
+    const totalInst = loan.instalment || 1
+    return Math.min(months, totalInst)
+  }
+
+  // Helper: installments paid strictly before a date (used to compute installments within range)
+  const installmentsPaidBefore = (loan, date) => {
+    const prev = new Date(date)
+    prev.setDate(1)
+    prev.setHours(0, 0, 0, 0)
+    prev.setDate(prev.getDate() - 1)
+    return installmentsPaidUpTo(loan, prev)
+  }
+
+  // For reporting range, compute cumulative received up to `to` and scheduled deduct for this period
+  let loanPending = 0
+  let loanReceived = 0
+  let loanDeduct = 0 // scheduled deduction for the reporting period
+
+  for (const l of loanData) {
+    const principal = l.amount || 0
+    const instalments = l.instalment || 1
+    const installmentAmount = +(principal / instalments).toFixed(2)
+
+    const paidUpToToDate = installmentsPaidUpTo(l, to)
+    const paidBeforeFrom = installmentsPaidBefore(l, from)
+    const installmentsInRange = Math.max(0, paidUpToToDate - paidBeforeFrom)
+
+    const cumulativePaid = paidUpToToDate * installmentAmount
+    const scheduledThisPeriod = installmentsInRange * installmentAmount
+
+    loanReceived += cumulativePaid
+    loanDeduct += scheduledThisPeriod
+    // pending is remaining principal after cumulative paid
+    loanPending += Math.max(0, principal - cumulativePaid)
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*                              DEDUCTIONS                                   */
+  /* ------------------------------------------------------------------------ */
+
   const ded = employee.deductions || []
-  const tds = ded.includes('tds') ? Number((basicPay * 0.10).toFixed(2)) : 0
+
+  const tds = ded.includes('tds') ? +(basicPay * 0.10).toFixed(2) : 0
   const pTax = ded.includes('ptax') ? 200 : 0
   const lwf = ded.includes('lwf') ? 20 : 0
-  const esi = ded.includes('esi') ? Number((basicPay * 0.0075).toFixed(2)) : 0
-  const basicPF = ded.includes('pf') ? Number((basicPay * 0.12).toFixed(2)) : 0
-  const otPF = ded.includes('pf') ? Number((otPay * 0.12).toFixed(2)) : 0
+  const esi = ded.includes('esi') ? +(basicPay * 0.0075).toFixed(2) : 0
+  const basicPF = ded.includes('pf') ? +(basicPay * 0.12).toFixed(2) : 0
+  const otPF = ded.includes('pf') ? +(otPay * 0.12).toFixed(2) : 0
   const insurance = ded.includes('insurance') ? 100 : 0
-  // compute aggregate deductions and net pay (include loan deduct & advances)
-  const totalDeductions = Number((tds + pTax + lwf + esi + basicPF + otPF + insurance + (loanDeduct || 0) + (advanceTotal || 0)).toFixed(2))
-  const netPay = Number((Number(totalPay) - totalDeductions).toFixed(2))
 
-  // normalize output to UI-friendly field names expected by MonthlySalary.jsx
+  const totalDeductions = +(
+    tds + pTax + lwf + esi + basicPF + otPF + insurance + loanDeduct + advanceTotal
+  ).toFixed(2)
+
+  const netPay = +(totalPay - totalDeductions).toFixed(2)
+
+  /* ------------------------------------------------------------------------ */
+  /*                             UI FRIENDLY OUTPUT                            */
+  /* ------------------------------------------------------------------------ */
+
   return {
     id: employee._id,
     empId: employee.empId,
     empName: employee.name,
-    headDepartment: (employee.headDepartment && typeof employee.headDepartment === 'object') ? employee.headDepartment : (employee.headDepartment ? { name: employee.headDepartment } : null),
-    subDepartment: (employee.subDepartment && typeof employee.subDepartment === 'object') ? employee.subDepartment : (employee.subDepartment ? { name: employee.subDepartment } : null),
+    headDepartment: employee.headDepartment,
+    subDepartment: employee.subDepartment,
     salary: employee.salary || 0,
-    salaryPerDay: Number((hourlyRate * shiftHours).toFixed(2)),
-    salaryPerHour: Number(hourlyRate.toFixed(2)),
-    salaryType: (rule && rule.fixedSalary) ? 'Fixed' : 'Variable',
-    presentDays: presentDays,
-    basicHours: Number(basicHours.toFixed(2)),
-    otHours: Number(otHours.toFixed(2)),
-    basicPay: Number(basicPay.toFixed(2)),
-    otPay: Number(otPay.toFixed(2)),
-    totalHours: Number((basicHours + otHours).toFixed(2)),
-    totalPay: Number(totalPay.toFixed(2)),
+
+    salaryPerDay,
+    salaryPerHour,
+    salaryPerHr: +hourlyRate.toFixed(2),
+
+    salaryType: rule?.fixedSalary ? 'Fixed' : 'Variable',
+
+    presentDays,
+    present: presentDays,
+
+    basicHours: +basicHours.toFixed(2),
+    otHours: +otHours.toFixed(2),
+    workingHrs: +basicHours.toFixed(2),
+    overtimeHrs: +otHours.toFixed(2),
+
+    basicPay: +basicPay.toFixed(2),
+    otPay: +otPay.toFixed(2),
+    overtimePayable: +otPay.toFixed(2),
+
+    totalHours: +(basicHours + otHours).toFixed(2),
+    totalWorkingHrs: +(basicHours + otHours).toFixed(2),
+
+    totalPay: +totalPay.toFixed(2),
+    payableAmount: +totalPay.toFixed(2),
+
     tds,
     pTax,
     lwf,
@@ -226,40 +339,107 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate, opts 
     basicPF,
     otPF,
     insurance,
+
     advance: advanceTotal,
     loanPending,
     loanReceived,
     loanDeduct,
+
     totalDeductions,
-    netPay
+    netPay,
+
+    department: employee.headDepartment?.name || '',
+    group: employee.subDepartment?.name || ''
   }
 }
 
-/**
- * Compute report list for many employees.
- */
+/* -------------------------------------------------------------------------- */
+/*                      COMPUTE SALARY REPORT (PAGINATED)                     */
+/* -------------------------------------------------------------------------- */
+
 export async function computeSalaryReport({ fromDate, toDate, employeeId, page = 1, pageSize = 15 }) {
-  const q = { status: 'active' }
-  if (employeeId) q._id = employeeId
-  const skip = (page - 1) * pageSize
-  const employees = await Employee.find(q).populate('subDepartment').populate('headDepartment').skip(skip).limit(pageSize)
-  const results = []
-  for (const emp of employees) {
-    const row = await computeSalaryForEmployee(emp, fromDate, toDate)
-    results.push(row)
-  }
-  // summary - aggregate normalized fields
-  const summary = results.reduce((acc, r) => {
-    acc.totalPayable += Number(r.totalPay || 0)
-    acc.totalOvertime += Number(r.otPay || 0)
-    acc.totalEmployees += 1
-    acc.totalWorkingHours += Number(r.totalHours || 0)
-    acc.totalDeductions += Number(r.totalDeductions || 0)
-    acc.totalNetPay += Number(r.netPay || 0)
-    return acc
-  }, { totalPayable: 0, totalOvertime: 0, totalEmployees: 0, totalWorkingHours: 0, totalDeductions: 0, totalNetPay: 0 })
+  const query = { status: 'active' }
+  if (employeeId) query._id = employeeId
 
-  return { items: results, summary, totalRecords: await Employee.countDocuments(q) }
+  const skip = (page - 1) * pageSize
+
+  const from = new Date(fromDate)
+  const to = new Date(toDate)
+  const monthStart = new Date(from.getFullYear(), from.getMonth(), 1)
+  const monthEnd = new Date(from.getFullYear(), from.getMonth() + 1, 0)
+  const isFullMonth = from.getTime() === monthStart.getTime() && to.getDate() === monthEnd.getDate()
+
+  // If the requested range covers an entire calendar month, attempt to read cached report
+  if (isFullMonth) {
+    const monthKey = `${from.getFullYear()}-${from.getMonth() + 1}`
+    const cached = await MonthlySalaryModel.findOne({ monthKey }).lean()
+    if (cached) {
+      // Return cached slice with pagination
+      const start = skip
+      const pageItems = (cached.items || []).slice(start, start + pageSize)
+      return { items: pageItems, summary: cached.summary || {}, totalRecords: cached.totalRecords || (cached.items || []).length }
+    }
+  }
+
+  const employees = await Employee.find(query)
+    .populate('subDepartment')
+    .populate('headDepartment')
+    .skip(skip)
+    .limit(pageSize)
+
+  const items = []
+
+  for (const emp of employees) {
+    items.push(await computeSalaryForEmployee(emp, fromDate, toDate))
+  }
+
+  /* Summary aggregation */
+  const summary = items.reduce((acc, r) => {
+    acc.totalPayable += r.totalPay || 0
+    acc.totalOvertime += r.otPay || 0
+    acc.totalEmployees++
+    acc.totalWorkingHours += r.totalHours || 0
+    acc.totalDeductions += r.totalDeductions || 0
+    acc.totalNetPay += r.netPay || 0
+    return acc
+  }, {
+    totalPayable: 0,
+    totalOvertime: 0,
+    totalEmployees: 0,
+    totalWorkingHours: 0,
+    totalDeductions: 0,
+    totalNetPay: 0
+  })
+
+  // If full month, persist the full report for future reads (only if not cached)
+  if (isFullMonth) {
+    try {
+      const monthKey = `${from.getFullYear()}-${from.getMonth() + 1}`
+      const existing = await MonthlySalaryModel.findOne({ monthKey })
+      if (!existing) {
+        // build full items across all employees (no pagination) and save
+        const allEmployees = await Employee.find({ status: 'active' }).populate('subDepartment').populate('headDepartment')
+        const allItems = []
+        for (const emp of allEmployees) {
+          allItems.push(await computeSalaryForEmployee(emp, fromDate, toDate))
+        }
+        await MonthlySalaryModel.create({ monthKey, fromDate: monthStart, toDate: monthEnd, items: allItems, summary, totalRecords: allItems.length })
+      }
+    } catch (err) {
+      // non-fatal: log and continue returning computed page
+      console.error('Failed saving monthly salary cache:', err.message)
+    }
+  }
+
+  return {
+    items,
+    summary,
+    totalRecords: await Employee.countDocuments(query)
+  }
 }
 
-export default { getSalaryRuleForSubDepartment, computeSalaryForEmployee, computeSalaryReport }
+export default {
+  getSalaryRuleForSubDepartment,
+  computeSalaryForEmployee,
+  computeSalaryReport
+}
