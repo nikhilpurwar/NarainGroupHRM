@@ -167,8 +167,8 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow overflow-auto border border-blue-200">
 
       {/* Shows total Present and Absent of seleted month and year from filter */}
-      <div className="sticky left-0 flex gap-6 p-6">
-        {/* compute present/absent from Status row (ignore holidays) */}
+      {/* compute present/absent from Status row (ignore holidays) */}
+      {/* <div className="sticky left-0 flex gap-6 p-6">
         {(() => {
           const statusRow = (data && data['Status']) || [];
           let presentCount = 0;
@@ -213,7 +213,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
             </>
           );
         })()}
-      </div>
+      </div> */}
 
       {/* Attendance-Report Table */}
       <table className="min-w-full border-collapse text-sm">

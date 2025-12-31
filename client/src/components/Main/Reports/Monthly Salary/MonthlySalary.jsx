@@ -80,17 +80,33 @@ const MonthlySalary = () => {
     return `${y} | ${monthObj ? monthObj.label : `Month ${m}`}`
   }
 
-  // Check if salary data exists for the selected month
+  // Check if salary data exists for the selected month and calculate if needed
   const checkDataExists = useCallback(async () => {
     try {
       const params = {
         month: filters.month
       };
-      
-      const response = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
 
-      if (response.data && response.data.success) {
-        const exists = response.data.data?.exists || false;
+      const checkResponse = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
+
+      if (checkResponse.data && checkResponse.data.success) {
+        let exists = checkResponse.data.data?.exists || false;
+
+        // If doesn't exist, trigger calculation
+        if (!exists) {
+          try {
+            const [year, month] = String(filters.month).split('-');
+            await axios.post(`${API_URL}/api/salary/monthly/calculate`, {
+              month: filters.month,
+              year
+            });
+            exists = true; // After calculation, it exists
+          } catch (calcErr) {
+            console.error('Error calculating salary:', calcErr);
+            exists = false;
+          }
+        }
+
         setDataExists(exists);
         setCheckedMonth(filters.month);
         return exists;
@@ -123,13 +139,13 @@ const MonthlySalary = () => {
         page: currentPage,
         pageSize
       };
-      
+
       const response = await axios.get(`${API_URL}/api/salary/monthly`, { params });
 
       if (response.data && response.data.success) {
         const data = response.data.data || {};
         const items = data.items || [];
-        
+
         // Map backend items to UI expected shape
         const mapped = items.map(it => {
           const salary = it.salary || it.monthlySalary || 0;
@@ -156,8 +172,10 @@ const MonthlySalary = () => {
             id: it.id || it._id || it.empId,
             empId: it.empId || '',
             empName: it.empName || '',
-            headDepartment: it.headDepartment || null,
-            subDepartment: it.subDepartment || null,
+            headDepartment: it.headDepartment || it.department || '',
+            subDepartment: it.subDepartment || it.group || '',
+            department: it.department || (typeof it.headDepartment === 'object' ? it.headDepartment?.name : it.headDepartment) || '',
+            group: it.group || (typeof it.subDepartment === 'object' ? it.subDepartment?.name : it.subDepartment) || '',
             salary,
             salaryPerDay,
             salaryPerHour,
@@ -181,11 +199,10 @@ const MonthlySalary = () => {
             loanDeduct: it.loanDeduct || 0,
             totalDeductions: (it.totalDeductions !== undefined) ? it.totalDeductions : 0,
             netPay: (it.netPay !== undefined) ? it.netPay : totalPay,
-            group: it.group || (it.subDepartment && it.subDepartment.name) || '',
             status: it.status || 'Calculated'
           };
         });
-        
+
         setSalaryData(mapped);
         setTotalRecords(data.totalRecords || 0);
       } else {
@@ -571,8 +588,8 @@ const MonthlySalary = () => {
                 </select>
               </div>
 
-              {/* Filter Button */}
               <div className="md:col-span- flex gap-2">
+                {/* Filter Button */}
                 <button
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
@@ -682,8 +699,8 @@ const MonthlySalary = () => {
                       Total Pay
                     </th>
 
-                    
-                      {/* check employee model if applicable then apply as per values */}
+
+                    {/* check employee model if applicable then apply as per values */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       TDS
                     </th>
@@ -705,9 +722,9 @@ const MonthlySalary = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Insurance
                     </th>
-                    
-                    
-                      {/* from advance.model.js */}
+
+
+                    {/* from advance.model.js */}
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Advance
                     </th>
@@ -719,7 +736,7 @@ const MonthlySalary = () => {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Loan Deduct
-                    </th> 
+                    </th>
 
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-yellow-50 text-yellow-900 border">
                       Total Deductions
@@ -749,13 +766,13 @@ const MonthlySalary = () => {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">{item.empName}</div>
-                              <div className="text-xs text-gray-500">{item.headDepartment?.name || 'N/A'}</div>
+                              <div className="text-xs text-gray-500">{item.department || 'N/A'}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {item.subDepartment?.name || 'N/A'}
+                            {item.group || 'N/A'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">

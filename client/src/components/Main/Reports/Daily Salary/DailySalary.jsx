@@ -152,8 +152,8 @@ const DailySalary = () => {
       ...dailySalaryData.map(item => [
         item.empId,
         item.empName,
-        item.department,
-        item.subDepartment,
+        typeof item.department === 'object' ? item.department?.name : item.department,
+        typeof item.subDepartment === 'object' ? item.subDepartment?.name : item.subDepartment,
         item.group,
         item.salaryType,
         item.salaryPerHr,
@@ -205,7 +205,7 @@ const DailySalary = () => {
     const data = dailySalaryData.map(item => [
       item.empId,
       item.empName.substring(0, 15),
-      item.department.substring(0, 10),
+      typeof item.department === 'object' ? item.department?.name?.substring(0, 10) : item.department?.substring(0, 10),
       item.group,
       item.present,
       item.overtimeHrs,
@@ -614,7 +614,7 @@ const DailySalary = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                            {item.department}
+                            {typeof item.department === 'object' ? item.department?.name : item.department}
                           </span>
                         </td>
                         {/* <td className="px-4 py-3 text-sm text-gray-900">
@@ -622,7 +622,7 @@ const DailySalary = () => {
                         </td> */}
                         <td className="px-4 py-3 text-sm font-medium bg-blue-50 border">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.subDepartment}
+                            {typeof item.subDepartment === 'object' ? item.subDepartment?.name : item.subDepartment}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">

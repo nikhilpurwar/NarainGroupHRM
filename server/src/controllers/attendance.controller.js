@@ -1,5 +1,6 @@
 import Employee from "../models/employee.model.js";
 import Attendance from "../models/attendance.model.js";
+import MonthlySummary from "../models/monthlySummary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import { getIO } from "../utils/socket.util.js";
@@ -69,49 +70,18 @@ export const attendanceReport = async (req, res) => {
           }
         }
 
-      // Auto-mark absent for past dates (after joining date) if not already marked
+      // Check for unmarked past dates but DON'T create them here to avoid duplicates
+      // Just represent them as absent in the UI without persisting
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
+      empJoiningDate?.setHours(0, 0, 0, 0);
 
-      for (const d of days) {
-        const dayDate = new Date(d.iso);
-        dayDate.setHours(0, 0, 0, 0);
-
-        if (dayDate < today) {
-          const iso = d.iso;
-          const alreadyMarked = atts.some(a => {
-            const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
-            return aDate === iso;
-          });
-
-          if (!alreadyMarked) {
-            const dayOfWeek = dayDate.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            if (!isWeekend) {
-              const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
-              empJoiningDate?.setHours(0, 0, 0, 0);
-              if (!empJoiningDate || dayDate >= empJoiningDate) {
-                // create absent attendance
-                const absentDoc = await Attendance.create({
-                  employee: emp._id,
-                  date: dayDate,
-                  status: 'absent',
-                  inTime: null,
-                  outTime: null,
-                  totalHours: 0,
-                  regularHours: 0,
-                  overtimeHours: 0,
-                  breakMinutes: 0,
-                  isWeekend: false,
-                  isHoliday: false,
-                  punchLogs: [],
-                  note: 'Auto-marked absent (no attendance record)'
-                });
-                atts.push(absentDoc);
-              }
-            }
-          }
-        }
+      // Build attendance map for quick lookup
+      const attMap = {};
+      for (const a of atts) {
+        const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+        if (aDate) attMap[aDate] = a;
       }
 
       // build data rows: Status, InTime, OutTime, Worked Hours, OT (Hours), Note
@@ -123,18 +93,29 @@ export const attendanceReport = async (req, res) => {
       const noteRow = [];
 
       for (const d of days) {
-        const rec = atts.find(a => { 
-          const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
-          return aDate === d.iso;
-        });
+        const rec = attMap[d.iso];
+        const dayDate = new Date(d.iso);
+        dayDate.setHours(0, 0, 0, 0);
+        const dayOfWeek = dayDate.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isPastDate = dayDate < today;
+        const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
+
         if (rec) {
           statusRow.push(rec.status || 'present');
           inRow.push(rec.inTime || '');
           outRow.push(rec.outTime || '');
-          // Prefer human-friendly display when available
           workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
           otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
           noteRow.push(rec.note || '');
+        } else if (isPastDate && !isWeekend && isAfterJoining) {
+          // Show as absent for past non-weekend dates without creating DB record
+          statusRow.push('absent');
+          inRow.push('');
+          outRow.push('');
+          workedRow.push('');
+          otRow.push('');
+          noteRow.push('Not marked');
         } else {
           statusRow.push(null);
           inRow.push(null);
@@ -150,7 +131,17 @@ export const attendanceReport = async (req, res) => {
       const employeeObj = emp.toObject ? emp.toObject() : emp;
       employeeObj.attendance = atts;
 
-      return res.json({ success: true, data: { employee: employeeObj, days, table } }); 
+      // Calculate and cache monthly summary for fast rendering
+      await updateMonthlySummary(emp._id, queryYear, queryMonth, atts, days, empJoiningDate);
+
+      // Fetch and attach summary to response
+      const summary = await MonthlySummary.findOne({ 
+        employee: emp._id, 
+        year: parseInt(queryYear), 
+        month: parseInt(queryMonth) 
+      });
+
+      return res.json({ success: true, data: { employee: employeeObj, days, table, summary } }); 
     }
 
     // if no employeeId: support search to return first matched employee report
@@ -193,48 +184,16 @@ export const attendanceReport = async (req, res) => {
       }
     }
 
-    // Auto-mark absent for past dates (after joining date) if not already marked
+    // Build attendance map for quick lookup without creating absent records
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
+    empJoiningDate?.setHours(0, 0, 0, 0);
 
-    for (const d of days) {
-      const dayDate = new Date(d.iso);
-      dayDate.setHours(0, 0, 0, 0);
-
-      if (dayDate < today) {
-        const iso = d.iso;
-        const alreadyMarked = atts.some(a => {
-          const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
-          return aDate === iso;
-        });
-
-        if (!alreadyMarked) {
-          const dayOfWeek = dayDate.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-          if (!isWeekend) {
-            const empJoiningDate = emp.createdAt ? new Date(emp.createdAt) : null;
-            empJoiningDate?.setHours(0, 0, 0, 0);
-            if (!empJoiningDate || dayDate >= empJoiningDate) {
-              const absentDoc = await Attendance.create({
-                employee: emp._id,
-                date: dayDate,
-                status: 'absent',
-                inTime: null,
-                outTime: null,
-                totalHours: 0,
-                regularHours: 0,
-                overtimeHours: 0,
-                breakMinutes: 0,
-                isWeekend: false,
-                isHoliday: false,
-                punchLogs: [],
-                note: 'Auto-marked absent (no attendance record)'
-              });
-              atts.push(absentDoc);
-            }
-          }
-        }
-      }
+    const attMap = {};
+    for (const a of atts) {
+      const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+      if (aDate) attMap[aDate] = a;
     }
 
     const statusRow = [];
@@ -245,10 +204,14 @@ export const attendanceReport = async (req, res) => {
     const noteRow = [];
 
     for (const d of days) {
-      const rec = atts.find(a => {
-        const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
-        return aDate === d.iso;
-      });
+      const rec = attMap[d.iso];
+      const dayDate = new Date(d.iso);
+      dayDate.setHours(0, 0, 0, 0);
+      const dayOfWeek = dayDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isPastDate = dayDate < today;
+      const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
+
       if (rec) {
         statusRow.push(rec.status || 'present');
         inRow.push(rec.inTime || '');
@@ -256,6 +219,13 @@ export const attendanceReport = async (req, res) => {
         workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
         otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
         noteRow.push(rec.note || '');
+      } else if (isPastDate && !isWeekend && isAfterJoining) {
+        statusRow.push('absent');
+        inRow.push('');
+        outRow.push('');
+        workedRow.push('');
+        otRow.push('');
+        noteRow.push('Not marked');
       } else {
         statusRow.push(null);
         inRow.push(null);
@@ -268,7 +238,18 @@ export const attendanceReport = async (req, res) => {
     const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'OT (Hours)': otRow, Note: noteRow };
     const employeeObj = emp.toObject ? emp.toObject() : emp;
     employeeObj.attendance = atts;
-    return res.json({ success: true, data: { employee: employeeObj, days, table } });
+
+    // Calculate and cache monthly summary
+    await updateMonthlySummary(emp._id, queryYear, queryMonth, atts, days, empJoiningDate);
+
+    // Fetch and attach summary to response
+    const summary = await MonthlySummary.findOne({ 
+      employee: emp._id, 
+      year: parseInt(queryYear), 
+      month: parseInt(queryMonth) 
+    });
+
+    return res.json({ success: true, data: { employee: employeeObj, days, table, summary } });
   } catch (err) {
     console.error('Attendance report error', err);
     const e = handleMongooseError(err);
@@ -545,5 +526,81 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     console.error('Punch OUT error:', err);
     const e = handleMongooseError(err)
     res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
+  }
+}
+
+// Helper function to calculate and store monthly summary
+async function updateMonthlySummary(employeeId, year, month, attendances, days, empJoiningDate) {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let totalPresent = 0;
+    let totalAbsent = 0;
+    let totalHalfday = 0;
+    let totalLeave = 0;
+    let totalWorkingDays = 0;
+    let totalHoursWorked = 0;
+    let totalOvertimeHours = 0;
+
+    // Build attendance map
+    const attMap = {};
+    for (const a of attendances) {
+      const aDate = a.date ? (typeof a.date === 'string' ? a.date : a.date.toISOString().slice(0, 10)) : null;
+      if (aDate) attMap[aDate] = a;
+    }
+
+    // Count status for each day
+    for (const d of days) {
+      const dayDate = new Date(d.iso);
+      dayDate.setHours(0, 0, 0, 0);
+      const dayOfWeek = dayDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isPastDate = dayDate < today;
+      const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
+
+      // Only count working days (non-weekend, after joining)
+      if (!isWeekend && isAfterJoining) {
+        totalWorkingDays++;
+
+        const rec = attMap[d.iso];
+        if (rec) {
+          const status = rec.status || 'present';
+          if (status === 'present') {
+            totalPresent++;
+            totalHoursWorked += rec.totalHours || 0;
+            totalOvertimeHours += rec.overtimeHours || 0;
+          } else if (status === 'absent') {
+            totalAbsent++;
+          } else if (status === 'halfday') {
+            totalHalfday++;
+            totalHoursWorked += rec.totalHours || 0;
+          } else if (status === 'leave') {
+            totalLeave++;
+          }
+        } else if (isPastDate) {
+          // Past date with no record = absent
+          totalAbsent++;
+        }
+      }
+    }
+
+    // Update or create summary
+    await MonthlySummary.findOneAndUpdate(
+      { employee: employeeId, year: parseInt(year), month: parseInt(month) },
+      {
+        totalPresent,
+        totalAbsent,
+        totalHalfday,
+        totalLeave,
+        totalWorkingDays,
+        totalHoursWorked,
+        totalOvertimeHours,
+        lastUpdated: new Date()
+      },
+      { upsert: true, new: true }
+    );
+  } catch (err) {
+    console.error('Error updating monthly summary:', err);
   }
 }
