@@ -1,5 +1,5 @@
 import Attendance from '../models/attendance.model.js'
-import BreakTime from '../models/setting.model/breaktime.model.js'
+import BreakTime from '../models/setting.model/workingHours.model.js'
 import createHttpError from 'http-errors'
 
 // Configurable business rules

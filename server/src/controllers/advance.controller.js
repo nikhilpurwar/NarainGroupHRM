@@ -1,5 +1,6 @@
 import Advance from '../models/advance.model.js'
 import Employee from '../models/employee.model.js'
+import salaryRecalcService from '../services/salaryRecalculation.service.js'
 import fs from 'fs'
 import path from 'path'
 
@@ -8,7 +9,7 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads',
 const ensureUploadDir = () => {
   try {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-  } catch (e) {}
+  } catch (e) { }
 }
 
 export const listAdvances = async (req, res) => {
@@ -34,70 +35,67 @@ export const getAdvance = async (req, res) => {
 
 export const createAdvance = async (req, res) => {
   try {
-    // handle attachment if present (multer will set req.file)
-    const body = { ...req.body }
+    const body = { ...req.body };
+
+    // handle attachment if present
     if (req.file) {
-      ensureUploadDir()
-      // file already saved by multer in temp location; move to upload dir if necessary
-      const filename = req.file.filename || req.file.originalname
-      const dest = path.join(UPLOAD_DIR, filename)
-      // req.file.path is where multer stored
-      try { fs.renameSync(req.file.path, dest) } catch (e) { /* ignore */ }
-      body.attachment = path.relative(process.cwd(), dest)
+      ensureUploadDir();
+      const filename = req.file.filename || req.file.originalname;
+      const dest = path.join(UPLOAD_DIR, filename);
+      try { fs.renameSync(req.file.path, dest); } catch (e) { /* ignore */ }
+      body.attachment = path.relative(process.cwd(), dest);
     }
 
     // ensure employee exists
-    const emp = await Employee.findById(body.employee)
-    if (!emp) return res.status(400).json({ success: false, message: 'Employee not found' })
+    const emp = await Employee.findById(body.employee);
+    if (!emp) return res.status(400).json({ success: false, message: 'Employee not found' });
 
-    // parse numeric fields
-    if (body.amount) body.amount = Number(body.amount)
-    if (body.instalment) body.instalment = Number(body.instalment)
-    if (body.deduction) body.deduction = Number(body.deduction)
-    if (body.balance) body.balance = Number(body.amount-body.deduction)
-    if (body.totalInstalment) body.totalInstalment = Number(body.totalInstalment)
-    if (body.date) body.date = new Date(body.date)
-    if (body.start_from) body.start_from = new Date(body.start_from)
-
-    const adv = await Advance.create(body)
-    res.status(201).json({ success: true, data: adv })
+    // let schema hooks handle balance calculation
+    const adv = await Advance.create(body);
+    
+    // Recalculate salary for current and previous month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
+    
+    res.status(201).json({ success: true, data: adv });
   } catch (err) {
-    console.error('createAdvance error', err)
+    console.error('createAdvance error', err);
     if (err && err.name === 'ValidationError') {
-      const details = Object.values(err.errors || {}).map(e => e.message)
-      return res.status(400).json({ success: false, message: 'Validation failed', details })
+      const details = Object.values(err.errors || {}).map(e => e.message);
+      return res.status(400).json({ success: false, message: 'Validation failed', details });
     }
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
 export const updateAdvance = async (req, res) => {
   try {
-    const body = { ...req.body }
+    const body = { ...req.body };
+
     if (req.file) {
-      ensureUploadDir()
-      const filename = req.file.filename || req.file.originalname
-      const dest = path.join(UPLOAD_DIR, filename)
-      try { fs.renameSync(req.file.path, dest) } catch (e) {}
-      body.attachment = path.relative(process.cwd(), dest)
+      ensureUploadDir();
+      const filename = req.file.filename || req.file.originalname;
+      const dest = path.join(UPLOAD_DIR, filename);
+      try { fs.renameSync(req.file.path, dest); } catch (e) { }
+      body.attachment = path.relative(process.cwd(), dest);
     }
 
-    if (body.amount) body.amount = Number(body.amount)
-    if (body.instalment) body.instalment = Number(body.instalment)
-    if (body.deduction) body.deduction = Number(body.deduction)
-    if (body.balance) body.balance = Number(body.balance)
-    if (body.totalInstalment) body.totalInstalment = Number(body.totalInstalment)
-    if (body.date) body.date = new Date(body.date)
-    if (body.start_from) body.start_from = new Date(body.start_from)
+    // let schema hooks handle balance calculation
+    const adv = await Advance.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    if (!adv) return res.status(404).json({ success: false, message: 'Not found' });
+    
+    // Recalculate salary for current and previous month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
 
-    const adv = await Advance.findByIdAndUpdate(req.params.id, body, { new: true })
-    if (!adv) return res.status(404).json({ success: false, message: 'Not found' })
-    res.json({ success: true, data: adv })
+    res.json({ success: true, data: adv });
   } catch (err) {
-    console.error('updateAdvance error', err)
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateAdvance error', err);
+    res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
 export const deleteAdvance = async (req, res) => {
   try {

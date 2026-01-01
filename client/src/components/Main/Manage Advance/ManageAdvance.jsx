@@ -348,7 +348,7 @@ const ManageAdvance = () => {
                     </td>
                     
                     <td className="p-4">
-                      <div className="text-red-600 font-medium">₹{a.balance || a.amount}</div>
+                      <div className="text-red-600 font-medium">₹{a.balance || 0}</div>
                     </td>
 
                     <td className="p-4 text-gray-700">

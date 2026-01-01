@@ -6,6 +6,7 @@ import AttendanceTable from "./components/AttendanceTable"
 import EmployeeTable from "../commonComponents/employeeTable"
 import BarcodeScanner from "./components/BarcodeScanner"
 import PunchRecordsModal from "./components/PunchRecordsModal"
+import MonthlySummaryCard from "./components/MonthlySummaryCard"
 import { toast } from "react-toastify"
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
@@ -346,6 +347,8 @@ const Attendance = () => {
                   reportData={report}
                   isMobile={isMobile}
                 />
+
+                <MonthlySummaryCard summary={report.summary} isMobile={isMobile} />
 
                 <AttendanceTable
                   days={report.days}

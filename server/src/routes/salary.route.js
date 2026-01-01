@@ -8,6 +8,9 @@ import salaryRuleCtrl from '../controllers/setting.controller/salaryRule.control
 // reports
 router.get('/daily', dailyController.dailySalaryReport)
 router.get('/monthly', monthlyController.monthlySalaryReport)
+router.get('/monthly/exists', monthlyController.checkMonthlySalaryExists)
+router.post('/monthly/calculate', monthlyController.calculateAndStoreMonthlySalary)
+router.patch('/monthly/:empId/recalculate', monthlyController.recalculateSalaryForEmployee)
 
 // salary rules CRUD
 router.get('/rules', salaryRuleCtrl.listSalaryRules)

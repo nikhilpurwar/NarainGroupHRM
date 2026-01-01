@@ -2,6 +2,7 @@ import Employee from "../models/employee.model.js";
 import Attendance from "../models/attendance.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
+import salaryRecalcService from "../services/salaryRecalculation.service.js";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 
@@ -32,6 +33,7 @@ export const createEmployee = async (req, res) => {
   try {
     // create employee first
     const emp = await Employee.create(req.body);
+
     // generate barcode and QR based on empId (fallback to _id)
     try {
       const codeText = emp.empId || emp._id.toString();
@@ -45,16 +47,24 @@ export const createEmployee = async (req, res) => {
     } catch (genErr) {
       console.error("Code generation failed:", genErr.message);
     }
+
+    // Recalculate salary for current and previous month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err =>
+      console.error('Salary recalculation failed:', err)
+    );
+
     res.status(201).json({ success: true, data: emp });
   } catch (err) {
     const { apiError: apiErr, handleMongooseError } = await import('../utils/error.util.js')
       .then(m => ({ apiError: m.apiError, handleMongooseError: m.handleMongooseError }))
-      .catch(() => ({}))
-    if (handleMongooseError) {
-      const e = handleMongooseError(err)
-      return res.status(e.status || 500).json(apiErr(e.code || 'internal_error', e.message || err.message))
+      .catch(() => ({}));
+
+    if (handleMongooseError && apiErr) {
+      const e = handleMongooseError(err);
+      return res.status(e.status || 500).json(apiErr(e.code || 'internal_error', e.message || err.message));
     }
-    res.status(500).json({ success: false, message: err.message });
+
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -77,6 +87,7 @@ export const getEmployeeById = async (req, res) => {
       .populate('headDepartment')
       .populate('subDepartment')
       .populate('designation');
+
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: emp });
   } catch (err) {
@@ -137,6 +148,11 @@ export const addAttendance = async (req, res) => {
 
           await attendanceDoc.save();
 
+          // Recalculate salary for current and previous month
+          salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err =>
+            console.error('Salary recalculation failed:', err)
+          );
+
           // Record punch in debounce cache
           attendanceService.recordPunch(emp._id.toString(), 'OUT');
 
@@ -151,7 +167,11 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.inTime = currentTimeString;
           const shiftCfg2 = await attendanceService.getShiftConfig();
           const shiftHours2 = emp.workHours || emp.shift || shiftCfg2.shiftHours || 8;
-          const computed = attendanceService.computeTotalsFromPunchLogs(attendanceDoc.punchLogs, shiftHours2);
+          const computed = attendanceService.computeTotalsFromPunchLogs(
+            attendanceDoc.punchLogs,
+            shiftHours2,
+            { countOpenAsNow: true }
+          );
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
           attendanceDoc.overtimeHours = computed.overtimeHours;
@@ -160,6 +180,11 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
           attendanceDoc.overtimeHoursDisplay = computed.overtimeHoursDisplay;
           await attendanceDoc.save();
+
+          // Recalculate salary for current and previous month
+          salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err =>
+            console.error('Salary recalculation failed:', err)
+          );
 
           // Record punch in debounce cache
           attendanceService.recordPunch(emp._id.toString(), 'IN');
@@ -183,8 +208,13 @@ export const addAttendance = async (req, res) => {
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
 
-          // Check for continuous IN across configured boundary (e.g., 7AM)
-          await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+      // Recalculate salary for current and previous month
+      salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err =>
+        console.error('Salary recalculation failed:', err)
+      );
+
+      // Check for continuous IN across configured boundary (e.g., 7AM)
+      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
 
       await emp.populate('headDepartment');
       await emp.populate('subDepartment');
@@ -343,6 +373,12 @@ export const updateEmployee = async (req, res) => {
       }
     }
     await emp.save();
+    
+    // Recalculate salary when employee data changes
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
+    
     res.json({ success: true, data: emp });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

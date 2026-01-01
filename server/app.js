@@ -47,7 +47,7 @@ import departmentRoutes from "./src/routes/department.route.js";
 // setting imports
 import holidayRoutes from "./src/routes/settings/holiday.route.js";
 import chargeRoutes from "./src/routes/settings/charge.route.js";
-import breakRoutes from "./src/routes/settings/breaktime.route.js";
+import workingHours from "./src/routes/settings/workingHours.route.js";
 import userRoutes from "./src/routes/settings/user.route.js";
 
 // attendance imports
@@ -65,7 +65,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/charges", chargeRoutes);
-app.use("/api/break-times", breakRoutes);
+app.use("/api/break-times", workingHours);
 app.use("/api/auth", authRoutes);
 app.use("/api/department", departmentRoutes);
 app.use("/api/users", userRoutes);

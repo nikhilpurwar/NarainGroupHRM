@@ -160,33 +160,55 @@ const AttendanceFilter = ({ filters, setFilters, onSearch, reportData, isMobile 
 
   // Desktop/Tablet View
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow p-4 mb-6 overflow-x-auto border border-blue-200">
+    <div className="bg-gray-900 rounded-t-xl shadow p-4 overflow-x-auto border border-blue-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-3 min-w-max lg:min-w-full">
-        <select
-          className="col-span-2 border p-2 rounded-lg focus:outline-none focus:border-gray-900 text-sm lg:text-base"
-          value={filters.month}
-          onChange={(e) => setFilters({ ...filters, month: e.target.value })}
-        >
-          <option value="">Select Month</option>
-          {months.map((m, i) => (
-            <option key={i} value={i + 1}>{m}</option>
-          ))}
-        </select>
+        {/* Month Dropdown */}
+        <div className="col-span-2 relative group">
+          <select
+            className="w-full modern-dropdown px-4 py-3 pr-12 bg-white border border-gray-200 rounded-xl shadow-sm 
+               hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 
+               transition-all duration-200 text-sm font-medium text-gray-700 cursor-pointer"
+            value={filters.month}
+            onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+          >
+            <option value="" className="text-gray-400">Select Month</option>
+            {months.map((m, i) => (
+              <option key={i} value={i + 1} className="text-gray-700 py-2">{m}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </div>
 
-        <select
-          className="col-span-2 border p-2 rounded-lg focus:outline-none focus:border-gray-900 text-sm lg:text-base"
-          value={filters.year}
-          onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-        >
-          <option value="">Select Year</option>
-          {getYearOptions().map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
+        {/* Year Dropdown */}
+        <div className="col-span-2 relative group">
+          <select
+            className="w-full modern-dropdown px-4 py-3 pr-12 bg-white border border-gray-200 rounded-xl shadow-sm 
+               hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 
+               transition-all duration-200 text-sm font-medium text-gray-700 cursor-pointer"
+            value={filters.year}
+            onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+          >
+            <option value="" className="text-gray-400">Select Year</option>
+            {getYearOptions().map(year => (
+              <option key={year} value={year} className="text-gray-700 py-2">{year}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </div>
 
         <button
           onClick={onSearch}
-          className="bg-gray-900 text-white rounded-lg hover:bg-gray-700 font-medium text-sm lg:text-base"
+          className="bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
         >
           Search
         </button>

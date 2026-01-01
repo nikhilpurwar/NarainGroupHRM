@@ -62,7 +62,7 @@ const AddEditCharges = ({
       setLoading(true);
 
       if (isEdit) {
-        await axios.put(`${API}/${charge.id}`, formData);
+        await axios.put(`${API}/${charge._id}`, formData);
         toast.success("Charge updated successfully!");
       } else {
         await axios.post(API, formData);

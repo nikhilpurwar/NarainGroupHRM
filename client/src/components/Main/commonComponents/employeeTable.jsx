@@ -82,81 +82,50 @@ const EmployeeTable = ({
     const indexOfFirst = indexOfLast - pageSize
     const currentData = filtered.slice(indexOfFirst, indexOfLast)
 
-    // Precompute present/absent counts for employees on the current page (optimized)
+    // Use monthly summary from backend for accurate present/absent counts
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
     const currentYear = String(new Date().getFullYear())
-    const [attendanceMap, setAttendanceMap] = useState({})
+    const [summaryMap, setSummaryMap] = useState({})
 
-    // When table requires action columns (present/absent) fetch attendances for employees on current page
+    // When table requires action columns (present/absent) fetch monthly summaries for employees on current page
     useEffect(() => {
         let mounted = true
         if (!renderActions || currentData.length === 0) return
         const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
         const fetchForPage = async () => {
             try {
-                const promises = currentData.map(e => axios.get(`${apiUrl}/api/attendance-report`, { params: { employeeId: e._id || e.id, month: currentMonth, year: currentYear } }).then(r => ({ id: e._id || e.id, data: r.data?.data?.employee?.attendance || [] })).catch(() => ({ id: e._id || e.id, data: [] })))
+                const promises = currentData.map(e =>
+                    axios.get(`${apiUrl}/api/attendance-report`, {
+                        params: { employeeId: e._id || e.id, month: currentMonth, year: currentYear }
+                    })
+                        .then(r => ({
+                            id: e._id || e.id,
+                            summary: r.data?.data?.summary || { totalPresent: 0, totalAbsent: 0 }
+                        }))
+                        .catch(() => ({
+                            id: e._id || e.id,
+                            summary: { totalPresent: 0, totalAbsent: 0 }
+                        }))
+                )
                 const results = await Promise.all(promises)
                 if (!mounted) return
                 const map = {}
-                for (const r of results) map[r.id] = r.data
-                setAttendanceMap(map)
+                for (const r of results) {
+                    map[r.id] = {
+                        present: r.summary.totalPresent || 0,
+                        absent: r.summary.totalAbsent || 0
+                    }
+                }
+                setSummaryMap(map)
             } catch (err) {
-                console.error('Error fetching attendances for page', err)
+                console.error('Error fetching monthly summaries for page', err)
             }
         }
         fetchForPage()
         return () => { mounted = false }
     }, [renderActions, currentData, currentMonth, currentYear])
-    const countsMap = useMemo(() => {
-        const map = {}
-        for (const emp of currentData) {
-            const key = emp._id || emp.id
-            let present = 0
-            let absent = 0
-            const attends = attendanceMap[key] || emp.attendance || emp.attendanceRaw || []
-            if (Array.isArray(attends) && attends.length) {
-                for (const a of attends) {
-                    try {
-                        if (!a) continue
 
-                        // robust ISO date extraction
-                        let iso = null
-                        if (typeof a.date === 'string') {
-                            iso = a.date.slice(0, 10)
-                        } else if (a.date && typeof a.date === 'object' && a.date.toISOString) {
-                            iso = a.date.toISOString().slice(0, 10)
-                        } else {
-                            const dt = new Date(a.date)
-                            if (!isNaN(dt)) iso = dt.toISOString().slice(0, 10)
-                        }
-                        if (!iso) continue
-                        if (!iso.startsWith(`${currentYear}-${currentMonth}`)) continue
-
-                        const status = (a.status || '').toLowerCase()
-
-                        // Determine presence: prefer explicit status, else infer from punchLogs/inTime/outTime
-                        if (status === 'present' || status === 'halfday') {
-                            present += 1
-                        } else if (status === 'absent') {
-                            absent += 1
-                        } else {
-                            const hasPunchLogs = Array.isArray(a.punchLogs) && a.punchLogs.length > 0
-                            const hasInOut = (a.inTime || a.outTime)
-                            if (hasPunchLogs || hasInOut) {
-                                present += 1
-                            } else {
-                                // don't auto-count as absent unless explicitly marked absent
-                            }
-                        }
-                    } catch (err) {
-                        // ignore parse errors per-row
-                    }
-                }
-            }
-            map[key] = { present, absent }
-        }
-        return map
-    }, [currentData, currentMonth, currentYear])
+    const countsMap = useMemo(() => summaryMap, [summaryMap])
 
     const goNext = () => setCurrentPage(p => (p < totalPages ? p + 1 : p))
     const goPrev = () => setCurrentPage(p => (p > 1 ? p - 1 : p))
@@ -173,48 +142,120 @@ const EmployeeTable = ({
     return (
         <div>
             {showFilters && (
-                <div className="bg-white p-5 rounded-b-xl shadow mb-6">
+                <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
                     <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
+                        {/* Search Input */}
                         <div className="relative col-span-2">
-                            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                <Search className="text-gray-400" size={18} />
+                            </div>
                             <input
                                 type="text"
                                 placeholder="Search by Name/Emp ID..."
-                                className="w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 
+                         focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 
+                         transition-all duration-200 bg-white shadow-sm
+                         hover:border-gray-300 text-sm font-medium text-gray-700"
                                 value={nameSearch}
                                 onChange={e => setNameSearch(e.target.value)}
                             />
                         </div>
 
-                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={department} onChange={e => setDepartment(e.target.value)} disabled={schemaLoading}>
-                            <option value="">Select Department</option>
-                            {departments.map(d => (
-                                <option key={d._id} value={d._id}>{d.name}</option>
-                            ))}
-                        </select>
+                        {/* Department Dropdown */}
+                        <div className="relative col-span-2 group">
+                            <select
+                                className="modern-dropdown w-full pl-4 pr-10 py-2.5 rounded-lg 
+                         border border-gray-200 bg-white shadow-sm
+                         focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100
+                         hover:border-gray-300 transition-all duration-200
+                         text-sm font-medium text-gray-700 cursor-pointer
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={department}
+                                onChange={e => setDepartment(e.target.value)}
+                                disabled={schemaLoading}
+                            >
+                                <option value="" className="text-gray-400">Select Department</option>
+                                {departments.map(d => (
+                                    <option key={d._id} value={d._id} className="py-2">{d.name}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                        strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
 
-                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={subDepartment} onChange={e => setSubDepartment(e.target.value)} disabled={schemaLoading}>
-                            <option value="">Select Sub Department</option>
-                            {subDepartments.map(d => (
-                                <option key={d._id} value={d._id}>{d.name}</option>
-                            ))}
-                        </select>
+                        {/* Sub-Department Dropdown */}
+                        <div className="relative col-span-2 group">
+                            <select
+                                className="modern-dropdown w-full pl-4 pr-10 py-2.5 rounded-lg 
+                         border border-gray-200 bg-white shadow-sm
+                         focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100
+                         hover:border-gray-300 transition-all duration-200
+                         text-sm font-medium text-gray-700 cursor-pointer
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={subDepartment}
+                                onChange={e => setSubDepartment(e.target.value)}
+                                disabled={schemaLoading}
+                            >
+                                <option value="" className="text-gray-400">Select Sub Department</option>
+                                {subDepartments.map(d => (
+                                    <option key={d._id} value={d._id} className="py-2">{d.name}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                        strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
 
-                        <select className="col-span-2 w-full border py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500" value={designation} onChange={e => setDesignation(e.target.value)} disabled={schemaLoading}>
-                            <option value="">Select Designation</option>
-                            {designations.map(d => (
-                                <option key={d._id} value={d._id}>{d.name}</option>
-                            ))}
-                        </select>
+                        {/* Designation Dropdown */}
+                        <div className="relative col-span-2 group">
+                            <select
+                                className="modern-dropdown w-full pl-4 pr-10 py-2.5 rounded-lg 
+                         border border-gray-200 bg-white shadow-sm
+                         focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100
+                         hover:border-gray-300 transition-all duration-200
+                         text-sm font-medium text-gray-700 cursor-pointer
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={designation}
+                                onChange={e => setDesignation(e.target.value)}
+                                disabled={schemaLoading}
+                            >
+                                <option value="" className="text-gray-400">Select Designation</option>
+                                {designations.map(d => (
+                                    <option key={d._id} value={d._id} className="py-2">{d.name}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                        strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Clear Button */}
                         <button
                             title='Clear Filters'
                             onClick={clearFilters}
-                            className="flex items-center justify-center gap-2 w-full md:w-auto px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition"
+                            className="flex items-center justify-center gap-2 w-full md:w-auto px-5 py-2.5 
+                     bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 
+                     text-gray-700 rounded-lg font-medium transition-all duration-200
+                     border border-gray-200 shadow-sm hover:shadow
+                     hover:border-gray-300 active:scale-95"
                         >
-                            <RotateCcw size={18} /><span>Clear</span>
+                            <RotateCcw size={18} className="text-gray-600" />
+                            <span className="font-medium">Clear</span>
                         </button>
                     </div>
-
                 </div>
             )}
 
@@ -351,7 +392,7 @@ const EmployeeTable = ({
                                                     </div>
                                                 )}
                                             </td>
-                                        </tr> 
+                                        </tr>
                                     )
                                 })
                             ) : (

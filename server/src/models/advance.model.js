@@ -13,7 +13,38 @@ const AdvanceSchema = new mongoose.Schema({
   reason: { type: String },
   attachment: { type: String }, // stored filename/path
   status: { type: String, enum: ['active', 'inactive'], default: 'active' }
-}, { timestamps: true })
+}, { timestamps: true });
+
+/**
+ * Auto-calculate balance before save
+ * Use synchronous middleware (no `next`) to avoid signature mismatches
+ */
+AdvanceSchema.pre('save', function () {
+  if (this.amount !== undefined && this.deduction !== undefined) {
+    this.balance = this.amount - this.deduction
+  }
+})
+
+
+/**
+ * Auto-calculate balance before findOneAndUpdate
+ * Handles both direct update and {$set: {...}} shapes.
+ */
+AdvanceSchema.pre('findOneAndUpdate', function () {
+  const update = this.getUpdate() || {}
+  // support updates that use $set
+  const updateTarget = update.$set ? update.$set : update
+  if (updateTarget.amount !== undefined && updateTarget.deduction !== undefined) {
+    updateTarget.balance = updateTarget.amount - updateTarget.deduction
+    if (update.$set) update.$set = updateTarget
+    else {
+      // assign back to update object
+      Object.assign(update, updateTarget)
+    }
+    this.setUpdate(update)
+  }
+})
+
 
 const Advance = mongoose.model('Advance', AdvanceSchema)
 export default Advance
