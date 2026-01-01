@@ -1,5 +1,6 @@
 import { asyncHandler } from '../../middleware/async.middleware.js'
 import salaryService from '../../services/salary.service.js'
+import salaryRecalcService from '../../services/salaryRecalculation.service.js'
 import Employee from '../../models/employee.model.js'
 import MonthlySalaryModel from '../../models/salary.model/monthlySalary.model.js'
 
@@ -55,34 +56,23 @@ export const calculateAndStoreMonthlySalary = asyncHandler(async (req, res) => {
 	if (existing) {
 		return res.json({ 
 			success: true, 
-			data: { exists: true, monthKey, message: 'Salary already calculated for this month' } 
+			data: { 
+				exists: true, 
+				monthKey, 
+				message: 'Salary already calculated for this month. Use recalculate endpoint to refresh.' 
+			} 
 		})
 	}
 
-	// Compute full report
-	const report = await salaryService.computeSalaryReport({ 
-		fromDate: fromDate.toISOString(), 
-		toDate: toDate.toISOString(), 
-		page: 1, 
-		pageSize: 10000 
-	})
-
-	// Store in database
-	const monthlyRecord = await MonthlySalaryModel.create({
-		monthKey,
-		fromDate,
-		toDate,
-		items: report.items || [],
-		summary: report.summary || {},
-		totalRecords: report.totalRecords || 0
-	})
+	// Recalculate and update using the service
+	const result = await salaryRecalcService.recalculateAndUpdateMonthlySalary(fromDate)
 
 	res.json({ 
 		success: true, 
 		data: { 
 			monthKey, 
 			created: true,
-			totalRecords: monthlyRecord.totalRecords,
+			totalRecords: result.totalRecords,
 			message: 'Monthly salary calculated and stored successfully' 
 		} 
 	})
@@ -91,42 +81,163 @@ export const calculateAndStoreMonthlySalary = asyncHandler(async (req, res) => {
 export const monthlySalaryReport = asyncHandler(async (req, res) => {
 	// Accept month & year or month in 'YYYY-M' format
 	const { month, year, employeeName, page, pageSize } = req.query
-	let fromDate, toDate
+	let monthKey
+	
+	// Parse month parameter
 	if (month) {
-		// support month='2025-12' or month='12' with separate year
 		if (String(month).includes('-')) {
-			const parts = String(month).split('-').map(s => Number(s))
-			if (parts.length === 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
-				const y = parts[0]
-				const m = parts[1] - 1
-				fromDate = new Date(y, m, 1)
-				toDate = new Date(y, m + 1, 0)
-			} else {
-				return res.status(400).json({ success: false, message: 'invalid month format' })
-			}
+			const parts = String(month).split('-')
+			monthKey = `${parts[0]}-${Number(parts[1])}`
 		} else if (month && year) {
-			const m = Number(month) - 1
-			const y = Number(year)
-			if (Number.isNaN(m) || Number.isNaN(y)) return res.status(400).json({ success: false, message: 'invalid month or year' })
-			fromDate = new Date(y, m, 1)
-			toDate = new Date(y, m + 1, 0)
+			monthKey = `${Number(year)}-${Number(month)}`
 		} else {
-			return res.status(400).json({ success: false, message: 'month and year are required' })
+			return res.status(400).json({ success: false, message: 'month is required' })
 		}
 	} else {
 		return res.status(400).json({ success: false, message: 'month is required' })
 	}
 
-	// optional employee filter
-	let employeeId = null
-	if (employeeName) {
-		const emp = await Employee.findOne({ $or: [{ name: new RegExp(employeeName, 'i') }, { empId: new RegExp(employeeName, 'i') }] })
-		if (emp) employeeId = emp._id
+	// Get cached salary data from MonthlySalaryModel
+	const cached = await MonthlySalaryModel.findOne({ monthKey }).lean()
+
+	if (!cached) {
+		// No cached data for this month - return empty
+		return res.json({
+			success: true,
+			data: {
+				items: [],
+				summary: {},
+				totalRecords: 0,
+				monthKey,
+				message: 'No salary data calculated for this month yet'
+			}
+		})
 	}
 
-	const report = await salaryService.computeSalaryReport({ fromDate: fromDate.toISOString(), toDate: toDate.toISOString(), employeeId, page: Number(page) || 1, pageSize: Number(pageSize) || 15 })
-	const monthKey = `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}`
-	res.json({ success: true, data: { ...report, monthKey, fromDate: fromDate.toISOString(), toDate: toDate.toISOString() }, message: 'Monthly salary report' })
+	// Apply optional filters
+	let items = cached.items || []
+	if (employeeName) {
+		items = items.filter(item =>
+			item.empName.toLowerCase().includes(employeeName.toLowerCase()) ||
+			item.empId.toLowerCase().includes(employeeName.toLowerCase())
+		)
+	}
+
+	// Apply pagination
+	const p = Number(page) || 1
+	const ps = Number(pageSize) || 15
+	const skip = (p - 1) * ps
+	const paginatedItems = items.slice(skip, skip + ps)
+
+	// Calculate summary for filtered items
+	const summary = paginatedItems.reduce((acc, r) => {
+		acc.totalPayable += r.totalPay || 0
+		acc.totalOvertime += r.otPay || 0
+		acc.totalEmployees++
+		acc.totalWorkingHours += r.totalHours || 0
+		acc.totalDeductions += r.totalDeductions || 0
+		acc.totalNetPay += r.netPay || 0
+		return acc
+	}, {
+		totalPayable: 0,
+		totalOvertime: 0,
+		totalEmployees: 0,
+		totalWorkingHours: 0,
+		totalDeductions: 0,
+		totalNetPay: 0
+	})
+
+	res.json({
+		success: true,
+		data: {
+			items: paginatedItems,
+			summary,
+			totalRecords: items.length,
+			monthKey,
+			fromDate: cached.fromDate,
+			toDate: cached.toDate
+		}
+	})
 })
 
-export default { monthlySalaryReport, checkMonthlySalaryExists, calculateAndStoreMonthlySalary }
+// Recalculate salary for a specific employee when loan deduction changes
+export const recalculateSalaryForEmployee = asyncHandler(async (req, res) => {
+	const { empId } = req.params
+	const { loanDeduct, month } = req.body
+
+	if (!month) {
+		return res.status(400).json({ success: false, message: 'month is required' })
+	}
+
+	// Parse month to get date range
+	let fromDate, toDate
+	if (String(month).includes('-')) {
+		const parts = String(month).split('-').map(s => Number(s))
+		if (parts.length === 2) {
+			const y = parts[0]
+			const m = parts[1] - 1
+			fromDate = new Date(y, m, 1)
+			toDate = new Date(y, m + 1, 0)
+		} else {
+			return res.status(400).json({ success: false, message: 'invalid month format' })
+		}
+	} else {
+		return res.status(400).json({ success: false, message: 'invalid month format' })
+	}
+
+	const monthKey = `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}`
+
+	// Find the employee
+	const employee = await Employee.findOne({ empId })
+	if (!employee) {
+		return res.status(404).json({ success: false, message: 'Employee not found' })
+	}
+
+	// Compute salary for this specific employee
+	const report = await salaryService.computeSalaryReport({ 
+		fromDate: fromDate.toISOString(), 
+		toDate: toDate.toISOString(), 
+		employeeId: employee._id,
+		page: 1,
+		pageSize: 1
+	})
+
+	if (!report.items || report.items.length === 0) {
+		return res.status(404).json({ success: false, message: 'No salary data found for this employee' })
+	}
+
+	const salaryItem = report.items[0]
+	
+	// Update with new loan deduction
+	const newLoanDeduct = Number(loanDeduct) || 0
+	const oldLoanDeduct = salaryItem.loanDeduct || 0
+	const loanDiff = newLoanDeduct - oldLoanDeduct
+
+	// Recalculate totals
+	const newTotalDeductions = (salaryItem.totalDeductions || 0) + loanDiff
+	const newNetPay = (salaryItem.netPay || 0) - loanDiff
+
+	// Update in the stored monthly record
+	const monthlyRecord = await MonthlySalaryModel.findOne({ monthKey })
+	if (monthlyRecord) {
+		const itemIndex = monthlyRecord.items.findIndex(item => item.empId === empId)
+		if (itemIndex !== -1) {
+			monthlyRecord.items[itemIndex].loanDeduct = newLoanDeduct
+			monthlyRecord.items[itemIndex].totalDeductions = newTotalDeductions
+			monthlyRecord.items[itemIndex].netPay = newNetPay
+			await monthlyRecord.save()
+		}
+	}
+
+	res.json({
+		success: true,
+		data: {
+			loanDeduct: newLoanDeduct,
+			totalDeductions: newTotalDeductions,
+			netPay: newNetPay
+		},
+		message: 'Salary recalculated successfully'
+	})
+})
+
+export default { monthlySalaryReport, checkMonthlySalaryExists, calculateAndStoreMonthlySalary, recalculateSalaryForEmployee }

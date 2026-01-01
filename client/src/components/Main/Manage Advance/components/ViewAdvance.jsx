@@ -78,17 +78,17 @@ const ViewAdvance = ({ data, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto main-scroll">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl ">
         
         {/* HEADER */}
-        <div className="sticky top-0 bg-white z-10 border-b p-6">
+        <div className="rounded-t-2xl sticky top-0 bg-gray-900 z-10 border-b p-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
                 <TbPigMoney className="text-white text-2xl" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-white">
                   Advance / Loan Details
                 </h2>
                 <p className="text-gray-500">
@@ -98,15 +98,15 @@ const ViewAdvance = ({ data, onClose }) => {
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-500 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
             >
-              <IoCloseSharp size={28} className="text-gray-500" />
+              <IoCloseSharp size={28} className="" />
             </button>
           </div>
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto main-scroll max-h-[80vh]">
           
           {/* EMPLOYEE INFO SECTION */}
           <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
@@ -373,11 +373,11 @@ const ViewAdvance = ({ data, onClose }) => {
         </div>
 
         {/* FOOTER */}
-        <div className="sticky bottom-0 bg-white border-t p-6">
+        <div className="rounded-b-2xl sticky bottom-0 bg-white border-t p-6">
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Close
             </button>

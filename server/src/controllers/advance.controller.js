@@ -1,5 +1,6 @@
 import Advance from '../models/advance.model.js'
 import Employee from '../models/employee.model.js'
+import salaryRecalcService from '../services/salaryRecalculation.service.js'
 import fs from 'fs'
 import path from 'path'
 
@@ -51,6 +52,12 @@ export const createAdvance = async (req, res) => {
 
     // let schema hooks handle balance calculation
     const adv = await Advance.create(body);
+    
+    // Recalculate salary for current and previous month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
+    
     res.status(201).json({ success: true, data: adv });
   } catch (err) {
     console.error('createAdvance error', err);
@@ -77,6 +84,11 @@ export const updateAdvance = async (req, res) => {
     // let schema hooks handle balance calculation
     const adv = await Advance.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
     if (!adv) return res.status(404).json({ success: false, message: 'Not found' });
+    
+    // Recalculate salary for current and previous month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
 
     res.json({ success: true, data: adv });
   } catch (err) {

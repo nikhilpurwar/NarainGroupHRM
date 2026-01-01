@@ -2,9 +2,10 @@ import Attendance from '../models/attendance.model.js'
 import Employee from '../models/employee.model.js'
 import Advance from '../models/advance.model.js'
 import SalaryRule from '../models/setting.model/salaryRule.model.js'
-import workingHours from '../models/setting.model/workingHours.model.js'
 import { SubDepartment } from '../models/department.model.js'
 import MonthlySalaryModel from '../models/salary.model/monthlySalary.model.js'
+import BreakTime from '../models/setting.model/workingHours.model.js'
+import Charge from '../models/setting.model/charge.model.js'
 
 /* -------------------------------------------------------------------------- */
 /*                               DEFAULT RULE                                 */
@@ -282,13 +283,29 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
 
   const ded = employee.deductions || []
 
-  const tds = ded.includes('tds') ? +(basicPay * 0.10).toFixed(2) : 0
-  const pTax = ded.includes('ptax') ? 200 : 0
-  const lwf = ded.includes('lwf') ? 20 : 0
-  const esi = ded.includes('esi') ? +(basicPay * 0.0075).toFixed(2) : 0
-  const basicPF = ded.includes('pf') ? +(basicPay * 0.12).toFixed(2) : 0
-  const otPF = ded.includes('pf') ? +(otPay * 0.12).toFixed(2) : 0
-  const insurance = ded.includes('insurance') ? 100 : 0
+  // Fetch active charges from database
+  const charges = await Charge.find({ status: 1 }).lean()
+  
+  // Helper function to calculate deduction amount
+  const calculateDeduction = (chargeName, baseAmount) => {
+    const charge = charges.find(c => c.deduction.toLowerCase() === chargeName.toLowerCase())
+    if (!charge) return 0
+    
+    if (charge.value_type === 'Percentage') {
+      return +((baseAmount * charge.value) / 100).toFixed(2)
+    } else {
+      return +(charge.value).toFixed(2)
+    }
+  }
+
+  // Apply deductions only if employee has them enabled
+  const tds = ded.includes('tds') ? calculateDeduction('tds', basicPay) : 0
+  const pTax = ded.includes('ptax') ? calculateDeduction('ptax', basicPay) : 0
+  const lwf = ded.includes('lwf') ? calculateDeduction('lwf', basicPay) : 0
+  const esi = ded.includes('esi') ? calculateDeduction('esi', basicPay) : 0
+  const basicPF = ded.includes('pf') ? calculateDeduction('pf', basicPay) : 0
+  const otPF = ded.includes('pf') ? calculateDeduction('pf', otPay) : 0
+  const insurance = ded.includes('insurance') ? calculateDeduction('insurance', basicPay) : 0
 
   const totalDeductions = +(
     tds + pTax + lwf + esi + basicPF + otPF + insurance + loanDeduct + advanceTotal
@@ -381,6 +398,7 @@ export async function computeSalaryReport({ fromDate, toDate, employeeId, page =
     }
   }
 
+  // If not a full month request or no cache exists, compute on the fly
   const employees = await Employee.find(query)
     .populate('subDepartment')
     .populate('headDepartment')
@@ -410,26 +428,6 @@ export async function computeSalaryReport({ fromDate, toDate, employeeId, page =
     totalDeductions: 0,
     totalNetPay: 0
   })
-
-  // If full month, persist the full report for future reads (only if not cached)
-  if (isFullMonth) {
-    try {
-      const monthKey = `${from.getFullYear()}-${from.getMonth() + 1}`
-      const existing = await MonthlySalaryModel.findOne({ monthKey })
-      if (!existing) {
-        // build full items across all employees (no pagination) and save
-        const allEmployees = await Employee.find({ status: 'active' }).populate('subDepartment').populate('headDepartment')
-        const allItems = []
-        for (const emp of allEmployees) {
-          allItems.push(await computeSalaryForEmployee(emp, fromDate, toDate))
-        }
-        await MonthlySalaryModel.create({ monthKey, fromDate: monthStart, toDate: monthEnd, items: allItems, summary, totalRecords: allItems.length })
-      }
-    } catch (err) {
-      // non-fatal: log and continue returning computed page
-      console.error('Failed saving monthly salary cache:', err.message)
-    }
-  }
 
   return {
     items,

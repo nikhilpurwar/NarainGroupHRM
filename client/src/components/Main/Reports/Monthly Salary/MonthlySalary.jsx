@@ -1,1001 +1,243 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Search,
-  Filter,
-  Printer,
-  Download,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  Edit,
-  Calendar,
-  IndianRupee,
-  FileText,
-  RotateCcw
-} from 'lucide-react';
-import axios from 'axios';
+import React, { useState, useEffect, memo } from 'react';
+import { IndianRupee } from 'lucide-react';
 import { toast } from 'react-toastify';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import {
+  useSalaryFilters,
+  useSalaryData,
+  usePagination,
+  useSalaryModal,
+  useDateHelper,
+  useSalaryExport,
+  useSalaryPDF,
+  useLoanRecalculation
+} from './hooks';
+import {
+  SalaryFilters,
+  SalaryTable,
+  SalaryPagination,
+  SalaryExportButtons
+} from './components';
+import ViewSalaryReport from './ViewSalaryReport';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
+// Memoized Summary Stats Component
+const SalarySummaryStats = memo(({ salaryData }) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Total Payroll</p>
+            <p className="text-2xl font-bold text-gray-900">
+              ₹{salaryData.reduce((sum, item) => sum + (item.totalPay || 0), 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-3 bg-green-100 rounded-lg">
+            <IndianRupee className="text-green-600" size={24} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Total Deductions</p>
+            <p className="text-2xl font-bold text-gray-900">
+              ₹{salaryData.reduce((sum, item) => sum + (item.totalDeductions || 0), 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-3 bg-yellow-100 rounded-lg">
+            <IndianRupee className="text-yellow-600" size={24} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Net Payable</p>
+            <p className="text-2xl font-bold text-gray-900">
+              ₹{salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-3 bg-blue-100 rounded-lg">
+            <IndianRupee className="text-blue-600" size={24} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Average Salary</p>
+            <p className="text-2xl font-bold text-gray-900">
+              ₹{Math.round(salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0) / salaryData.length).toLocaleString()}
+            </p>
+          </div>
+          <div className="p-3 bg-purple-100 rounded-lg">
+            <IndianRupee className="text-purple-600" size={24} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+SalarySummaryStats.displayName = 'SalarySummaryStats';
 
 const MonthlySalary = () => {
-  // State for filters
-  const currentMonthStr = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`
-  const [filters, setFilters] = useState({
-    employeeName: '',
-    month: currentMonthStr
-  });
-
-  // State for salary data
-  const [salaryData, setSalaryData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [dataExists, setDataExists] = useState(false);
-  const [checkedMonth, setCheckedMonth] = useState(null);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
+  // Initialize hooks
+  const { filters, handleFilterChange, clearFilters } = useSalaryFilters();
+  const { monthYearOptions, getSelectedMonthYearLabel } = useDateHelper(filters.month);
   const [pageSize, setPageSize] = useState(10);
-  const [totalRecords, setTotalRecords] = useState(0);
+  const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, checkDataExists, fetchSalaryData } = useSalaryData(filters, 1, pageSize);
+  const { currentPage, setCurrentPage, totalPages, goToPage, goPrev, goNext, resetPage } = usePagination(totalRecords, pageSize);
+  const { isModalOpen, selectedEmployee, openModal, closeModal, updateSelectedEmployee } = useSalaryModal();
+  const { exportToPDF, exportToExcel, printReport } = useSalaryExport(getSelectedMonthYearLabel);
+  const { downloadEmployeePDF } = useSalaryPDF(getSelectedMonthYearLabel);
+  const { handleLoanDeductChange, cleanup } = useLoanRecalculation(setSalaryData, filters.month);
 
-  // Months and years for dropdown
-  const months = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' }
-  ];
-
-  const years = [2025, 2024, 2023, 2022];
-
-  // Generate month-year options for dropdown
-  const getMonthYearOptions = () => {
-    const options = [];
-    years.forEach(year => {
-      months.forEach(month => {
-        options.push({
-          value: `${year}-${month.value}`,
-          label: `${year} | ${month.label}`
-        });
-      });
-    });
-    return options;
-  };
-
-  // Format selected month-year for display (handles both "YYYY-M" and separate month/year)
-  const getSelectedMonthYearLabel = () => {
-    if (!filters.month) return 'Current Month'
-    const [y, m] = String(filters.month).split('-')
-    const monthObj = months.find(ms => String(ms.value) === String(m))
-    return `${y} | ${monthObj ? monthObj.label : `Month ${m}`}`
-  }
-
-  // Check if salary data exists for the selected month and calculate if needed
-  const checkDataExists = useCallback(async () => {
-    try {
-      const params = {
-        month: filters.month
-      };
-
-      const checkResponse = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
-
-      if (checkResponse.data && checkResponse.data.success) {
-        let exists = checkResponse.data.data?.exists || false;
-
-        // If doesn't exist, trigger calculation
-        if (!exists) {
-          try {
-            const [year, month] = String(filters.month).split('-');
-            await axios.post(`${API_URL}/api/salary/monthly/calculate`, {
-              month: filters.month,
-              year
-            });
-            exists = true; // After calculation, it exists
-          } catch (calcErr) {
-            console.error('Error calculating salary:', calcErr);
-            exists = false;
-          }
-        }
-
-        setDataExists(exists);
-        setCheckedMonth(filters.month);
-        return exists;
-      } else {
-        setDataExists(false);
-        setCheckedMonth(filters.month);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking salary data:', error);
-      setDataExists(false);
-      setCheckedMonth(filters.month);
-      return false;
+  // Re-fetch data when pagination or page size changes
+  useEffect(() => {
+    if (dataExists) {
+      fetchSalaryData();
     }
-  }, [filters.month]);
+  }, [currentPage, pageSize, dataExists, fetchSalaryData]);
 
-  // Fetch salary data (only if data exists)
-  const fetchSalaryData = useCallback(async () => {
-    if (!dataExists) {
+  // Check data exists on month change
+  useEffect(() => {
+    if (checkedMonth !== filters.month) {
+      checkDataExists();
+      resetPage();
       setSalaryData([]);
-      setTotalRecords(0);
-      return;
     }
+  }, [filters.month, checkedMonth, checkDataExists, resetPage]);
 
-    setLoading(true);
-    try {
-      const params = {
-        employeeName: filters.employeeName,
-        month: filters.month,
-        page: currentPage,
-        pageSize
-      };
-
-      const response = await axios.get(`${API_URL}/api/salary/monthly`, { params });
-
-      if (response.data && response.data.success) {
-        const data = response.data.data || {};
-        const items = data.items || [];
-
-        // Map backend items to UI expected shape
-        const mapped = items.map(it => {
-          const salary = it.salary || it.monthlySalary || 0;
-          const salaryPerDayBackend = (it.salaryPerDay !== undefined && it.salaryPerDay !== null) ? it.salaryPerDay : undefined;
-          const salaryPerDay30 = (it.salaryPerDay30 !== undefined) ? it.salaryPerDay30 : undefined;
-          const salaryPerDayComputed = Number((salary / 30).toFixed(2));
-          const salaryPerDay = salaryPerDayBackend ?? salaryPerDay30 ?? salaryPerDayComputed;
-
-          const salaryPerHourBackend = (it.salaryPerHour !== undefined && it.salaryPerHour !== null) ? it.salaryPerHour : undefined;
-          const salaryPerHour30 = (it.salaryPerHourFrom30 !== undefined) ? it.salaryPerHourFrom30 : undefined;
-          const shiftHours = it.shiftHours || 8;
-          const salaryPerHourComputed = Number((salaryPerDay / shiftHours).toFixed(2));
-          const salaryPerHour = salaryPerHourBackend ?? salaryPerHour30 ?? salaryPerHourComputed;
-
-          const presentDays = (it.present !== undefined) ? it.present : (it.presentDays !== undefined ? it.presentDays : 0);
-          const basicHours = it.workingHrs || it.basicHours || 0;
-          const otHours = it.overtimeHrs || it.otHours || 0;
-          const basicPay = (it.basicPay !== undefined) ? it.basicPay : (basicHours ? Number((basicHours * (it.salaryPerHr || salaryPerHour || 0)).toFixed(2)) : 0);
-          const otPay = it.overtimePayable || it.otPay || 0;
-          const totalHours = Number((basicHours + otHours).toFixed(2));
-          const totalPay = (it.payableAmount || it.totalPay || 0);
-
-          return {
-            id: it.id || it._id || it.empId,
-            empId: it.empId || '',
-            empName: it.empName || '',
-            headDepartment: it.headDepartment || it.department || '',
-            subDepartment: it.subDepartment || it.group || '',
-            department: it.department || (typeof it.headDepartment === 'object' ? it.headDepartment?.name : it.headDepartment) || '',
-            group: it.group || (typeof it.subDepartment === 'object' ? it.subDepartment?.name : it.subDepartment) || '',
-            salary,
-            salaryPerDay,
-            salaryPerHour,
-            presentDays,
-            basicHours,
-            basicPay,
-            otHours,
-            otPay,
-            totalHours,
-            totalPay,
-            tds: it.tds || 0,
-            pTax: it.pTax || it.ptax || 0,
-            lwf: it.lwf || 0,
-            esi: it.esi || 0,
-            basicPF: it.basicPF || it.pf || 0,
-            otPF: it.otPF || 0,
-            insurance: it.insurance || 0,
-            advance: it.advance || 0,
-            loanPending: it.loanPending || 0,
-            loanReceived: it.loanReceived || 0,
-            loanDeduct: it.loanDeduct || 0,
-            totalDeductions: (it.totalDeductions !== undefined) ? it.totalDeductions : 0,
-            netPay: (it.netPay !== undefined) ? it.netPay : totalPay,
-            status: it.status || 'Calculated'
-          };
-        });
-
-        setSalaryData(mapped);
-        setTotalRecords(data.totalRecords || 0);
-      } else {
-        toast.error(response.data?.message || 'Failed to fetch salary data');
-        setSalaryData([]);
-        setTotalRecords(0);
-      }
-    } catch (error) {
-      console.error('Error fetching salary data:', error);
-      toast.error('Failed to load salary report');
-      setSalaryData([]);
-      setTotalRecords(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, currentPage, pageSize, dataExists]);
-
-  // No client-side mock data generation — fetch live results from backend
-
-  // Handle filter change
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // Cleanup on unmount - clear any pending debounce timers
+  useEffect(() => {
+    return () => cleanup();
+  }, [cleanup]);
 
   // Apply filters
-  const applyFilters = (e) => {
+  const handleApplyFilters = (e) => {
     e?.preventDefault();
-    setCurrentPage(1); // Reset to first page
+    resetPage();
     checkDataExists().then(exists => {
       if (exists) {
         fetchSalaryData();
       } else {
         setSalaryData([]);
-        setTotalRecords(0);
         toast.info('No salary data available for the selected month');
       }
     });
   };
 
   // Clear filters
-  const clearFilters = () => {
-    setFilters({
-      employeeName: '',
-      month: `${new Date().getFullYear()}-${new Date().getMonth() + 1}`
-    });
-    setCurrentPage(1);
-    setDataExists(false);
+  const handleClearFilters = () => {
+    clearFilters();
+    resetPage();
     setSalaryData([]);
-    setTotalRecords(0);
   };
 
-  // Handle pagination
-  const totalPages = Math.ceil(totalRecords / pageSize);
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+  // Handle Pay - Mark salary as paid
+  const handlePay = (employee) => {
+    try {
+      setSalaryData((prev) =>
+        prev.map((item) =>
+          (item.empId || item.id) === (employee.empId || employee.id)
+            ? { ...item, status: 'Paid' }
+            : item
+        )
+      );
+      updateSelectedEmployee({ ...employee, status: 'Paid' });
+      toast.success(`Salary marked as paid for ${employee.empName}`);
+    } catch (error) {
+      console.error('Error marking salary as paid:', error);
+      toast.error('Failed to update payment status');
     }
   };
 
-  const goPrev = () => goToPage(currentPage - 1);
-  const goNext = () => goToPage(currentPage + 1);
-
-  // Export to PDF
-  const exportToPDF = () => {
-    const doc = new jsPDF('l', 'mm', 'a4');
-    const monthYear = getSelectedMonthYearLabel();
-
-    // Title
-    doc.setFontSize(18);
-    doc.text(`Monthly Salary Report - ${monthYear}`, 14, 15);
-
-    // Date and filters
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
-    if (filters.employeeName) {
-      doc.text(`Filter: ${filters.employeeName}`, 14, 29);
-    }
-
-    // Table headers
-    const headers = [
-      ['Emp ID', 'Emp Name', 'Group', 'Basic Pay', 'OT Pay', 'Total Pay', 'Deductions', 'Net Pay', 'Status']
-    ];
-
-    // Table data
-    const data = salaryData.map(item => [
-      item.empId,
-      item.empName,
-      item.group,
-      `₹${item.basicPay?.toLocaleString() || '0'}`,
-      `₹${item.otPay?.toLocaleString() || '0'}`,
-      `₹${item.totalPay?.toLocaleString() || '0'}`,
-      `₹${item.totalDeductions?.toLocaleString() || '0'}`,
-      `₹${item.netPay?.toLocaleString() || '0'}`,
-      item.status
-    ]);
-
-    // Generate table
-    doc.autoTable({
-      head: headers,
-      body: data,
-      startY: 40,
-      margin: { top: 40 },
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [51, 51, 51], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 245, 245] }
-    });
-
-    // Footer
-    const finalY = doc.lastAutoTable.finalY || 40;
-    doc.setFontSize(10);
-    doc.text(`Total Records: ${totalRecords}`, 14, finalY + 10);
-
-    doc.save(`Salary_Report_${monthYear.replace(/\s+/g, '_')}.pdf`);
-    toast.success('PDF exported successfully');
+  // Handle export
+  const handleExportPDF = () => {
+    exportToPDF(salaryData, filters, totalRecords);
   };
 
-  // Export to Excel
-  const exportToExcel = () => {
-    const monthYear = getSelectedMonthYearLabel();
-
-    // Prepare data
-    const ws_data = [
-      [`Monthly Salary Report - ${monthYear}`],
-      [`Generated on: ${new Date().toLocaleDateString()}`],
-      filters.employeeName ? [`Filter: ${filters.employeeName}`] : [],
-      [],
-      [
-        'Emp ID', 'Emp Name', 'Group', 'Basic Salary', 'Salary/Day',
-        'Present Days', 'Basic Hours', 'Basic Pay', 'OT Hours', 'OT Pay',
-        'Total Hours', 'Total Pay', 'TDS', 'P.Tax', 'LWF', 'ESI',
-        'Basic PF', 'OT PF', 'Insurance', 'Advance', 'Loan Pending',
-        'Loan Received', 'Loan Deduct', 'Total Deductions', 'Net Pay', 'Status'
-      ],
-      ...salaryData.map(item => [
-        item.empId,
-        item.empName,
-        item.group,
-        item.salary,
-        item.salaryPerDay,
-        item.presentDays,
-        item.basicHours,
-        item.basicPay,
-        item.otHours,
-        item.otPay,
-        item.totalHours,
-        item.totalPay,
-        item.tds,
-        item.pTax,
-        item.lwf,
-        item.esi,
-        item.basicPF,
-        item.otPF,
-        item.insurance,
-        item.advance,
-        item.loanPending,
-        item.loanReceived,
-        item.loanDeduct,
-        item.totalDeductions,
-        item.netPay,
-        item.status
-      ])
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Salary Report');
-
-    // Merge header cells
-    if (!ws['!merges']) ws['!merges'] = [];
-    ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 25 } });
-
-    XLSX.writeFile(wb, `Salary_Report_${monthYear.replace(/\s+/g, '_')}.xlsx`);
-    toast.success('Excel exported successfully');
+  const handleExportExcel = () => {
+    exportToExcel(salaryData, filters);
   };
 
-  // Print report
-  const printReport = () => {
-    const printWindow = window.open('', '_blank');
-    const monthYear = getSelectedMonthYearLabel();
-
-    const content = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Monthly Salary Report - ${monthYear}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .info { margin-bottom: 20px; color: #666; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background-color: #333; color: white; padding: 10px; text-align: left; }
-          td { padding: 8px; border: 1px solid #ddd; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          .total-row { font-weight: bold; background-color: #e8f4f8 !important; }
-          .header-row { background-color: #f0f0f0 !important; font-weight: bold; }
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          @media print {
-            body { margin: 0; }
-            table { font-size: 12px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Monthly Salary Report - ${monthYear}</h1>
-        <div class="info">
-          <p>Generated on: ${new Date().toLocaleDateString()}</p>
-          ${filters.employeeName ? `<p>Filter: ${filters.employeeName}</p>` : ''}
-          <p>Total Records: ${totalRecords}</p>
-        </div>
-        ${document.getElementById('salaryTable').outerHTML}
-        <div class="no-print" style="margin-top: 20px;">
-          <button onclick="window.print()">Print</button>
-          <button onclick="window.close()">Close</button>
-        </div>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.write(content);
-    printWindow.document.close();
-    printWindow.focus();
+  const handlePrintReport = () => {
+    printReport(salaryData, filters, totalRecords);
   };
 
-  // View details
-  const viewDetails = (employee) => {
-    toast.info(`Viewing details for ${employee.empName}`);
-    // Implement modal or navigate to detail page
-    console.log('Employee details:', employee);
+  // Handle download employee PDF
+  const handleDownloadEmployeePDF = (employee) => {
+    downloadEmployeePDF(employee);
   };
-
-  // Edit salary
-  // const editSalary = (employee) => {
-  //   toast.info(`Editing salary for ${employee.empName}`);
-  //   // Implement edit functionality
-  //   console.log('Edit employee:', employee);
-  // };
-
-  // Initialize
-  useEffect(() => {
-    const currentMonth = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`;
-    setFilters(prev => ({ ...prev, month: currentMonth }));
-  }, []);
-
-  // Check if data exists when month changes
-  useEffect(() => {
-    if (checkedMonth !== filters.month) {
-      checkDataExists();
-    }
-  }, [filters.month, checkedMonth, checkDataExists]);
-
-  // Fetch data when data exists and pagination changes
-  useEffect(() => {
-    if (dataExists) {
-      fetchSalaryData();
-    }
-  }, [dataExists, currentPage, pageSize, filters.employeeName, fetchSalaryData]);
 
   return (
     <div className="container-fluid px-4 py-6">
-      {/* Page Header */}
-      {/* <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Monthly Salary Report</h1>
-            <p className="text-gray-600 mt-1">View and manage monthly salary calculations</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              {totalRecords} Employees
-            </span>
-          </div>
-        </div>
-      </div> */}
-
       {/* Summary Stats */}
-      {salaryData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Payroll</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₹{salaryData.reduce((sum, item) => sum + (item.totalPay || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <IndianRupee className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
+      {salaryData.length > 0 && <SalarySummaryStats salaryData={salaryData} />}
 
-          <div className="bg-white rounded-xl shadow-sm border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Deductions</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₹{salaryData.reduce((sum, item) => sum + (item.totalDeductions || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <FileText className="text-yellow-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Net Payable</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₹{salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <IndianRupee className="text-blue-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Average Salary</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₹{Math.round(salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0) / salaryData.length).toLocaleString()}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <IndianRupee className="text-purple-600" size={24} />
-              </div>
-            </div>
-          </div>
+      {/* Filters and Export Buttons */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 mb-6 flex flex-col md:flex-row">
+        <div className="flex-1">
+          <SalaryFilters
+            filters={filters}
+            monthYearOptions={monthYearOptions}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={handleApplyFilters}
+            onClearFilters={handleClearFilters}
+          />
         </div>
+        <div className="w-full md:w-auto flex items-center">
+          <SalaryExportButtons
+            onPrint={handlePrintReport}
+            onExportExcel={handleExportExcel}
+          />
+        </div>
+      </div>
+
+      {/* Salary Table */}
+      <SalaryTable
+        salaryData={salaryData}
+        loading={loading}
+        dataExists={dataExists}
+        monthYear={getSelectedMonthYearLabel()}
+        onViewDetails={openModal}
+        onPay={handlePay}
+        onDownloadPDF={handleDownloadEmployeePDF}
+        onLoanDeductChange={handleLoanDeductChange}
+      />
+
+      {/* Pagination */}
+      {salaryData.length > 0 && (
+        <SalaryPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalRecords={totalRecords}
+          pageSize={pageSize}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            resetPage();
+          }}
+          onPrevPage={goPrev}
+          onNextPage={goNext}
+          onGoToPage={goToPage}
+        />
       )}
 
-      {/* Filter Row */}
-      <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
-        <form onSubmit={applyFilters}>
-          <div className='flex items-end justify-between'>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              {/* Employee Name Search */}
-              <div className="md:col-span-">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Employee Name/ID
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    name="employeeName"
-                    placeholder="Search by name or ID..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={filters.employeeName}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-              </div>
-
-              {/* Month-Year Select */}
-              <div className="md:col-span-">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Month & Year
-                </label>
-                <select
-                  name="month"
-                  className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={filters.month}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">---- Select Month & Year ----</option>
-                  {getMonthYearOptions().map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span- flex gap-2">
-                {/* Filter Button */}
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
-                >
-                  <Filter size={18} />
-                  Apply Filters
-                </button>
-                {/* Clear Button */}
-                <div className="">
-                  <button
-                    title='clear filters'
-                    type="button"
-                    onClick={clearFilters}
-                    className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-4 rounded-lg transition duration-200"
-                  >
-                    <RotateCcw size={18} />
-                    {/* <span>Clear</span> */}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={printReport}
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
-                title="Print Report"
-              >
-                <Printer size={18} />
-                {/* <span className="hidden sm:inline">Print</span> */}
-              </button>
-
-              <button
-                type="button"
-                onClick={exportToExcel}
-                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200"
-                title="Download Excel"
-              >
-                <Download size={18} />
-                {/* <span className="hidden sm:inline">Excel</span> */}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-
-      {/* Salary Report Table */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="px-4 py-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold">Monthly Salary Report - {getSelectedMonthYearLabel()}</h2>
-        </div>
-        {!dataExists && !loading ? (
-          <div className="py-12 text-center">
-            <p className="text-gray-600 text-lg">No salary data available for the selected month.</p>
-            <p className="text-gray-500 text-sm mt-2">Please select a different month or click "Apply Filters" to check.</p>
-          </div>
-        ) : loading ? (
-          <div className="py-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading salary report...</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full" id="salaryTable">
-                <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Emp. ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Emp. Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Sub Dept.
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Salary
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Salary/Day
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Salary/Hour
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Present Days
-                    </th>
-                    <th title='total basic hours in month from attendance.model.js' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Basic Hours
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Basic Pay
-                    </th>
-                    <th title='total over time hours in month from attendance.model.js' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      OT Hours
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      OT Pay
-                    </th>
-                    <th title='Basic Hours + OT Hours' className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Total Hours
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border">
-                      Total Pay
-                    </th>
-
-
-                    {/* check employee model if applicable then apply as per values */}
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      TDS
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      P.Tax
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      LWF
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      ESI
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100 text-gray-900">
-                      Basic PF
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900">
-                      OT PF
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Insurance
-                    </th>
-
-
-                    {/* from advance.model.js */}
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Advance
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Loan Pending
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Loan Received
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Loan Deduct
-                    </th>
-
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-yellow-50 text-yellow-900 border">
-                      Total Deductions
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900 border">
-                      Net Pay
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider text-center">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-200">
-                  {salaryData.length > 0 ? (
-                    salaryData.map((item, index) => (
-                      <tr key={item.id || index} className="hover:bg-gray-50 transition">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {item.empId}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-800">
-                                {item.empName?.charAt(0) || 'E'}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{item.empName}</div>
-                              <div className="text-xs text-gray-500">{item.department || 'N/A'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {item.group || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.salary || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.salaryPerDay?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.salaryPerHour?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <div className={`border-b items-center px-3 py-1 rounded-full text-xs font-medium ${item.presentDays >= 22 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {item.presentDays}
-                          </div>
-                          <small title='festival count from holidays.model.js' className="font-semibold text-gray-700">
-                            S:{item.successCount ?? 0} | F:{item.festivalCount ?? 0}
-                          </small>
-                          <input type="hidden" name="presentDays[]" value={item.presentDays} />
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-center">
-                          {item.basicHours}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          ₹{item.basicPay?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-center">
-                          {item.otHours}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          ₹{item.otPay?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-center">
-                          {item.totalHours}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-bold text-green-700 bg-green-50 border">
-                          ₹{item.totalPay?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.tds?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.pTax?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.lwf?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.esi?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 bg-gray-50">
-                          ₹{item.basicPF?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-blue-700 bg-blue-50">
-                          ₹{item.otPF?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.insurance?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.advance?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.loanPending?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          ₹{item.loanReceived?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          <input
-                            type="number"
-                            className="w-auto min-w-20 max-w-25 border rounded px-2 py-1"
-                            value={item.loanDeduct || 0}
-                            onChange={(e) => {
-                              const updatedValue = Number(e.target.value);
-                              setSalaryData((prev) =>
-                                prev.map((i) =>
-                                  (i.empId || i.id) === (item.empId || item.id) ? { ...i, loanDeduct: updatedValue } : i
-                                )
-                              );
-                            }}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm font-bold text-yellow-700 bg-yellow-50 border">
-                          ₹{item.totalDeductions?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-bold text-blue-700 bg-blue-50 border">
-                          ₹{item.netPay?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => viewDetails(item)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
-                              title="View Details"
-                            >
-                              <Eye size={16} className='hover:scale-110' />
-                            </button>
-                            {/* <button
-                              onClick={() => editSalary(item)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition"
-                              title="Edit Salary"
-                            >
-                              <Edit size={16} />
-                            </button> */}
-                            <button
-                              onClick={() => exportToPDF()}
-                              className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition cursor-pointer"
-                              title="Download PDF"
-                            >
-                              <FileText size={16} className='hover:scale-110' />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="27" className="px-4 py-12 text-center">
-                        <div className="flex flex-col items-center justify-center text-gray-500">
-                          <Calendar size={48} className="mb-4 text-gray-300" />
-                          <p className="text-lg font-medium mb-2">Data not found{filters.month ? ` for ${getSelectedMonthYearLabel()}` : ''}</p>
-                          <p className="text-sm">Try changing your filters or add salary data</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {salaryData.length > 0 && (
-              <div className="border-t px-4 py-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-600">
-                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">Rows per page:</span>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setCurrentPage(1);
-                        }}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={goPrev}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => goToPage(pageNum)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium ${currentPage === pageNum
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
-                              }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-
-                      {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <>
-                          <span className="px-2">...</span>
-                          <button
-                            onClick={() => goToPage(totalPages)}
-                            className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
-                          >
-                            {totalPages}
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <button
-                      disabled={currentPage === totalPages || totalPages === 0}
-                      onClick={goNext}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Modal */}
+      <ViewSalaryReport
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        employee={selectedEmployee}
+        monthYear={getSelectedMonthYearLabel()}
+        onPay={handlePay}
+        onDownloadPDF={handleDownloadEmployeePDF}
+      />
     </div>
   );
 };
 
-export default MonthlySalary;
+export default memo(MonthlySalary);

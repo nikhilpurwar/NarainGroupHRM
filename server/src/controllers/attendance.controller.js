@@ -4,6 +4,7 @@ import MonthlySummary from "../models/monthlySummary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import { getIO } from "../utils/socket.util.js";
+import salaryRecalcService from "../services/salaryRecalculation.service.js";
 
 const monthDays = (year, month) => {
   // month: 1-12
@@ -56,7 +57,11 @@ export const attendanceReport = async (req, res) => {
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
             const shiftCfg = await attendanceService.getShiftConfig();
             const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
-            const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, shiftHours);
+            const computed = attendanceService.computeTotalsFromPunchLogs(
+              a.punchLogs,
+              shiftHours,
+              { countOpenAsNow: true }
+            );
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
             a.overtimeHours = computed.overtimeHours;
@@ -64,8 +69,6 @@ export const attendanceReport = async (req, res) => {
             a.totalHoursDisplay = computed.totalHoursDisplay;
             a.regularHoursDisplay = computed.regularHoursDisplay;
             a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
-            a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
-            a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
             a._computedPairs = computed.pairs;
           }
         }
@@ -170,7 +173,11 @@ export const attendanceReport = async (req, res) => {
       if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
         const shiftCfg = await attendanceService.getShiftConfig();
         const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
-        const computed = attendanceService.computeTotalsFromPunchLogs(a.punchLogs, shiftHours);
+        const computed = attendanceService.computeTotalsFromPunchLogs(
+          a.punchLogs,
+          shiftHours,
+          { countOpenAsNow: true }
+        );
         a.totalHours = computed.totalHours;
         a.regularHours = computed.regularHours;
         a.overtimeHours = computed.overtimeHours;
@@ -178,8 +185,6 @@ export const attendanceReport = async (req, res) => {
         a.totalHoursDisplay = computed.totalHoursDisplay;
         a.regularHoursDisplay = computed.regularHoursDisplay;
         a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
-        a.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.inTime;
-        a.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : a.outTime;
         a._computedPairs = computed.pairs;
       }
     }
@@ -391,6 +396,11 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
         console.warn('Socket emit failed', e.message || e);
       }
 
+      // Recalculate salary for current month
+      salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+        console.error('Salary recalculation failed:', err)
+      );
+
       return res.status(200).json({
         success: true,
         type: 'in',
@@ -447,6 +457,11 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     } catch (e) {
       console.warn('Socket emit failed', e.message || e);
     }
+
+    // Recalculate salary for current month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
 
     return res.status(201).json({
       success: true,
@@ -509,6 +524,11 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     } catch (e) {
       console.warn('Socket emit failed', e.message || e);
     }
+
+    // Recalculate salary for current month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
 
     return res.status(200).json({
       success: true,
