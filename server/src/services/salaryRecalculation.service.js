@@ -27,7 +27,8 @@ export async function recalculateAndUpdateMonthlySalary(date = new Date()) {
       fromDate: monthStart.toISOString(),
       toDate: monthEnd.toISOString(),
       page: 1,
-      pageSize: 10000
+      pageSize: 10000,
+      useCache: false // always recompute from live data when rebuilding monthly salaries
     })
 
     // Update or create the monthly salary record
