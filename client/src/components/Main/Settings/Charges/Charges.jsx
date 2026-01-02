@@ -124,7 +124,7 @@ const Charges = () => {
 
             <tbody>
               {charges.map((c, i) => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <tr key={c._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 border-t">{i + 1}</td>
                   <td className="px-4 py-3 border-t">{c.deduction}</td>
                   <td className="px-4 py-3 border-t">{c.value_type}</td>
@@ -142,7 +142,7 @@ const Charges = () => {
                         />
                         <MdDeleteOutline
                           size={16}
-                          onClick={() => handleDelete(c.id)}
+                          onClick={() => handleDelete(c._id)}
                           className="text-red-600 cursor-pointer"
                         />
                       </>

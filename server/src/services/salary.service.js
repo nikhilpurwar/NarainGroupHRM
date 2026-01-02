@@ -281,11 +281,14 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   /*                              DEDUCTIONS                                   */
   /* ------------------------------------------------------------------------ */
 
-  const ded = employee.deductions || []
+  // Normalize employee deductions to lowercase strings (e.g., 'TDS' -> 'tds')
+  const ded = (employee.deductions || [])
+    .filter(Boolean)
+    .map(d => String(d).toLowerCase())
 
   // Fetch active charges from database
   const charges = await Charge.find({ status: 1 }).lean()
-  
+
   // Helper function to calculate deduction amount
   const calculateDeduction = (chargeName, baseAmount) => {
     const charge = charges.find(c => c.deduction.toLowerCase() === chargeName.toLowerCase())
@@ -374,7 +377,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
 /*                      COMPUTE SALARY REPORT (PAGINATED)                     */
 /* -------------------------------------------------------------------------- */
 
-export async function computeSalaryReport({ fromDate, toDate, employeeId, page = 1, pageSize = 15 }) {
+export async function computeSalaryReport({ fromDate, toDate, employeeId, page = 1, pageSize = 15, useCache = true }) {
   const query = { status: 'active' }
   if (employeeId) query._id = employeeId
 
@@ -387,7 +390,7 @@ export async function computeSalaryReport({ fromDate, toDate, employeeId, page =
   const isFullMonth = from.getTime() === monthStart.getTime() && to.getDate() === monthEnd.getDate()
 
   // If the requested range covers an entire calendar month, attempt to read cached report
-  if (isFullMonth) {
+  if (isFullMonth && useCache) {
     const monthKey = `${from.getFullYear()}-${from.getMonth() + 1}`
     const cached = await MonthlySalaryModel.findOne({ monthKey }).lean()
     if (cached) {

@@ -193,13 +193,14 @@ export const recalculateSalaryForEmployee = asyncHandler(async (req, res) => {
 		return res.status(404).json({ success: false, message: 'Employee not found' })
 	}
 
-	// Compute salary for this specific employee
+	// Compute salary for this specific employee (always from live data)
 	const report = await salaryService.computeSalaryReport({ 
 		fromDate: fromDate.toISOString(), 
 		toDate: toDate.toISOString(), 
 		employeeId: employee._id,
 		page: 1,
-		pageSize: 1
+		pageSize: 1,
+		useCache: false
 	})
 
 	if (!report.items || report.items.length === 0) {

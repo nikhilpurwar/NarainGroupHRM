@@ -101,6 +101,12 @@ export const deleteAdvance = async (req, res) => {
   try {
     const adv = await Advance.findByIdAndDelete(req.params.id)
     if (!adv) return res.status(404).json({ success: false, message: 'Not found' })
+    
+    // Recalculate salary for current and previous month when an advance/loan is removed
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    )
+
     res.json({ success: true, message: 'Deleted' })
   } catch (err) {
     console.error('deleteAdvance error', err)
@@ -114,6 +120,12 @@ export const toggleAdvanceStatus = async (req, res) => {
     if (!adv) return res.status(404).json({ success: false, message: 'Not found' })
     adv.status = adv.status === 'active' ? 'inactive' : 'active'
     await adv.save()
+
+    // Recalculate salary whenever an advance is activated/deactivated
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    )
+
     res.json({ success: true, data: adv })
   } catch (err) {
     console.error('toggleAdvanceStatus error', err)
