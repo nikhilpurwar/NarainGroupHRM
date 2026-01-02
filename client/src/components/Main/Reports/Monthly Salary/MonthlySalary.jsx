@@ -17,7 +17,7 @@ import {
   SalaryPagination,
   SalaryExportButtons
 } from './components';
-import ViewSalaryReport from './ViewSalaryReport';
+import ViewSalaryReport from './components/ViewSalaryReport';
 
 // Memoized Summary Stats Component
 const SalarySummaryStats = memo(({ salaryData }) => {
