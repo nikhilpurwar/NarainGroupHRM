@@ -168,7 +168,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
 
       {/* Shows total Present and Absent of seleted month and year from filter */}
       {/* compute present/absent from Status row (ignore holidays) */}
-      <div className="sticky left-0 flex gap-6 p-6">
+      {/* <div className="sticky left-0 flex gap-6 p-6">
         {(() => {
           const statusRow = (data && data['Status']) || [];
           let presentCount = 0;
@@ -213,7 +213,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
             </>
           );
         })()}
-      </div>
+      </div> */}
 
       {/* Attendance-Report Table */}
       <table className="min-w-full border-collapse text-sm">

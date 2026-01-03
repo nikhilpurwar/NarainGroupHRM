@@ -68,6 +68,37 @@ const LiveAttendance = () => {
 
   const presentCount = Object.values(attendanceMap).filter(a => a && a.status !== 'absent').length;
 
+  const getLastActivityTime = (att) => {
+    if (!att) return 0;
+    if (Array.isArray(att.punchLogs) && att.punchLogs.length > 0) {
+      const last = att.punchLogs[att.punchLogs.length - 1];
+      return new Date(last.punchTime).getTime();
+    }
+    if (att.updatedAt) return new Date(att.updatedAt).getTime();
+    if (att.date) return new Date(att.date).getTime();
+    return 0;
+  };
+
+  const sortedEmployees = [...employees].sort((a, b) => {
+    const keyA = a._id ? a._id.toString() : a.id;
+    const keyB = b._id ? b._id.toString() : b.id;
+    const attA = attendanceMap[keyA];
+    const attB = attendanceMap[keyB];
+    return getLastActivityTime(attB) - getLastActivityTime(attA);
+  });
+
+  const presentEmployees = sortedEmployees.filter(emp => {
+    const key = emp._id ? emp._id.toString() : emp.id;
+    const att = attendanceMap[key];
+    return att && att.status !== 'absent';
+  });
+
+  const absentEmployees = sortedEmployees.filter(emp => {
+    const key = emp._id ? emp._id.toString() : emp.id;
+    const att = attendanceMap[key];
+    return !att || att.status === 'absent';
+  });
+
   return (
     <div className="h-full bg-white p-6 overflow-x-auto">
       {loading ? (
@@ -78,10 +109,11 @@ const LiveAttendance = () => {
       ) : (
         <div>
           <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
-            Total Employees Present : {presentCount}
+            Total Employees Present : {presentEmployees.length}
           </div>
 
-          <table className="w-full table-auto rounded-b-xl border border-blue-200">
+          {/* Present Employees Table */}
+          <table className="w-full table-auto border border-blue-200 rounded-b-xl mb-8">
             <thead>
               <tr className="bg-gray-100 text-gray-800 text-left">
                 <th className="px-4 py-3">#</th>
@@ -96,8 +128,8 @@ const LiveAttendance = () => {
             </thead>
 
             <tbody>
-              {employees.length > 0 ? (
-                employees.map((item, index) => {
+              {presentEmployees.length > 0 ? (
+                presentEmployees.map((item, index) => {
                   const key = item._id ? item._id.toString() : item.id;
                   const att = attendanceMap[key];
                   const dateStr = att && att.date ? new Date(att.date).toLocaleDateString() : "—";
@@ -115,7 +147,7 @@ const LiveAttendance = () => {
                       onClick={() => {
                         navigate(`/profile/${item._id}`);
                       }}
-                      className="border-b hover:bg-gray-100 transition cursor-pointer"
+                      className="border-b hover:bg-green-50 transition cursor-pointer"
                     >
                       <td className="px-4 py-3">{index + 1}</td>
                       <td
@@ -132,7 +164,7 @@ const LiveAttendance = () => {
                       <td className="px-4 py-3 text-red-600 font-medium">{outTime}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-                          <span className={`w-2 h-2 rounded-full ${status === 'present' ? 'bg-green-500' : status === 'absent' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
+                          <span className={`w-2 h-2 rounded-full animate-ping ${status === 'present' ? 'bg-green-500' : status === 'absent' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
                           {status}
                         </span>
                       </td>
@@ -144,6 +176,80 @@ const LiveAttendance = () => {
                   <td colSpan="8" className="text-center py-6 text-gray-500">
                     <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
                       No live attendance found
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Absent Employees Table */}         
+          <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
+            Total Employees Absent : {absentEmployees.length}
+          </div>
+          <table className="w-full table-auto rounded-xl border border-red-200">
+            <thead>
+              <tr className="bg-gray-100 text-gray-800 text-left">
+                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">Emp ID</th>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Department</th>
+                <th className="px-4 py-3">First IN</th>
+                <th className="px-4 py-3">Last OUT</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {absentEmployees.length > 0 ? (
+                absentEmployees.map((item, index) => {
+                  const key = item._id ? item._id.toString() : item.id;
+                  const att = attendanceMap[key];
+                  const dateStr = att && att.date ? new Date(att.date).toLocaleDateString() : "—";
+                  const inTime = att?.inTime || "—";
+                  const outTime = att?.outTime || "—";
+                  const status = att?.status || "absent";
+                  const dept = item.headDepartment?.name || "—";
+
+                  const statusColor = 'bg-red-100 text-red-700';
+
+                  return (
+                    <tr
+                      key={key}
+                      title="Click too view profile"
+                      onClick={() => {
+                        navigate(`/profile/${item._id}`);
+                      }}
+                      className="border-b hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <td className="px-4 py-3">{index + 1}</td>
+                      <td
+                        title="Click too view profile"
+                        className="px-4 py-3 font-medium text-gray-700"
+                      >
+                        {item.empId}
+                      </td>
+
+                      <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
+                      <td className="px-4 py-3">{dateStr}</td>
+                      <td className="px-4 py-3">{dept}</td>
+                      <td className="px-4 py-3 text-green-600 font-medium">{inTime}</td>
+                      <td className="px-4 py-3 text-red-600 font-medium">{outTime}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          {status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="8" className="text-center py-6 text-gray-500">
+                    <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
+                      No absentees yet
                     </div>
                   </td>
                 </tr>

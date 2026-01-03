@@ -361,7 +361,7 @@ const Attendance = () => {
                 <button
                   disabled
                   title="Attendance Marked"
-                  className="ml-6 text-green-600 px-3 py-1 rounded-full"
+                  className="text-center text-green-600 px-3 py-1 rounded-full"
                 >
                   <FaUserCheck size={20} />
                 </button>
@@ -372,7 +372,7 @@ const Attendance = () => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="ml-6 bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
                 >
                   <FaUserCheck size={14} />
                 </button>
@@ -398,7 +398,13 @@ const Attendance = () => {
                   isMobile={isMobile}
                 />
 
-                <MonthlySummaryCard summary={report.summary} isMobile={isMobile} />
+                <MonthlySummaryCard
+                  summary={report.summary}
+                  days={report.days}
+                  table={report.table}
+                  holidays={holidays}
+                  isMobile={isMobile}
+                />
 
                 <AttendanceTable
                   days={report.days}
