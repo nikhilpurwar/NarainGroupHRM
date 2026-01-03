@@ -6,6 +6,7 @@ import { SubDepartment } from '../models/department.model.js'
 import MonthlySalaryModel from '../models/salary.model/monthlySalary.model.js'
 import BreakTime from '../models/setting.model/workingHours.model.js'
 import Charge from '../models/setting.model/charge.model.js'
+import { computeTotalsFromPunchLogs } from './attendance.service.js'
 
 /* -------------------------------------------------------------------------- */
 /*                               DEFAULT RULE                                 */
@@ -147,15 +148,6 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         SALARY CALCULATION HELPERS                          */
-/* -------------------------------------------------------------------------- */
-
-function hourlyRateFromMonthlySalary(monthlySalary = 0, shiftHours = 8, workingDays = 22) {
-  if (!monthlySalary) return 0
-  return monthlySalary / (workingDays * shiftHours)
-}
-
-/* -------------------------------------------------------------------------- */
 /*                    COMPUTE SALARY FOR SINGLE EMPLOYEE                       */
 /* -------------------------------------------------------------------------- */
 
@@ -165,13 +157,38 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   const rule = await getSalaryRuleForSubDepartment(
     employee.subDepartment?._id || employee.subDepartment
   )
+  const empType = employee.empType || ''
 
-  const shiftHours = rule?.shiftHours || 8
+  // Derive shift hours dynamically, preferring employee.shift when present
+  let shiftHours = 0
+  if (employee.shift) {
+    const text = String(employee.shift)
+    const match = text.match(/(\d+(?:\.\d+)?)/) // extract first number like "10" or "8.5"
+    if (match) {
+      const parsed = Number(match[1])
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        shiftHours = parsed
+      }
+    }
+  }
+
+  // If no usable value from employee.shift, fall back to rule.shiftHours or default 8
+  if (!shiftHours) {
+    if (rule?.shiftHours && Number(rule.shiftHours) > 0) {
+      shiftHours = Number(rule.shiftHours)
+    } else {
+      shiftHours = 8
+    }
+  }
 
   /* Date range */
   const from = new Date(fromDate)
   const to = new Date(toDate)
   to.setHours(23, 59, 59, 999)
+
+  // Days in the reporting period (used for monthly salary proration)
+  const MS_PER_DAY = 24 * 60 * 60 * 1000
+  const daysInPeriod = Math.max(1, Math.round((to - from) / MS_PER_DAY))
 
   /* Attendance records */
   const attendances = await Attendance.find({
@@ -184,19 +201,41 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   let otHours = 0
   let presentDays = 0
 
-  attendances.forEach(a => {
-    basicHours += a.regularHours || 0
-    otHours += a.overtimeHours || 0
-    if (a.status === 'present') presentDays++
+    attendances.forEach((a) => {
+      let regular = a.regularHours || 0
+      let overtime = a.overtimeHours || 0
+
+      // If punch logs exist, recompute hours live so open IN punches
+      // are counted up to now (works for both variable and fixed salary).
+      if (Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
+        const totals = computeTotalsFromPunchLogs(a.punchLogs, shiftHours, { countOpenAsNow: true })
+        regular = totals.regularHours
+        overtime = totals.overtimeHours
+      }
+
+      basicHours += regular
+      otHours += overtime
+      if (a.status === 'present') presentDays++
   })
 
   /* Rates */
-  const hourlyRate = hourlyRateFromMonthlySalary(employee.salary, shiftHours)
-  const otRate = hourlyRate * 1.5
+  let hourlyRate = 0
+  let salaryPerDay = 0
+  let salaryPerHour = 0
 
-  /* Daily/hour fallback values */
-  const salaryPerDay = employee.salary ? +(employee.salary / 30).toFixed(2) : 0
-  const salaryPerHour = salaryPerDay ? +(salaryPerDay / shiftHours).toFixed(2) : 0
+  if (empType === 'Daily Salary') {
+    // For daily salary employees, `employee.salary` is treated as per-day
+    salaryPerDay = employee.salary || 0
+  } else {
+    // For monthly salary employees, divide by number of days in the period
+    salaryPerDay = employee.salary ? +(employee.salary / daysInPeriod).toFixed(2) : 0
+  }
+
+  salaryPerHour = shiftHours ? +(salaryPerDay / shiftHours).toFixed(2) : 0
+  hourlyRate = salaryPerHour
+
+  // Overtime rate is 1.5x the normal hourly rate
+  const otRate = hourlyRate * 1
 
   /* Salary calculation */
   let basicPay = 0
@@ -324,10 +363,12 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     id: employee._id,
     empId: employee.empId,
     empName: employee.name,
+    empType,
     headDepartment: employee.headDepartment,
     subDepartment: employee.subDepartment,
     salary: employee.salary || 0,
-
+    
+    shiftHours,
     salaryPerDay,
     salaryPerHour,
     salaryPerHr: +hourlyRate.toFixed(2),
@@ -367,6 +408,9 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
 
     totalDeductions,
     netPay,
+
+    // Payment status (can be updated later via pay endpoint)
+    status: 'Calculated',
 
     department: employee.headDepartment?.name || '',
     group: employee.subDepartment?.name || ''

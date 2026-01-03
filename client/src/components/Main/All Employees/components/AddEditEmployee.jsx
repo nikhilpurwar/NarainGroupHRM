@@ -474,7 +474,7 @@ const AddEditEmployee = () => {
                             name="empType"
                             value={form.empType}
                             onChange={handleChange}
-                            options={["Fixed Salary", "Hourly Salary"]}
+                            options={["Monthly Salary", "Daily Salary"]}
                         />
                         <Input label="Salary*" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} />
                     </div>

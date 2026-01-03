@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 const months = [
   { value: 1, label: 'January' },
@@ -17,31 +17,20 @@ const months = [
 
 const years = [2027, 2026, 2025, 2024, 2023, 2022];
 
-export const useDateHelper = (selectedMonth = null) => {
-  const monthYearOptions = useMemo(() => {
-    const options = [];
-    years.forEach(year => {
-      months.forEach(month => {
-        options.push({
-          value: `${year}-${month.value}`,
-          label: `${year} | ${month.label}`
-        });
-      });
-    });
-    return options;
-  }, []);
-
-  const getSelectedMonthYearLabel = useCallback((monthStr = selectedMonth) => {
-    if (!monthStr) return 'Current Month';
-    const [y, m] = String(monthStr).split('-');
-    const monthObj = months.find(ms => String(ms.value) === String(m));
-    return `${y} | ${monthObj ? monthObj.label : `Month ${m}`}`;
-  }, [selectedMonth]);
+// Helper hook to work with separate month & year fields
+export const useDateHelper = (selectedMonth = null, selectedYear = null) => {
+  const getSelectedMonthYearLabel = useCallback(
+    (month = selectedMonth, year = selectedYear) => {
+      if (!month || !year) return 'Current Month';
+      const monthObj = months.find(ms => String(ms.value) === String(month));
+      return `${year} | ${monthObj ? monthObj.label : `Month ${month}`}`;
+    },
+    [selectedMonth, selectedYear]
+  );
 
   return {
     months,
     years,
-    monthYearOptions,
     getSelectedMonthYearLabel
   };
 };

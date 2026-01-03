@@ -1,14 +1,24 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { X, FileText, BanknoteArrowUp, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { toast } from 'react-toastify';
 
 const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, onDownloadPDF }) => {
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (employee) {
+      setNote(employee.note || '');
+    } else {
+      setNote('');
+    }
+  }, [employee]);
+
   if (!isOpen || !employee) return null;
 
   const handlePay = () => {
-    onPay(employee);
+    onPay(employee, note);
   };
 
   const handleDownloadPDF = () => {
@@ -49,9 +59,9 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
                 <p className="text-sm text-gray-600">Department: <span className="font-semibold">{employee.department || 'N/A'}</span></p>
                 <p className="text-sm text-gray-600">Sub Department: <span className="font-semibold">{employee.group || 'N/A'}</span></p>
               </div>
-              <div className={`px-4 py-2 rounded-full font-semibold ${employee.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {employee.status || 'Calculated'}
-              </div>
+              {employee.status && <div className={`px-4 py-2 rounded-full font-semibold ${employee.status === 'Paid' ? 'bg-green-100 text-green-800 border border-green-600' : 'bg-yellow-100 text-yellow-800 border border-yellow-600'}`}>
+                {employee.status}
+              </div>}
             </div>
           </div>
 
@@ -190,6 +200,19 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
               <span className="text-xl font-bold text-gray-800">Net Pay (Take Home):</span>
               <span className="text-3xl font-bold text-blue-700">₹{employee.netPay?.toLocaleString() || '0'}</span>
             </div>
+          </div>
+
+          {/* Note (optional) */}
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Note <span className="text-gray-400 text-xs">(optional)</span>
+            </label>
+            <textarea
+              className="w-full min-h-[80px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+              placeholder="Add any note for this payment (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
         </div>
 

@@ -11,6 +11,7 @@ router.get('/monthly', monthlyController.monthlySalaryReport)
 router.get('/monthly/exists', monthlyController.checkMonthlySalaryExists)
 router.post('/monthly/calculate', monthlyController.calculateAndStoreMonthlySalary)
 router.patch('/monthly/:empId/recalculate', monthlyController.recalculateSalaryForEmployee)
+router.patch('/monthly/:empId/pay', monthlyController.markSalaryAsPaid)
 
 // salary rules CRUD
 router.get('/rules', salaryRuleCtrl.listSalaryRules)
