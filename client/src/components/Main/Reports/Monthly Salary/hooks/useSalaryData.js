@@ -84,6 +84,10 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
           const totalHours = Number((basicHours + otHours).toFixed(2));
           const totalPay = (it.payableAmount || it.totalPay || 0);
 
+          const shiftHours = (it.shiftHours !== undefined && it.shiftHours !== null)
+            ? it.shiftHours
+            : 8;
+
           return {
             id: it.id || it._id || it.empId,
             empId: it.empId || '',
@@ -103,6 +107,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             otPay,
             totalHours,
             totalPay,
+            shiftHours,
             tds: it.tds || 0,
             pTax: it.pTax || it.ptax || 0,
             lwf: it.lwf || 0,

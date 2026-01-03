@@ -9,6 +9,27 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
     return timeStr
   }
 
+  const getTimeStringFromDate = (dt) => {
+    if (!dt) return '--'
+    return dt.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  }
+
+  const punchLogs = Array.isArray(attendance.punchLogs) ? attendance.punchLogs : []
+  const firstInLog = punchLogs.find(log => (log.punchType || '').toUpperCase() === 'IN')
+  const lastOutLog = [...punchLogs].reverse().find(log => (log.punchType || '').toUpperCase() === 'OUT')
+
+  const firstInDisplay = firstInLog
+    ? getTimeStringFromDate(new Date(firstInLog.punchTime))
+    : formatTime(attendance.inTime)
+
+  const lastOutDisplay = lastOutLog
+    ? getTimeStringFromDate(new Date(lastOutLog.punchTime))
+    : formatTime(attendance.outTime)
+
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-2xl p-6 relative max-h-[80vh] overflow-y-auto">
@@ -107,13 +128,13 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
           <div>
             <p className="text-xs text-gray-600">First Punch IN</p>
             <p className="text-lg font-semibold text-green-600">
-              {formatTime(attendance.inTime)}
+              {firstInDisplay}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Last Punch OUT</p>
             <p className="text-lg font-semibold text-red-600">
-              {formatTime(attendance.outTime)}
+              {lastOutDisplay}
             </p>
           </div>
         </div>

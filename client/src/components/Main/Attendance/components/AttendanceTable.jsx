@@ -18,9 +18,9 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     if (rowType === 'In' || rowType === 'Out') {
       return status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400';
     }
-    // if (rowType === 'Regular Hours') {
-    //   return status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400';
-    // }
+    if (rowType === 'Regular Hours') {
+      return status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400';
+    }
     if (rowType === 'Worked Hours') {
       return status ? 'bg-blue-50 text-blue-900 font-semibold' : 'bg-gray-50 text-gray-400';
     }
@@ -168,7 +168,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
 
       {/* Shows total Present and Absent of seleted month and year from filter */}
       {/* compute present/absent from Status row (ignore holidays) */}
-      {/* <div className="sticky left-0 flex gap-6 p-6">
+      <div className="sticky left-0 flex gap-6 p-6">
         {(() => {
           const statusRow = (data && data['Status']) || [];
           let presentCount = 0;
@@ -213,7 +213,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
             </>
           );
         })()}
-      </div> */}
+      </div>
 
       {/* Attendance-Report Table */}
       <table className="min-w-full border-collapse text-sm">

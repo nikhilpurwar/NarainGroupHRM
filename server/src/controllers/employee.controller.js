@@ -132,7 +132,21 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
           attendanceDoc.punchLogs.push({ punchType: 'OUT', punchTime: now });
           const shiftCfg = await attendanceService.getShiftConfig();
-          const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
+          let shiftHours = 0;
+          if (emp.shift) {
+            const text = String(emp.shift);
+            const match = text.match(/(\d+(?:\.\d+)?)/);
+            if (match) {
+              const parsed = Number(match[1]);
+              if (!Number.isNaN(parsed) && parsed > 0) {
+                shiftHours = parsed;
+              }
+            }
+          }
+          if (!shiftHours && typeof shiftCfg.shiftHours === 'number' && shiftCfg.shiftHours > 0) {
+            shiftHours = shiftCfg.shiftHours;
+          }
+          if (!shiftHours) shiftHours = 8;
           const computed = attendanceService.computeTotalsFromPunchLogs(attendanceDoc.punchLogs, shiftHours);
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
@@ -166,7 +180,21 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.punchLogs.push({ punchType: 'IN', punchTime: now });
           attendanceDoc.inTime = currentTimeString;
           const shiftCfg2 = await attendanceService.getShiftConfig();
-          const shiftHours2 = emp.workHours || emp.shift || shiftCfg2.shiftHours || 8;
+          let shiftHours2 = 0;
+          if (emp.shift) {
+            const text = String(emp.shift);
+            const match = text.match(/(\d+(?:\.\d+)?)/);
+            if (match) {
+              const parsed = Number(match[1]);
+              if (!Number.isNaN(parsed) && parsed > 0) {
+                shiftHours2 = parsed;
+              }
+            }
+          }
+          if (!shiftHours2 && typeof shiftCfg2.shiftHours === 'number' && shiftCfg2.shiftHours > 0) {
+            shiftHours2 = shiftCfg2.shiftHours;
+          }
+          if (!shiftHours2) shiftHours2 = 8;
           const computed = attendanceService.computeTotalsFromPunchLogs(
             attendanceDoc.punchLogs,
             shiftHours2,
@@ -247,35 +275,10 @@ export const addAttendance = async (req, res) => {
       capturedInTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    // Calculate hours if both inTime and outTime provided
+    // Calculate hours if both inTime and outTime provided (supports 12-hour with AM/PM)
     let totalHours = 0;
     let regularHours = 0;
     let overtimeHours = 0;
-
-    if (capturedInTime && outTime) {
-      const [inHours, inMinutes] = capturedInTime.split(':').map(Number);
-      const [outHours, outMinutes] = outTime.split(':').map(Number);
-
-      const inTotalMinutes = inHours * 60 + inMinutes;
-      const outTotalMinutes = outHours * 60 + outMinutes;
-
-      let totalMinutes = outTotalMinutes - inTotalMinutes;
-
-      // Handle day boundary
-      if (totalMinutes < 0) {
-        totalMinutes += 24 * 60;
-      }
-
-      totalHours = parseFloat((totalMinutes / 60).toFixed(2));
-      const shiftHours = emp.shift ? parseInt(emp.shift) : 8;
-      if (totalHours <= shiftHours) {
-        regularHours = totalHours;
-        overtimeHours = 0;
-      } else {
-        regularHours = shiftHours;
-        overtimeHours = parseFloat((totalHours - shiftHours).toFixed(2));
-      }
-    }
 
     // Check for weekend
     const dayOfWeek = new Date(date).getDay();
@@ -285,6 +288,39 @@ export const addAttendance = async (req, res) => {
     // build punch log timestamps using service helper
     const inPunch = capturedInTime ? attendanceService.parseDateTime(dateIso, capturedInTime) : null
     const outPunch = outTime ? attendanceService.parseDateTime(dateIso, outTime) : null
+
+    if (inPunch && outPunch) {
+      let totalMinutes = Math.round((outPunch - inPunch) / 60000);
+      if (totalMinutes < 0) {
+        totalMinutes += 24 * 60;
+      }
+      totalHours = parseFloat((totalMinutes / 60).toFixed(2));
+
+      // Derive shift hours safely from employee.shift text (e.g. "Morning B (10 hours)")
+      let shiftHours = 8;
+      if (emp.shift) {
+        const text = String(emp.shift);
+        const match = text.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            shiftHours = parsed;
+          }
+        }
+      }
+
+      if (Number.isNaN(shiftHours) || !shiftHours) {
+        shiftHours = 8;
+      }
+
+      if (totalHours <= shiftHours) {
+        regularHours = totalHours;
+        overtimeHours = 0;
+      } else {
+        regularHours = shiftHours;
+        overtimeHours = parseFloat((totalHours - shiftHours).toFixed(2));
+      }
+    }
 
     const att = await Attendance.safeCreate({
       employee: emp._id,
@@ -305,6 +341,11 @@ export const addAttendance = async (req, res) => {
       ],
       note: note || 'Marked manually'
     });
+
+    // Recalculate monthly salary for the month of this manual attendance date
+    salaryRecalcService
+      .recalculateAndUpdateMonthlySalary(new Date(date))
+      .catch(err => console.error('Salary recalculation failed (manual attendance):', err));
 
     res.json({ success: true, message: 'Attendance marked successfully', data: { employee: emp, attendanceRecord: att } });
   } catch (err) {

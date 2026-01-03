@@ -56,7 +56,21 @@ export const attendanceReport = async (req, res) => {
           const a = atts[i];
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
             const shiftCfg = await attendanceService.getShiftConfig();
-            const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
+            let shiftHours = 0;
+            if (emp.shift) {
+              const text = String(emp.shift);
+              const match = text.match(/(\d+(?:\.\d+)?)/);
+              if (match) {
+                const parsed = Number(match[1]);
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                  shiftHours = parsed;
+                }
+              }
+            }
+            if (!shiftHours && typeof shiftCfg.shiftHours === 'number' && shiftCfg.shiftHours > 0) {
+              shiftHours = shiftCfg.shiftHours;
+            }
+            if (!shiftHours) shiftHours = 8;
             const computed = attendanceService.computeTotalsFromPunchLogs(
               a.punchLogs,
               shiftHours,
@@ -87,11 +101,12 @@ export const attendanceReport = async (req, res) => {
         if (aDate) attMap[aDate] = a;
       }
 
-      // build data rows: Status, InTime, OutTime, Worked Hours, OT (Hours), Note
+      // build data rows: Status, InTime, OutTime, Worked Hours, Regular Hours, OT (Hours), Note
       const statusRow = [];
       const inRow = [];
       const outRow = [];
       const workedRow = [];
+      const regularRow = [];
       const otRow = [];
       const noteRow = [];
 
@@ -109,6 +124,7 @@ export const attendanceReport = async (req, res) => {
           inRow.push(rec.inTime || '');
           outRow.push(rec.outTime || '');
           workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
+          regularRow.push(rec.regularHoursDisplay || (typeof rec.regularHours !== 'undefined' ? String(rec.regularHours) : ''));
           otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
           noteRow.push(rec.note || '');
         } else if (isPastDate && !isWeekend && isAfterJoining) {
@@ -117,6 +133,7 @@ export const attendanceReport = async (req, res) => {
           inRow.push('');
           outRow.push('');
           workedRow.push('');
+          regularRow.push('');
           otRow.push('');
           noteRow.push('Not marked');
         } else {
@@ -124,12 +141,13 @@ export const attendanceReport = async (req, res) => {
           inRow.push(null);
           outRow.push(null);
           workedRow.push(null);
+          regularRow.push(null);
           otRow.push(null);
           noteRow.push(null);
         }
       }
 
-      const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'OT (Hours)': otRow, Note: noteRow };
+      const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'Regular Hours': regularRow, 'OT (Hours)': otRow, Note: noteRow };
 
       const employeeObj = emp.toObject ? emp.toObject() : emp;
       employeeObj.attendance = atts;
@@ -172,7 +190,21 @@ export const attendanceReport = async (req, res) => {
       const a = atts[i];
       if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
         const shiftCfg = await attendanceService.getShiftConfig();
-        const shiftHours = emp.workHours || emp.shift || shiftCfg.shiftHours || 8;
+        let shiftHours = 0;
+        if (emp.shift) {
+          const text = String(emp.shift);
+          const match = text.match(/(\d+(?:\.\d+)?)/);
+          if (match) {
+            const parsed = Number(match[1]);
+            if (!Number.isNaN(parsed) && parsed > 0) {
+              shiftHours = parsed;
+            }
+          }
+        }
+        if (!shiftHours && typeof shiftCfg.shiftHours === 'number' && shiftCfg.shiftHours > 0) {
+          shiftHours = shiftCfg.shiftHours;
+        }
+        if (!shiftHours) shiftHours = 8;
         const computed = attendanceService.computeTotalsFromPunchLogs(
           a.punchLogs,
           shiftHours,
@@ -205,6 +237,7 @@ export const attendanceReport = async (req, res) => {
     const inRow = [];
     const outRow = [];
     const workedRow = [];
+    const regularRow = [];
     const otRow = [];
     const noteRow = [];
 
@@ -222,6 +255,7 @@ export const attendanceReport = async (req, res) => {
         inRow.push(rec.inTime || '');
         outRow.push(rec.outTime || '');
         workedRow.push(rec.totalHoursDisplay || (typeof rec.totalHours !== 'undefined' ? String(rec.totalHours) : ''));
+        regularRow.push(rec.regularHoursDisplay || (typeof rec.regularHours !== 'undefined' ? String(rec.regularHours) : ''));
         otRow.push(rec.overtimeHoursDisplay || (typeof rec.overtimeHours !== 'undefined' ? String(rec.overtimeHours) : ''));
         noteRow.push(rec.note || '');
       } else if (isPastDate && !isWeekend && isAfterJoining) {
@@ -229,6 +263,7 @@ export const attendanceReport = async (req, res) => {
         inRow.push('');
         outRow.push('');
         workedRow.push('');
+        regularRow.push('');
         otRow.push('');
         noteRow.push('Not marked');
       } else {
@@ -236,11 +271,12 @@ export const attendanceReport = async (req, res) => {
         inRow.push(null);
         outRow.push(null);
         workedRow.push(null);
+        regularRow.push(null);
         otRow.push(null);
         noteRow.push(null);
       }
     }
-    const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'OT (Hours)': otRow, Note: noteRow };
+    const table = { Status: statusRow, In: inRow, Out: outRow, 'Worked Hours': workedRow, 'Regular Hours': regularRow, 'OT (Hours)': otRow, Note: noteRow };
     const employeeObj = emp.toObject ? emp.toObject() : emp;
     employeeObj.attendance = atts;
 
@@ -366,7 +402,21 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       existingAttendance.inTime = currentTimeString;
       // Recompute totals (no OUT yet, totals will be zero or previous)
       const shiftCfg_exist = await attendanceService.getShiftConfig();
-      const shiftHours_exist = emp.workHours || emp.shift || shiftCfg_exist.shiftHours || 8;
+      let shiftHours_exist = 0;
+      if (emp.shift) {
+        const text = String(emp.shift);
+        const match = text.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            shiftHours_exist = parsed;
+          }
+        }
+      }
+      if (!shiftHours_exist && typeof shiftCfg_exist.shiftHours === 'number' && shiftCfg_exist.shiftHours > 0) {
+        shiftHours_exist = shiftCfg_exist.shiftHours;
+      }
+      if (!shiftHours_exist) shiftHours_exist = 8;
       const computed = attendanceService.computeTotalsFromPunchLogs(existingAttendance.punchLogs, shiftHours_exist);
       existingAttendance.totalHours = computed.totalHours;
       existingAttendance.regularHours = computed.regularHours;
@@ -489,7 +539,21 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
 
     const shiftCfg_out = await attendanceService.getShiftConfig();
-    const shiftHours_out = emp.workHours || emp.shift || shiftCfg_out.shiftHours || 8;
+    let shiftHours_out = 0;
+    if (emp.shift) {
+      const text = String(emp.shift);
+      const match = text.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        const parsed = Number(match[1]);
+        if (!Number.isNaN(parsed) && parsed > 0) {
+          shiftHours_out = parsed;
+        }
+      }
+    }
+    if (!shiftHours_out && typeof shiftCfg_out.shiftHours === 'number' && shiftCfg_out.shiftHours > 0) {
+      shiftHours_out = shiftCfg_out.shiftHours;
+    }
+    if (!shiftHours_out) shiftHours_out = 8;
     const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, shiftHours_out);
     const totalHours = computed.totalHours;
     const regularHours = computed.regularHours;
