@@ -1,6 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { IndianRupee } from 'lucide-react';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import {
   useSalaryFilters,
   useSalaryData,
@@ -18,6 +19,8 @@ import {
   SalaryExportButtons
 } from './components';
 import ViewSalaryReport from './components/ViewSalaryReport';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
 
 // Memoized Summary Stats Component
 const SalarySummaryStats = memo(({ salaryData }) => {
@@ -87,7 +90,7 @@ SalarySummaryStats.displayName = 'SalarySummaryStats';
 const MonthlySalary = () => {
   // Initialize hooks
   const { filters, handleFilterChange, clearFilters } = useSalaryFilters();
-  const { monthYearOptions, getSelectedMonthYearLabel } = useDateHelper(filters.month);
+  const { months, years, getSelectedMonthYearLabel } = useDateHelper(filters.month, filters.year);
   const [pageSize, setPageSize] = useState(10);
   const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, checkDataExists, fetchSalaryData } = useSalaryData(filters, 1, pageSize);
   const { currentPage, setCurrentPage, totalPages, goToPage, goPrev, goNext, resetPage } = usePagination(totalRecords, pageSize);
@@ -105,12 +108,13 @@ const MonthlySalary = () => {
 
   // Check data exists on month change
   useEffect(() => {
-    if (checkedMonth !== filters.month) {
+    const selectedKey = `${filters.year}-${filters.month}`;
+    if (checkedMonth !== selectedKey) {
       checkDataExists();
       resetPage();
       setSalaryData([]);
     }
-  }, [filters.month, checkedMonth, checkDataExists, resetPage]);
+  }, [filters.month, filters.year, checkedMonth, checkDataExists, resetPage]);
 
   // Cleanup on unmount - clear any pending debounce timers
   useEffect(() => {
@@ -139,20 +143,43 @@ const MonthlySalary = () => {
   };
 
   // Handle Pay - Mark salary as paid
-  const handlePay = (employee) => {
+  const handlePay = async (employee, note) => {
+    if (!filters.month || !filters.year) {
+      toast.error('Please select month and year before marking salary as paid');
+      return;
+    }
+
+    const empId = employee.empId || employee.id;
+
     try {
+      const payload = {
+        month: `${filters.year}-${filters.month}`,
+        note: note || '',
+        status: 'Paid'
+      };
+
+      const response = await axios.patch(`${API_URL}/api/salary/monthly/${empId}/pay`, payload);
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Failed to update salary status');
+      }
+
+      const updatedStatus = response.data.data?.status || 'Paid';
+      const updatedNote = response.data.data?.note || note || '';
+
       setSalaryData((prev) =>
         prev.map((item) =>
-          (item.empId || item.id) === (employee.empId || employee.id)
-            ? { ...item, status: 'Paid' }
+          (item.empId || item.id) === empId
+            ? { ...item, status: updatedStatus, note: updatedNote }
             : item
         )
       );
-      updateSelectedEmployee({ ...employee, status: 'Paid' });
+
+      updateSelectedEmployee({ ...employee, status: updatedStatus, note: updatedNote });
       toast.success(`Salary marked as paid for ${employee.empName}`);
     } catch (error) {
       console.error('Error marking salary as paid:', error);
-      toast.error('Failed to update payment status');
+      toast.error(error.response?.data?.message || 'Failed to update payment status');
     }
   };
 
@@ -184,7 +211,8 @@ const MonthlySalary = () => {
         <div className="flex-1">
           <SalaryFilters
             filters={filters}
-            monthYearOptions={monthYearOptions}
+            months={months}
+            years={years}
             onFilterChange={handleFilterChange}
             onApplyFilters={handleApplyFilters}
             onClearFilters={handleClearFilters}

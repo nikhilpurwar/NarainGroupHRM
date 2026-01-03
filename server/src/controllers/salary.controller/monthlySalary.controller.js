@@ -80,7 +80,7 @@ export const calculateAndStoreMonthlySalary = asyncHandler(async (req, res) => {
 
 export const monthlySalaryReport = asyncHandler(async (req, res) => {
 	// Accept month & year or month in 'YYYY-M' format
-	const { month, year, employeeName, page, pageSize } = req.query
+	const { month, year, employeeName, subDepartment, page, pageSize } = req.query
 	let monthKey
 	
 	// Parse month parameter
@@ -121,6 +121,16 @@ export const monthlySalaryReport = asyncHandler(async (req, res) => {
 			item.empName.toLowerCase().includes(employeeName.toLowerCase()) ||
 			item.empId.toLowerCase().includes(employeeName.toLowerCase())
 		)
+	}
+
+	// Optional sub-department filter (by subDepartment id)
+	if (subDepartment) {
+		const subId = String(subDepartment)
+		items = items.filter(item => {
+			const raw = item.subDepartment
+			const itemId = raw && raw._id ? String(raw._id) : (raw ? String(raw) : '')
+			return itemId === subId
+		})
 	}
 
 	// Apply pagination
@@ -226,6 +236,7 @@ export const recalculateSalaryForEmployee = asyncHandler(async (req, res) => {
 			monthlyRecord.items[itemIndex].loanDeduct = newLoanDeduct
 			monthlyRecord.items[itemIndex].totalDeductions = newTotalDeductions
 			monthlyRecord.items[itemIndex].netPay = newNetPay
+			monthlyRecord.markModified('items')
 			await monthlyRecord.save()
 		}
 	}
@@ -241,4 +252,72 @@ export const recalculateSalaryForEmployee = asyncHandler(async (req, res) => {
 	})
 })
 
-export default { monthlySalaryReport, checkMonthlySalaryExists, calculateAndStoreMonthlySalary, recalculateSalaryForEmployee }
+// Mark monthly salary as paid (with optional note) for an employee
+export const markSalaryAsPaid = asyncHandler(async (req, res) => {
+	const { empId } = req.params
+	const { month, note, status } = req.body
+
+	if (!month) {
+		return res.status(400).json({ success: false, message: 'month is required' })
+	}
+
+	// Parse month to get monthKey (supports 'YYYY-M' format only, matching recalc logic)
+	let fromDate
+	if (String(month).includes('-')) {
+		const parts = String(month).split('-').map(s => Number(s))
+		if (parts.length === 2) {
+			const y = parts[0]
+			const m = parts[1] - 1
+			fromDate = new Date(y, m, 1)
+		} else {
+			return res.status(400).json({ success: false, message: 'invalid month format' })
+		}
+	} else {
+		return res.status(400).json({ success: false, message: 'invalid month format' })
+	}
+
+	const monthKey = `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}`
+
+	// Find stored monthly salary record
+	const monthlyRecord = await MonthlySalaryModel.findOne({ monthKey })
+	if (!monthlyRecord) {
+		return res.status(404).json({ success: false, message: 'No salary data found for this month' })
+	}
+
+	// Try to resolve employee _id so we can match on multiple possible fields
+	const employee = await Employee.findOne({ empId })
+	const employeeIdStr = employee ? String(employee._id) : null
+
+	// Try several ways to locate the salary item for this employee
+	const itemIndex = monthlyRecord.items.findIndex((item) => {
+		const itemEmpId = item.empId ? String(item.empId) : ''
+		const itemId = item.id ? String(item.id) : ''
+		const itemMongoId = item._id ? String(item._id) : ''
+		if (itemEmpId && itemEmpId === String(empId)) return true
+		if (employeeIdStr && (itemId === employeeIdStr || itemMongoId === employeeIdStr)) return true
+		return false
+	})
+	if (itemIndex === -1) {
+		return res.status(404).json({ success: false, message: 'Salary record not found for this employee' })
+	}
+
+	const target = monthlyRecord.items[itemIndex]
+	target.status = status || 'Paid'
+	if (typeof note === 'string') {
+		target.note = note
+	}
+
+	monthlyRecord.markModified('items')
+	await monthlyRecord.save()
+
+	res.json({
+		success: true,
+		data: {
+			status: target.status,
+			note: target.note || ''
+		},
+		message: 'Salary status updated successfully'
+	})
+})
+
+export default { monthlySalaryReport, checkMonthlySalaryExists, calculateAndStoreMonthlySalary, recalculateSalaryForEmployee, markSalaryAsPaid }

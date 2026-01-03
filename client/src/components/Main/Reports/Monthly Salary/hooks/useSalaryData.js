@@ -14,26 +14,28 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
   // Check if salary data exists for the selected month
   const checkDataExists = useCallback(async () => {
     try {
-      const params = { month: filters.month };
+      const params = { month: filters.month, year: filters.year };
+      const monthKey = `${filters.year}-${filters.month}`;
       const checkResponse = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
 
       if (checkResponse.data?.success) {
         const exists = checkResponse.data.data?.exists || false;
         setDataExists(exists);
-        setCheckedMonth(filters.month);
+        setCheckedMonth(monthKey);
         return exists;
       }
       
       setDataExists(false);
-      setCheckedMonth(filters.month);
+      setCheckedMonth(monthKey);
       return false;
     } catch (error) {
       console.error('Error checking salary data:', error);
       setDataExists(false);
-      setCheckedMonth(filters.month);
+      const monthKey = `${filters.year}-${filters.month}`;
+      setCheckedMonth(monthKey);
       return false;
     }
-  }, [filters.month]);
+  }, [filters.month, filters.year]);
 
   // Fetch salary data
   const fetchSalaryData = useCallback(async () => {
@@ -48,6 +50,8 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
       const params = {
         employeeName: filters.employeeName,
         month: filters.month,
+        year: filters.year,
+        subDepartment: filters.subDepartment,
         page: currentPage,
         pageSize
       };
@@ -61,16 +65,16 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
         // Map backend items to UI expected shape
         const mapped = items.map(it => {
           const salary = it.salary || it.monthlySalary || 0;
-          const salaryPerDayBackend = (it.salaryPerDay !== undefined && it.salaryPerDay !== null) ? it.salaryPerDay : undefined;
-          const salaryPerDay30 = (it.salaryPerDay30 !== undefined) ? it.salaryPerDay30 : undefined;
-          const salaryPerDayComputed = Number((salary / 30).toFixed(2));
-          const salaryPerDay = salaryPerDayBackend ?? salaryPerDay30 ?? salaryPerDayComputed;
+          const empType = it.empType || '';
 
-          const salaryPerHourBackend = (it.salaryPerHour !== undefined && it.salaryPerHour !== null) ? it.salaryPerHour : undefined;
-          const salaryPerHour30 = (it.salaryPerHourFrom30 !== undefined) ? it.salaryPerHourFrom30 : undefined;
-          const shiftHours = it.shiftHours || 8;
-          const salaryPerHourComputed = Number((salaryPerDay / shiftHours).toFixed(2));
-          const salaryPerHour = salaryPerHourBackend ?? salaryPerHour30 ?? salaryPerHourComputed;
+          // Trust backend-calculated rates (already based on days in month & shiftHours)
+          const salaryPerDay = (it.salaryPerDay !== undefined && it.salaryPerDay !== null)
+            ? it.salaryPerDay
+            : 0;
+
+          const salaryPerHour = (it.salaryPerHour !== undefined && it.salaryPerHour !== null)
+            ? it.salaryPerHour
+            : (it.salaryPerHr || 0);
 
           const presentDays = (it.present !== undefined) ? it.present : (it.presentDays !== undefined ? it.presentDays : 0);
           const basicHours = it.workingHrs || it.basicHours || 0;
@@ -84,6 +88,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             id: it.id || it._id || it.empId,
             empId: it.empId || '',
             empName: it.empName || '',
+            empType,
             headDepartment: it.headDepartment || it.department || '',
             subDepartment: it.subDepartment || it.group || '',
             department: it.department || (typeof it.headDepartment === 'object' ? it.headDepartment?.name : it.headDepartment) || '',
@@ -111,7 +116,8 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             loanDeduct: it.loanDeduct || 0,
             totalDeductions: (it.totalDeductions !== undefined) ? it.totalDeductions : 0,
             netPay: (it.netPay !== undefined) ? it.netPay : totalPay,
-            status: it.status || 'Calculated'
+            status: it.status || 'Computed',
+            note: it.note || ''
           };
         });
 
