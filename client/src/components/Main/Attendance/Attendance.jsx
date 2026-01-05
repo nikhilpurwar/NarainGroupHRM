@@ -393,7 +393,15 @@ const Attendance = () => {
                 <AttendanceFilter
                   filters={filters}
                   setFilters={setFilters}
-                  onSearch={() => fetchReport(filters)}
+                  onSearch={() => {
+                    if (report?.employee?._id) {
+                      fetchReport({
+                        employeeId: report.employee._id,
+                        month: filters.month,
+                        year: filters.year,
+                      })
+                    }
+                  }}
                   reportData={report}
                   isMobile={isMobile}
                 />

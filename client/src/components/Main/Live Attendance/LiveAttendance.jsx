@@ -184,7 +184,7 @@ const LiveAttendance = () => {
           </table>
 
           {/* Absent Employees Table */}         
-          <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
+          {/* <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
             Total Employees Absent : {absentEmployees.length}
           </div>
           <table className="w-full table-auto rounded-xl border border-red-200">
@@ -255,7 +255,7 @@ const LiveAttendance = () => {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table> */}
         </div>
       )}
     </div>
