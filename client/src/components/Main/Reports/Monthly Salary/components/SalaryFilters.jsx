@@ -2,13 +2,13 @@ import React, { memo } from 'react';
 import { Search, Filter, RotateCcw } from 'lucide-react';
 import { useHierarchy } from '../../../../../context/HierarchyContext';
 
-const SalaryFilters = memo(({ 
-  filters, 
+const SalaryFilters = memo(({
+  filters,
   months,
   years,
-  onFilterChange, 
-  onApplyFilters, 
-  onClearFilters 
+  onFilterChange,
+  onApplyFilters,
+  onClearFilters
 }) => {
   const { subDepartments } = useHierarchy();
 
@@ -33,6 +33,26 @@ const SalaryFilters = memo(({
                   onChange={onFilterChange}
                 />
               </div>
+            </div>
+
+            {/* Sub Department Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sub Department
+              </label>
+              <select
+                name="subDepartment"
+                className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={filters.subDepartment}
+                onChange={onFilterChange}
+              >
+                <option value="">All Sub Departments</option>
+                {subDepartments.map(sd => (
+                  <option key={sd._id} value={sd._id}>
+                    {sd.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Month & Year Selects */}
@@ -75,26 +95,6 @@ const SalaryFilters = memo(({
                   </select>
                 </div>
               </div>
-            </div>
-
-            {/* Sub Department Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub Department
-              </label>
-              <select
-                name="subDepartment"
-                className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={filters.subDepartment}
-                onChange={onFilterChange}
-              >
-                <option value="">All Sub Departments</option>
-                {subDepartments.map(sd => (
-                  <option key={sd._id} value={sd._id}>
-                    {sd.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Buttons */}

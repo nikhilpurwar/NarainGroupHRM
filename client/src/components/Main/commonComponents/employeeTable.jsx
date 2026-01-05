@@ -94,26 +94,40 @@ const EmployeeTable = ({
         const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
         const fetchForPage = async () => {
             try {
-                const promises = currentData.map(e =>
-                    axios.get(`${apiUrl}/api/attendance-report`, {
-                        params: { employeeId: e._id || e.id, month: currentMonth, year: currentYear }
+                const promises = currentData.map(e => {
+                    const id = e._id || e.id
+                    return axios.get(`${apiUrl}/api/attendance-report`, {
+                        params: { employeeId: id, month: currentMonth, year: currentYear }
                     })
-                        .then(r => ({
-                            id: e._id || e.id,
-                            summary: r.data?.data?.summary || { totalPresent: 0, totalAbsent: 0 }
-                        }))
-                        .catch(() => ({
-                            id: e._id || e.id,
-                            summary: { totalPresent: 0, totalAbsent: 0 }
-                        }))
-                )
+                        .then(r => {
+                            const data = r.data?.data || {}
+                            const table = data.table || {}
+                            const days = data.days || []
+
+                            let present = 0
+                            let absent = 0
+
+                            const statusRow = table['Status'] || []
+                            for (let i = 0; i < days.length; i++) {
+                                const raw = statusRow[i]
+                                if (!raw) continue
+                                const st = String(raw).toLowerCase()
+                                if (st === 'present' || st === 'halfday') present++
+                                else if (st === 'absent') absent++
+                            }
+
+                            return { id, present, absent }
+                        })
+                        .catch(() => ({ id, present: 0, absent: 0 }))
+                })
+
                 const results = await Promise.all(promises)
                 if (!mounted) return
                 const map = {}
                 for (const r of results) {
                     map[r.id] = {
-                        present: r.summary.totalPresent || 0,
-                        absent: r.summary.totalAbsent || 0
+                        present: r.present || 0,
+                        absent: r.absent || 0
                     }
                 }
                 setSummaryMap(map)
@@ -285,7 +299,7 @@ const EmployeeTable = ({
                                         <th title='Total Absent this Month' className="px-4 py-3">Absent</th>
                                     </>
                                 )}
-                                <th className="px-4 py-3 text-right">Action</th>
+                                <th className="px-4 py-3">Action</th>
                             </tr>
                         </thead>
 
@@ -348,18 +362,29 @@ const EmployeeTable = ({
                                                         {emp.status === 'active' ? 'Active' : 'Inactive'}
                                                     </button>)}
                                             </td>
+
+                                            {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}
                                             {renderActions && (
-                                                // shows total Present and Absent of current month (computed from employee.attendance when available)
                                                 <>
                                                     <td title='Total Present this Month' className="px-4 py-3">{(() => {
                                                         const key = emp._id || emp.id
                                                         const v = countsMap[key]
-                                                        return (v && typeof v.present === 'number') ? v.present : '--'
+                                                        return (v && typeof v.present === 'number') ? v.present :
+                                                            <div className="flex space-x-0.5">
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
+                                                            </div>
                                                     })()}</td>
                                                     <td title='Total Absent this Month' className="px-4 py-3">{(() => {
                                                         const key = emp._id || emp.id
                                                         const v = countsMap[key]
-                                                        return (v && typeof v.absent === 'number') ? v.absent : '--'
+                                                        return (v && typeof v.absent === 'number') ? v.absent :
+                                                            <div className="flex space-x-0.5">
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
+                                                            </div>
                                                     })()}</td>
                                                 </>
                                             )}

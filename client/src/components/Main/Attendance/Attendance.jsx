@@ -7,10 +7,11 @@ import EmployeeTable from "../commonComponents/employeeTable"
 import BarcodeScanner from "./components/BarcodeScanner"
 import PunchRecordsModal from "./components/PunchRecordsModal"
 import MonthlySummaryCard from "./components/MonthlySummaryCard"
+import ManualAttendanceModal from "./components/ManualAttendanceModal"
 import { toast } from "react-toastify"
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
-import { IoMdLogOut } from "react-icons/io"
+import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
@@ -35,6 +36,7 @@ const Attendance = () => {
   const [punchModalOpen, setPunchModalOpen] = useState(false)
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
+  const [manualModalOpen, setManualModalOpen] = useState(false)
   const [holidays, setHolidays] = useState([])
   const fetchInProgressRef = useRef(false)
   const lastRequestedRef = useRef(null)
@@ -205,6 +207,44 @@ const Attendance = () => {
     }
   }
 
+  /* ---------------- Manual Past Attendance ---------------- */
+  const handleManualAttendanceSubmit = async ({ employeeId, date, inTime, outTime }) => {
+    try {
+      setIsProcessingPunch(true)
+
+      const res = await axios.post(
+        `${API_URL}/api/employees/${employeeId}/attendance`,
+        {
+          date,
+          inTime,
+          outTime,
+        }
+      )
+
+      toast.success(res.data?.message || 'Attendance marked successfully')
+
+      // Refresh employees list so badges/counts update across UI
+      try { await loadEmployeesRef.current?.() } catch (e) { }
+
+      // If currently viewing this employee's report, refresh it
+      if (report?.employee?._id === employeeId) {
+        lastRequestedRef.current = null
+        await fetchReport({
+          employeeId,
+          month: filters.month,
+          year: filters.year,
+        })
+      }
+
+      setManualModalOpen(false)
+    } catch (err) {
+      console.error('Manual attendance error', err)
+      toast.error(err?.response?.data?.message || 'Failed to mark attendance')
+    } finally {
+      setIsProcessingPunch(false)
+    }
+  }
+
   /* ---------------- Cell Click ---------------- */
   const handleCellClick = (isoDate, rowType) => {
     const attendance = report?.employee?.attendance?.find(a =>
@@ -282,13 +322,23 @@ const Attendance = () => {
             </button>
           )
         })() : (
-          <button
-            onClick={() => setScannerOpen(true)}
-            title="Open Scanner"
-            className="p-2 rounded-full bg-white text-gray-800 hover:bg-gray-100 cursor-pointer"
-          >
-            <MdOutlineQrCodeScanner size={24} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setScannerOpen(true)}
+              title="Open Scanner"
+              className="p-2 rounded-full bg-white text-gray-800 hover:bg-gray-100 cursor-pointer"
+            >
+              <MdOutlineQrCodeScanner size={24} />
+            </button>
+            <button
+              onClick={() => setManualModalOpen(true)}
+              title="Add Past Attendance"
+              className="flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
+            >
+              <IoMdAddCircle size={30} className="inline mr-1" />
+              Add Attendance
+            </button>
+          </div>
         )}
       </div>
 
@@ -311,7 +361,7 @@ const Attendance = () => {
                 <button
                   disabled
                   title="Attendance Marked"
-                  className="ml-6 text-green-600 px-3 py-1 rounded-full"
+                  className="text-center text-green-600 px-3 py-1 rounded-full"
                 >
                   <FaUserCheck size={20} />
                 </button>
@@ -322,7 +372,7 @@ const Attendance = () => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="ml-6 bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
                 >
                   <FaUserCheck size={14} />
                 </button>
@@ -343,12 +393,26 @@ const Attendance = () => {
                 <AttendanceFilter
                   filters={filters}
                   setFilters={setFilters}
-                  onSearch={() => fetchReport(filters)}
+                  onSearch={() => {
+                    if (report?.employee?._id) {
+                      fetchReport({
+                        employeeId: report.employee._id,
+                        month: filters.month,
+                        year: filters.year,
+                      })
+                    }
+                  }}
                   reportData={report}
                   isMobile={isMobile}
                 />
 
-                <MonthlySummaryCard summary={report.summary} isMobile={isMobile} />
+                <MonthlySummaryCard
+                  summary={report.summary}
+                  days={report.days}
+                  table={report.table}
+                  holidays={holidays}
+                  isMobile={isMobile}
+                />
 
                 <AttendanceTable
                   days={report.days}
@@ -391,6 +455,14 @@ const Attendance = () => {
           shiftHours={report?.employee?.shift || 8}
         />
       )}
+
+      {/* Manual Attendance Modal */}
+      <ManualAttendanceModal
+        isOpen={manualModalOpen}
+        onClose={() => setManualModalOpen(false)}
+        employees={employees}
+        onSubmit={handleManualAttendanceSubmit}
+      />
     </div>
   )
 }

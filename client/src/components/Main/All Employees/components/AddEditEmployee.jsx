@@ -83,6 +83,9 @@ const AddEditEmployee = () => {
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
 
+    const DRAFT_KEY = 'addEmployeeFormDraft'
+    const [hasLoadedDraft, setHasLoadedDraft] = useState(false)
+
     // Filter lists based on hierarchy
     const filteredSubDepts = form.headDepartment
         ? getSubDepartmentsByHead(form.headDepartment)
@@ -176,6 +179,24 @@ const AddEditEmployee = () => {
         fetchShifts()
     }, [])
 
+    // Load draft for Add mode from sessionStorage (if any)
+    useEffect(() => {
+        if (isEdit) return
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY)
+            if (!raw) return
+            const saved = JSON.parse(raw)
+            if (saved && typeof saved === 'object') {
+                const { avatar: _ignoredAvatar, ...rest } = saved
+                setForm(f => ({ ...f, ...rest }))
+            }
+        } catch (e) {
+            console.warn('Failed to restore add-employee draft from sessionStorage', e)
+        } finally {
+            setHasLoadedDraft(true)
+        }
+    }, [isEdit])
+
     // compute salaryPerHour on render if not provided
 
     const handleChange = (e) => {
@@ -200,6 +221,19 @@ const AddEditEmployee = () => {
         setForm({ ...form, [name]: value })
         setErrors((prev) => ({ ...prev, [name]: undefined }))
     }
+
+    // Persist draft to sessionStorage in real time for Add mode
+    useEffect(() => {
+        if (isEdit) return
+        // Avoid overwriting an existing draft with empty defaults on first mount
+        if (!hasLoadedDraft) return
+        try {
+            const { avatar, ...rest } = form
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(rest))
+        } catch (e) {
+            console.warn('Failed to save add-employee draft to sessionStorage', e)
+        }
+    }, [form, isEdit, hasLoadedDraft])
 
     const validate = () => {
         const err = {}
@@ -284,6 +318,8 @@ const AddEditEmployee = () => {
                 await axios.post(API, payload)
                 toast.success('Employee added')
             }
+            // clear draft on successful save
+            try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
             setFormError('')
             setErrors({})
             navigate(-1)
@@ -510,7 +546,21 @@ const AddEditEmployee = () => {
                     >
                         Back
                     </button>
-
+                    {!isEdit && (
+                        <button type="reset"
+                            onClick={() => {
+                                setForm(defaultForm)
+                                setErrors({})
+                                setPreview(null)
+                                setFormError('')
+                                // try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
+                            }}
+                            className="px-6 py-3 rounded-lg bg-gray-900 hover:bg-gray-700 text-white"
+                        >
+                            Reset
+                            
+                        </button>
+                    )}
                     <button
                         type="submit"
                         className="px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-700"

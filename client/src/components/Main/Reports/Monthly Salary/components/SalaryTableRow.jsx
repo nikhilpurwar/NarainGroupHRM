@@ -9,29 +9,28 @@ const SalaryTableRow = memo(({
   onLoanDeductChange
 }) => {
 
-  const formatDaysHoursMinutes = (hours, hoursPerDay = 8) => {
-    if (!hours && hours !== 0) return '0d 0h 0m';
+  // const formatDaysHoursMinutes = (hours, hoursPerDay = 8) => {
+  //   if (!hours && hours !== 0) return '0d 0h 0m';
 
-    // convert total hours into minutes
-    const totalMinutes = Math.round(hours * 60);
+  //   // convert total hours into minutes
+  //   const totalMinutes = Math.round(hours * 60);
 
-    // calculate days, hours, minutes
-    const days = Math.floor(totalMinutes / (hoursPerDay * 60));
-    const remainingMinutesAfterDays = totalMinutes % (hoursPerDay * 60);
+  //   // calculate days, hours, minutes
+  //   const days = Math.floor(totalMinutes / (hoursPerDay * 60));
+  //   const remainingMinutesAfterDays = totalMinutes % (hoursPerDay * 60);
 
-    const h = Math.floor(remainingMinutesAfterDays / 60);
-    const m = remainingMinutesAfterDays % 60;
+  //   const h = Math.floor(remainingMinutesAfterDays / 60);
+  //   const m = remainingMinutesAfterDays % 60;
 
-    return `${days}d ${h}h ${m}m`;
-  };
-
-  const splitDaysHoursMinutes = (hours, hoursPerDay = 8) => {
+  //   return `${days}d ${h}h ${m}m`;
+  // };
+  const splitDaysHoursMinutes = (hours) => {
     if (!hours && hours !== 0) return { d: 0, h: 0, m: 0 };
 
     const totalMinutes = Math.round(hours * 60);
 
-    const d = Math.floor(totalMinutes / (hoursPerDay * 60));
-    const remainingMinutesAfterDays = totalMinutes % (hoursPerDay * 60);
+    const d = Math.floor(totalMinutes / ((item.shiftHours || 8) * 60));
+    const remainingMinutesAfterDays = totalMinutes % ((item.shiftHours || 8) * 60);
 
     const h = Math.floor(remainingMinutesAfterDays / 60);
     const m = remainingMinutesAfterDays % 60;
@@ -76,6 +75,7 @@ const SalaryTableRow = memo(({
         </small>
       </td>
 
+      {/* basic hours */}
       <td className="px-4 py-3 text-center bg-gray-50">
         <div className="flex flex-col items-center">
           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
@@ -87,13 +87,14 @@ const SalaryTableRow = memo(({
           </span>
 
           <span className="text-xs text-gray-500 whitespace-nowrap">
-            ({item.basicHours})
+            ({item.basicHours}H)
           </span>
         </div>
       </td>
 
       <td className="px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50">₹{item.basicPay?.toLocaleString() || '0'}</td>
 
+      {/* ot hours */}
       <td className="px-4 py-3 text-center bg-gray-50">
         <div className="flex flex-col items-center">
           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
@@ -101,15 +102,16 @@ const SalaryTableRow = memo(({
           </span>
           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
             {splitDaysHoursMinutes(item.otHours).h}h {splitDaysHoursMinutes(item.otHours).m}m
-          </span>        
+          </span>
           <span className="text-xs text-gray-500 whitespace-nowrap">
-            ({item.otHours})
+            ({item.otHours}H)
           </span>
         </div>
       </td>
 
       <td className="px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50">₹{item.otPay?.toLocaleString() || '0'}</td>
 
+      {/* total hours */}
       <td className="px-4 py-3 text-center">
         <div className="flex flex-col items-center">
           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
@@ -121,7 +123,7 @@ const SalaryTableRow = memo(({
           </span>
 
           <span className="text-xs text-gray-500 whitespace-nowrap">
-            ({item.totalHours})
+            ({item.totalHours}H)
           </span>
         </div>
       </td>
@@ -150,22 +152,22 @@ const SalaryTableRow = memo(({
       <td className="px-4 py-3 text-sm text-center">
         <div className="flex items-center justify-center gap-2">
           {item.status === 'Paid' ? (
-          <button
-            onClick={() => onView(item)}
-            className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
-            title="View Details"
-          >
-            <Eye size={20} className='hover:scale-110' />
-          </button> 
+            <button
+              onClick={() => onView(item)}
+              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
+              title="View Details"
+            >
+              <Eye size={20} className='hover:scale-110' />
+            </button>
           ) : (
-          <button
-            onClick={() => onView(item)}
-            disabled={item.status === 'Paid'}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${item.status === 'Paid' ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-green-600 hover:bg-green-100'}`}
-            title={item.status === 'Paid' ? 'Already Paid' : 'Mark as Paid'}
-          >
-            <BanknoteArrowUp size={22} className='hover:scale-110' />
-          </button>
+            <button
+              onClick={() => onView(item)}
+              disabled={item.status === 'Paid'}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${item.status === 'Paid' ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-green-600 hover:bg-green-100'}`}
+              title={item.status === 'Paid' ? 'Already Paid' : 'Mark as Paid'}
+            >
+              <BanknoteArrowUp size={22} className='hover:scale-110' />
+            </button>
           )}
           <button
             onClick={() => onDownloadPDF(item)}

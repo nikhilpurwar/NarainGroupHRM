@@ -18,9 +18,9 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     if (rowType === 'In' || rowType === 'Out') {
       return status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400';
     }
-    // if (rowType === 'Regular Hours') {
-    //   return status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400';
-    // }
+    if (rowType === 'Regular Hours') {
+      return status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400';
+    }
     if (rowType === 'Worked Hours') {
       return status ? 'bg-blue-50 text-blue-900 font-semibold' : 'bg-gray-50 text-gray-400';
     }

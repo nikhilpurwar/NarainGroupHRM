@@ -2,31 +2,18 @@ import React, { memo } from 'react';
 import { Calendar } from 'lucide-react';
 import SalaryTableRow from './SalaryTableRow';
 
-const SalaryTable = memo(({ 
-  salaryData, 
-  loading, 
-  dataExists, 
+const SalaryTable = memo(({
+  salaryData,
+  loading,
+  dataExists,
   monthYear,
   onViewDetails,
   onPay,
   onDownloadPDF,
   onLoanDeductChange
 }) => {
-  if (!dataExists && !loading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="px-4 py-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
-        </div>
-        <div className="py-12 text-center">
-          <p className="text-gray-600 text-lg">No salary data available for the selected month.</p>
-          <p className="text-gray-500 text-sm mt-2">Please select a different month or click "Apply Filters" to check.</p>
-        </div>
-      </div>
-    );
-  }
 
-  if (loading) {
+  if (loading ) {
     return (
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-4 py-4 border-b bg-gray-50">
@@ -40,12 +27,26 @@ const SalaryTable = memo(({
     );
   }
 
+  if (!dataExists) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="px-4 py-4 border-b bg-gray-50">
+          <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
+        </div>
+        <div className="py-12 text-center">
+          <p className="text-gray-600 text-lg">No salary data available for the selected month.</p>
+          <p className="text-gray-500 text-sm mt-2">Please select a different month or click "Apply Filters" to check.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
       <div className="px-4 py-4 border-b bg-gray-50">
         <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full" id="salaryTable">
           <thead>
@@ -108,6 +109,7 @@ const SalaryTable = memo(({
       </div>
     </div>
   );
+
 });
 
 SalaryTable.displayName = 'SalaryTable';

@@ -14,6 +14,8 @@ const SalaryRuleSchema = new mongoose.Schema({
   oneHolidayPerMonth: { type: Boolean, default: false },
   sundayAutopayRequiredLastWorkingDays: { type: Number, default: 4 },
   festivalAutopayRequiredPrevDays: { type: Number, default: 2 },
+  // 5-day (Mon-Fri) or 6-day (Mon-Sat) working week
+  workingDaysPerWeek: { type: Number, enum: [5, 6], default: 6 },
   // Additional free-form settings
   meta: { type: mongoose.Schema.Types.Mixed }
 }, { timestamps: true })
