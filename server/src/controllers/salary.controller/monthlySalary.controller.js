@@ -27,7 +27,7 @@ export const checkMonthlySalaryExists = asyncHandler(async (req, res) => {
 
 // Calculate and store monthly salary for a month
 export const calculateAndStoreMonthlySalary = asyncHandler(async (req, res) => {
-	const { month, year } = req.body
+	const { month, year, forceRecalculate } = req.body
 	
 	let fromDate, toDate
 	if (month && String(month).includes('-')) {
@@ -53,27 +53,29 @@ export const calculateAndStoreMonthlySalary = asyncHandler(async (req, res) => {
 
 	// Check if already exists
 	const existing = await MonthlySalaryModel.findOne({ monthKey })
-	if (existing) {
+	if (existing && !forceRecalculate) {
 		return res.json({ 
 			success: true, 
 			data: { 
 				exists: true, 
 				monthKey, 
-				message: 'Salary already calculated for this month. Use recalculate endpoint to refresh.' 
+				message: 'Salary already calculated for this month. Pass forceRecalculate=true to refresh with latest rules.' 
 			} 
 		})
 	}
 
-	// Recalculate and update using the service
+	// Recalculate and update using the service (creates or refreshes record)
 	const result = await salaryRecalcService.recalculateAndUpdateMonthlySalary(fromDate)
 
 	res.json({ 
 		success: true, 
 		data: { 
 			monthKey, 
-			created: true,
+			created: !existing,
 			totalRecords: result.totalRecords,
-			message: 'Monthly salary calculated and stored successfully' 
+			message: existing
+				? 'Monthly salary recalculated and stored successfully'
+				: 'Monthly salary calculated and stored successfully' 
 		} 
 	})
 })

@@ -84,6 +84,13 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
           const totalHours = Number((basicHours + otHours).toFixed(2));
           const totalPay = (it.payableAmount || it.totalPay || 0);
 
+          const sundayAutoPayDays = it.sundayAutopayDays || 0;
+          const festivalAutoPayDays = it.festivalAutopayDays || 0;
+          const autoPayAmount = it.sundayAutopayPay || it.autoPayAmount || 0;
+          const autoPayDays = (it.autoPayDays !== undefined && it.autoPayDays !== null)
+            ? it.autoPayDays
+            : (sundayAutoPayDays + festivalAutoPayDays);
+
           const shiftHours = (it.shiftHours !== undefined && it.shiftHours !== null)
             ? it.shiftHours
             : 8;
@@ -107,6 +114,10 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             otPay,
             totalHours,
             totalPay,
+            autoPayAmount,
+            autoPayDays,
+            sundayAutoPayDays,
+            festivalAutoPayDays,
             shiftHours,
             tds: it.tds || 0,
             pTax: it.pTax || it.ptax || 0,
