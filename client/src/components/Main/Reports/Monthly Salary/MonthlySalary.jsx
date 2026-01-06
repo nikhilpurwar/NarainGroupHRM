@@ -5,7 +5,6 @@ import axios from 'axios';
 import {
   useSalaryFilters,
   useSalaryData,
-  usePagination,
   useSalaryModal,
   useDateHelper,
   useSalaryExport,
@@ -23,7 +22,25 @@ import ViewSalaryReport from './components/ViewSalaryReport';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
 
 // Memoized Summary Stats Component
-const SalarySummaryStats = memo(({ salaryData }) => {
+const SalarySummaryStats = memo(({ salaryData, summary, totalRecords }) => {
+  const hasBackendSummary = !!summary;
+
+  const totalPayroll = hasBackendSummary
+    ? (summary.totalPayable || 0)
+    : salaryData.reduce((sum, item) => sum + (item.totalPay || 0), 0);
+
+  const totalDeductions = hasBackendSummary
+    ? (summary.totalDeductions || 0)
+    : salaryData.reduce((sum, item) => sum + (item.totalDeductions || 0), 0);
+
+  const totalNetPay = hasBackendSummary
+    ? (summary.totalNetPay || 0)
+    : salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0);
+
+  const avgBaseCount = hasBackendSummary ? (totalRecords || 0) : salaryData.length;
+  const averageSalary = avgBaseCount > 0
+    ? Math.round(totalNetPay / avgBaseCount)
+    : 0;
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div className="bg-white rounded-xl shadow-sm border p-4">
@@ -31,7 +48,7 @@ const SalarySummaryStats = memo(({ salaryData }) => {
           <div>
             <p className="text-sm text-gray-600">Total Payroll</p>
             <p className="text-2xl font-bold text-gray-900">
-              ₹{salaryData.reduce((sum, item) => sum + (item.totalPay || 0), 0).toLocaleString()}
+              ₹{totalPayroll.toLocaleString()}
             </p>
           </div>
           <div className="p-3 bg-green-100 rounded-lg">
@@ -45,7 +62,7 @@ const SalarySummaryStats = memo(({ salaryData }) => {
           <div>
             <p className="text-sm text-gray-600">Total Deductions</p>
             <p className="text-2xl font-bold text-gray-900">
-              ₹{salaryData.reduce((sum, item) => sum + (item.totalDeductions || 0), 0).toLocaleString()}
+              ₹{totalDeductions.toLocaleString()}
             </p>
           </div>
           <div className="p-3 bg-yellow-100 rounded-lg">
@@ -59,7 +76,7 @@ const SalarySummaryStats = memo(({ salaryData }) => {
           <div>
             <p className="text-sm text-gray-600">Net Payable</p>
             <p className="text-2xl font-bold text-gray-900">
-              ₹{salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0).toLocaleString()}
+              ₹{totalNetPay.toLocaleString()}
             </p>
           </div>
           <div className="p-3 bg-blue-100 rounded-lg">
@@ -73,7 +90,7 @@ const SalarySummaryStats = memo(({ salaryData }) => {
           <div>
             <p className="text-sm text-gray-600">Average Salary</p>
             <p className="text-2xl font-bold text-gray-900">
-              ₹{Math.round(salaryData.reduce((sum, item) => sum + (item.netPay || 0), 0) / salaryData.length).toLocaleString()}
+              ₹{averageSalary.toLocaleString()}
             </p>
           </div>
           <div className="p-3 bg-purple-100 rounded-lg">
@@ -92,8 +109,17 @@ const MonthlySalary = () => {
   const { filters, handleFilterChange, clearFilters } = useSalaryFilters();
   const { months, years, getSelectedMonthYearLabel } = useDateHelper(filters.month, filters.year);
   const [pageSize, setPageSize] = useState(10);
-  const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, checkDataExists, fetchSalaryData } = useSalaryData(filters, 1, pageSize);
-  const { currentPage, setCurrentPage, totalPages, goToPage, goPrev, goNext, resetPage } = usePagination(totalRecords, pageSize);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, summary, checkDataExists, fetchSalaryData } = useSalaryData(filters, currentPage, pageSize);
+  const totalPages = Math.ceil(totalRecords / pageSize) || 0;
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+  const goPrev = () => goToPage(currentPage - 1);
+  const goNext = () => goToPage(currentPage + 1);
+  const resetPage = () => setCurrentPage(1);
   const { isModalOpen, selectedEmployee, openModal, closeModal, updateSelectedEmployee } = useSalaryModal();
   const { exportToPDF, exportToExcel, printReport } = useSalaryExport(getSelectedMonthYearLabel);
   const { downloadEmployeePDF } = useSalaryPDF(getSelectedMonthYearLabel);
@@ -203,8 +229,14 @@ const MonthlySalary = () => {
 
   return (
     <div className="container-fluid px-4 py-6">
-      {/* Summary Stats */}
-      {salaryData.length > 0 && <SalarySummaryStats salaryData={salaryData} />}
+      {/* Summary Stats (use backend summary over all records when available) */}
+      {(summary || salaryData.length > 0) && (
+        <SalarySummaryStats
+          salaryData={salaryData}
+          summary={summary}
+          totalRecords={totalRecords}
+        />
+      )}
 
       {/* Filters and Export Buttons */}
       <div className="bg-white rounded-xl shadow-sm border p-4 mb-6 flex flex-col md:flex-row">
@@ -232,6 +264,8 @@ const MonthlySalary = () => {
         loading={loading}
         dataExists={dataExists}
         monthYear={getSelectedMonthYearLabel()}
+        currentPage={currentPage}
+        pageSize={pageSize}
         onViewDetails={openModal}
         onPay={handlePay}
         onDownloadPDF={handleDownloadEmployeePDF}

@@ -10,6 +10,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
   const [dataExists, setDataExists] = useState(false);
   const [checkedMonth, setCheckedMonth] = useState(null);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [summary, setSummary] = useState(null);
 
   // Check if salary data exists for the selected month
   const checkDataExists = useCallback(async () => {
@@ -42,6 +43,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
     if (!dataExists) {
       setSalaryData([]);
       setTotalRecords(0);
+      setSummary(null);
       return;
     }
 
@@ -61,6 +63,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
       if (response.data?.success) {
         const data = response.data.data || {};
         const items = data.items || [];
+        const backendSummary = data.summary || null;
 
         // Map backend items to UI expected shape
         const mapped = items.map(it => {
@@ -86,7 +89,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
 
           const sundayAutoPayDays = it.sundayAutopayDays || 0;
           const festivalAutoPayDays = it.festivalAutopayDays || 0;
-          const autoPayAmount = it.sundayAutopayPay || it.autoPayAmount || 0;
+          const autoPayAmount = (it.sundayAutopayPay || 0) + (it.festivalAutopayPay || 0) || it.autoPayAmount || 0;
           const autoPayDays = (it.autoPayDays !== undefined && it.autoPayDays !== null)
             ? it.autoPayDays
             : (sundayAutoPayDays + festivalAutoPayDays);
@@ -139,16 +142,19 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
 
         setSalaryData(mapped);
         setTotalRecords(data.totalRecords || 0);
+        setSummary(backendSummary);
       } else {
         toast.error(response.data?.message || 'Failed to fetch salary data');
         setSalaryData([]);
         setTotalRecords(0);
+        setSummary(null);
       }
     } catch (error) {
       console.error('Error fetching salary data:', error);
       toast.error('Failed to load salary report');
       setSalaryData([]);
       setTotalRecords(0);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -161,6 +167,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
     dataExists,
     checkedMonth,
     totalRecords,
+    summary,
     checkDataExists,
     fetchSalaryData
   };

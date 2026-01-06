@@ -141,8 +141,8 @@ export const monthlySalaryReport = asyncHandler(async (req, res) => {
 	const skip = (p - 1) * ps
 	const paginatedItems = items.slice(skip, skip + ps)
 
-	// Calculate summary for filtered items
-	const summary = paginatedItems.reduce((acc, r) => {
+	// Calculate summary for all filtered items (not just current page)
+	const summary = items.reduce((acc, r) => {
 		acc.totalPayable += r.totalPay || 0
 		acc.totalOvertime += r.otPay || 0
 		acc.totalEmployees++

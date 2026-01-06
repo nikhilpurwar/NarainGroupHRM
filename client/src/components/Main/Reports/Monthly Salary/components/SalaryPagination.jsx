@@ -11,12 +11,14 @@ const SalaryPagination = memo(({
   onNextPage, 
   onGoToPage 
 }) => {
+  const from = totalRecords === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+  const to = totalRecords === 0 ? 0 : Math.min(currentPage * pageSize, totalRecords);
   return (
     <div className="border-t px-4 py-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords}
+            Showing {from} to {to} of {totalRecords}
           </div>
 
           <div className="flex items-center gap-2">
