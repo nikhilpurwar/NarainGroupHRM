@@ -76,6 +76,53 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     };
   };
 
+  // Helpers to split a day's OT into D/N/S/F buckets using backend OT fields
+  const getOtBucketsForDate = (isoDate) => {
+    if (!isoDate || !Array.isArray(attendanceRaw)) {
+      return { dayOt: 0, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: 0 };
+    }
+
+    const rec = attendanceRaw.find(a => a?.date && String(a.date).startsWith(isoDate));
+    if (!rec) {
+      return { dayOt: 0, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: 0 };
+    }
+
+    const dayOt = Number(rec.dayOtHours || 0);
+    const nightOt = Number(rec.nightOtHours || 0);
+    const sundayOt = Number(rec.sundayOtHours || 0);
+    const festivalOt = Number(rec.festivalOtHours || 0);
+    const totalOt = dayOt + nightOt + sundayOt + festivalOt;
+
+    return { dayOt, nightOt, sundayOt, festivalOt, totalOt };
+  };
+
+  const renderOtCell = (isoDate) => {
+    const { dayOt, nightOt, sundayOt, festivalOt, totalOt } = getOtBucketsForDate(isoDate);
+
+    if (!totalOt) return '--';
+
+    return (
+      <div className="flex flex-col items-center gap-0.5 text-[10px] leading-tight">
+        <div className="flex items-center justify-between w-full font-semibold text-gray-500">
+          <span className="flex-1 text-center">D</span>
+          <span className="flex-1 text-center">N</span>
+          <span className="flex-1 text-center">S</span>
+          <span className="flex-1 text-center">F</span>
+        </div>
+        <div className="flex items-center justify-between w-full font-medium text-gray-800">
+          <span className="flex-1 text-center">{dayOt.toFixed(2)}</span>
+          <span className="flex-1 text-center text-indigo-600">{nightOt.toFixed(2)}</span>
+          <span className="flex-1 text-center text-emerald-600">{sundayOt.toFixed(2)}</span>
+          <span className="flex-1 text-center text-orange-600">{festivalOt.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between w-full text-[10px] text-gray-500 border-t border-gray-200 pt-0.5 mt-0.5">
+          <span className="font-semibold">Total</span>
+          <span className="ml-auto font-semibold text-gray-800">{totalOt.toFixed(2)}h</span>
+        </div>
+      </div>
+    );
+  };
+
   if (isMobile) {
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -123,7 +170,9 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
                             }
                           }}
                         >
-                          {isStatus ? getStatusBadge(cell, isoDate) : (cell || '--')}
+                          {isStatus
+                            ? getStatusBadge(cell, isoDate)
+                            : (row === 'OT (Hours)' ? renderOtCell(isoDate) : (cell || '--'))}
                         </td>
                       );
                     })}
@@ -253,7 +302,9 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
                       }
                     }}
                   >
-                    {isStatus ? getStatusBadge(cell, isoDate) : (cell || '--')}
+                    {isStatus
+                      ? getStatusBadge(cell, isoDate)
+                      : (row === 'OT (Hours)' ? renderOtCell(isoDate) : (cell || '--'))}
                   </td>
                 );
               })}

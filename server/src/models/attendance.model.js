@@ -14,7 +14,13 @@ const AttendanceSchema = new mongoose.Schema({
   outTime: { type: String },
   totalHours: { type: Number, default: 0 },
   regularHours: { type: Number, default: 0 },
+  // Total overtime hours (sum of all buckets below)
   overtimeHours: { type: Number, default: 0 },
+  // OT buckets derived from punch logs + shift config
+  dayOtHours: { type: Number, default: 0 },        // OT during daytime on normal working days
+  nightOtHours: { type: Number, default: 0 },      // OT during night window (20:00–06:00)
+  sundayOtHours: { type: Number, default: 0 },     // OT on weekends (Sun/Sat)
+  festivalOtHours: { type: Number, default: 0 },   // OT on holidays
   breakMinutes: { type: Number, default: 0 },
   isWeekend: { type: Boolean, default: false },
   isHoliday: { type: Boolean, default: false },

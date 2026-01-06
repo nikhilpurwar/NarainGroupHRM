@@ -3,6 +3,7 @@ import Attendance from "../models/attendance.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
+import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 
@@ -27,6 +28,32 @@ const generateBarcodeDataUrl = (text) => {
 
 const generateQrDataUrl = async (text) => {
   return await QRCode.toDataURL(String(text));
+};
+
+// Helper: determine if a given date is weekend for an employee,
+// based on SalaryRule. Uses workingDaysPerWeek (5 or 6):
+// - 6 => Sunday only is weekend
+// - 5 => Saturday + Sunday are weekend
+// Fallback: calendar Saturday/Sunday.
+const isWeekendForEmployee = async (emp, dateObj) => {
+  try {
+    const subDeptId = emp?.subDepartment?._id || emp?.subDepartment || null;
+    const rule = subDeptId ? await getSalaryRuleForSubDepartment(subDeptId) : null;
+    const workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+    const dow = dateObj.getDay(); // 0=Sun, 6=Sat
+
+    if (workingDaysPerWeek === 6) {
+      return dow === 0; // Sunday only
+    }
+    if (workingDaysPerWeek === 5) {
+      return dow === 0 || dow === 6; // Saturday + Sunday
+    }
+    // Safe fallback: treat Sat/Sun as weekend
+    return dow === 0 || dow === 6;
+  } catch (e) {
+    const dow = dateObj.getDay();
+    return dow === 0 || dow === 6;
+  }
 };
 
 export const createEmployee = async (req, res) => {
@@ -131,6 +158,10 @@ export const addAttendance = async (req, res) => {
           // Perform Punch OUT: append OUT, compute totals, save
           attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
           attendanceDoc.punchLogs.push({ punchType: 'OUT', punchTime: now });
+          // Re-evaluate weekend flag using SalaryRule
+          if (attendanceDoc.date) {
+            attendanceDoc.isWeekend = await isWeekendForEmployee(emp, new Date(attendanceDoc.date));
+          }
           const shiftCfg = await attendanceService.getShiftConfig();
           let shiftHours = 0;
           if (emp.shift) {
@@ -147,10 +178,18 @@ export const addAttendance = async (req, res) => {
             shiftHours = shiftCfg.shiftHours;
           }
           if (!shiftHours) shiftHours = 8;
-          const computed = attendanceService.computeTotalsFromPunchLogs(attendanceDoc.punchLogs, shiftHours);
+          const computed = attendanceService.computeTotalsFromPunchLogs(
+            attendanceDoc.punchLogs,
+            shiftHours,
+            { dayMeta: { isWeekend: attendanceDoc.isWeekend, isHoliday: attendanceDoc.isHoliday } }
+          );
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
           attendanceDoc.overtimeHours = computed.overtimeHours;
+          attendanceDoc.dayOtHours = computed.dayOtHours;
+          attendanceDoc.nightOtHours = computed.nightOtHours;
+          attendanceDoc.sundayOtHours = computed.sundayOtHours;
+          attendanceDoc.festivalOtHours = computed.festivalOtHours;
           attendanceDoc.totalMinutes = computed.totalMinutes;
           attendanceDoc.totalHoursDisplay = computed.totalHoursDisplay;
           attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
@@ -179,6 +218,10 @@ export const addAttendance = async (req, res) => {
           attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
           attendanceDoc.punchLogs.push({ punchType: 'IN', punchTime: now });
           attendanceDoc.inTime = currentTimeString;
+          // Re-evaluate weekend flag using SalaryRule
+          if (attendanceDoc.date) {
+            attendanceDoc.isWeekend = await isWeekendForEmployee(emp, new Date(attendanceDoc.date));
+          }
           const shiftCfg2 = await attendanceService.getShiftConfig();
           let shiftHours2 = 0;
           if (emp.shift) {
@@ -198,11 +241,15 @@ export const addAttendance = async (req, res) => {
           const computed = attendanceService.computeTotalsFromPunchLogs(
             attendanceDoc.punchLogs,
             shiftHours2,
-            { countOpenAsNow: true }
+            { countOpenAsNow: true, dayMeta: { isWeekend: attendanceDoc.isWeekend, isHoliday: attendanceDoc.isHoliday } }
           );
           attendanceDoc.totalHours = computed.totalHours;
           attendanceDoc.regularHours = computed.regularHours;
           attendanceDoc.overtimeHours = computed.overtimeHours;
+          attendanceDoc.dayOtHours = computed.dayOtHours;
+          attendanceDoc.nightOtHours = computed.nightOtHours;
+          attendanceDoc.sundayOtHours = computed.sundayOtHours;
+          attendanceDoc.festivalOtHours = computed.festivalOtHours;
           attendanceDoc.totalMinutes = computed.totalMinutes;
           attendanceDoc.totalHoursDisplay = computed.totalHoursDisplay;
           attendanceDoc.regularHoursDisplay = computed.regularHoursDisplay;
@@ -229,9 +276,29 @@ export const addAttendance = async (req, res) => {
 
       // Create new attendance and mark IN
       const dateObj = new Date(`${attendanceIso}T00:00:00Z`);
-      const dayOfWeek2 = dateObj.getDay();
-      const isWeekend2 = dayOfWeek2 === 0 || dayOfWeek2 === 6;
-      const newAtt = await Attendance.create({ employee: emp._id, date: dateObj, status: 'present', inTime: currentTimeString, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, totalMinutes: 0, totalHoursDisplay: '0h 0m', regularHoursDisplay: '0h 0m', overtimeHoursDisplay: '0h 0m', breakMinutes: 0, isWeekend: isWeekend2, isHoliday: false, punchLogs: [{ punchType: 'IN', punchTime: now }], note: 'Punch IN via manual toggle' });
+      const isWeekend2 = await isWeekendForEmployee(emp, dateObj);
+      const newAtt = await Attendance.create({
+        employee: emp._id,
+        date: dateObj,
+        status: 'present',
+        inTime: currentTimeString,
+        outTime: null,
+        totalHours: 0,
+        regularHours: 0,
+        overtimeHours: 0,
+        nightOtHours: 0,
+        sundayOtHours: 0,
+        festivalOtHours: 0,
+        totalMinutes: 0,
+        totalHoursDisplay: '0h 0m',
+        regularHoursDisplay: '0h 0m',
+        overtimeHoursDisplay: '0h 0m',
+        breakMinutes: 0,
+        isWeekend: isWeekend2,
+        isHoliday: false,
+        punchLogs: [{ punchType: 'IN', punchTime: now }],
+        note: 'Punch IN via manual toggle'
+      });
 
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
@@ -275,26 +342,29 @@ export const addAttendance = async (req, res) => {
       capturedInTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    // Calculate hours if both inTime and outTime provided (supports 12-hour with AM/PM)
-    let totalHours = 0;
-    let regularHours = 0;
-    let overtimeHours = 0;
-
     // Check for weekend
-    const dayOfWeek = new Date(date).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = await isWeekendForEmployee(emp, new Date(date));
 
     // Create Attendance document (use model static helper)
     // build punch log timestamps using service helper
     const inPunch = capturedInTime ? attendanceService.parseDateTime(dateIso, capturedInTime) : null
-    const outPunch = outTime ? attendanceService.parseDateTime(dateIso, outTime) : null
+    let outPunch = outTime ? attendanceService.parseDateTime(dateIso, outTime) : null
+
+    let totalHours = 0;
+    let regularHours = 0;
+    let overtimeHours = 0;
+    let dayOtHours = 0;
+    let nightOtHours = 0;
+    let sundayOtHours = 0;
+    let festivalOtHours = 0;
+    let totalMinutes = inPunch && outPunch ? Math.round((outPunch - inPunch) / 60000) : 0;
 
     if (inPunch && outPunch) {
-      let totalMinutes = Math.round((outPunch - inPunch) / 60000);
-      if (totalMinutes < 0) {
-        totalMinutes += 24 * 60;
+      // If out time is earlier than or equal to in time on the same calendar date,
+      // treat it as crossing midnight into the next day (e.g. 08:00 to 12:00am -> 16h).
+      if (outPunch <= inPunch) {
+        outPunch = new Date(outPunch.getTime() + 24 * 60 * 60 * 1000);
       }
-      totalHours = parseFloat((totalMinutes / 60).toFixed(2));
 
       // Derive shift hours safely from employee.shift text (e.g. "Morning B (10 hours)")
       let shiftHours = 8;
@@ -313,13 +383,23 @@ export const addAttendance = async (req, res) => {
         shiftHours = 8;
       }
 
-      if (totalHours <= shiftHours) {
-        regularHours = totalHours;
-        overtimeHours = 0;
-      } else {
-        regularHours = shiftHours;
-        overtimeHours = parseFloat((totalHours - shiftHours).toFixed(2));
-      }
+      const computed = attendanceService.computeTotalsFromPunchLogs(
+        [
+          { punchType: 'IN', punchTime: inPunch },
+          { punchType: 'OUT', punchTime: outPunch }
+        ],
+        shiftHours,
+        { dayMeta: { isWeekend, isHoliday: false } }
+      );
+
+      totalHours = computed.totalHours;
+      regularHours = computed.regularHours;
+      overtimeHours = computed.overtimeHours;
+      dayOtHours = computed.dayOtHours;
+      nightOtHours = computed.nightOtHours;
+      sundayOtHours = computed.sundayOtHours;
+      festivalOtHours = computed.festivalOtHours;
+      totalMinutes = computed.totalMinutes;
     }
 
     const att = await Attendance.safeCreate({
@@ -329,9 +409,13 @@ export const addAttendance = async (req, res) => {
       inTime: capturedInTime,
       outTime,
       totalHours,
-      totalMinutes: inPunch && outPunch ? Math.round((outPunch - inPunch) / 60000) : 0,
+      totalMinutes,
       regularHours,
       overtimeHours,
+      dayOtHours,
+      nightOtHours,
+      sundayOtHours,
+      festivalOtHours,
       breakMinutes: 0,
       isWeekend,
       isHoliday: false,

@@ -5,7 +5,7 @@ const SalaryRuleSchema = new mongoose.Schema({
   name: { type: String },
   fixedSalary: { type: Boolean, default: false },
   allowFestivalOT: { type: Boolean, default: true },
-  allowDailyOT: { type: Boolean, default: true },
+  allowDayOT: { type: Boolean, default: true },
   allowSundayOT: { type: Boolean, default: true },
   allowNightOT: { type: Boolean, default: true },
   absenceDeduction: { type: Boolean, default: true },

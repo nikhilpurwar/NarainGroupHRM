@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { IndianRupee } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -119,9 +119,9 @@ const MonthlySalary = () => {
   };
   const goPrev = () => goToPage(currentPage - 1);
   const goNext = () => goToPage(currentPage + 1);
-  const resetPage = () => setCurrentPage(1);
+  const resetPage = useCallback(() => setCurrentPage(1), []);
   const { isModalOpen, selectedEmployee, openModal, closeModal, updateSelectedEmployee } = useSalaryModal();
-  const { exportToPDF, exportToExcel, printReport } = useSalaryExport(getSelectedMonthYearLabel);
+  const { exportToExcel, printReport } = useSalaryExport(getSelectedMonthYearLabel);
   const { downloadEmployeePDF } = useSalaryPDF(getSelectedMonthYearLabel);
   const { handleLoanDeductChange, cleanup } = useLoanRecalculation(setSalaryData, filters.month);
 
@@ -140,7 +140,7 @@ const MonthlySalary = () => {
       resetPage();
       setSalaryData([]);
     }
-  }, [filters.month, filters.year, checkedMonth, checkDataExists, resetPage]);
+  }, [filters.month, filters.year, checkedMonth, checkDataExists, resetPage, setSalaryData]);
 
   // Cleanup on unmount - clear any pending debounce timers
   useEffect(() => {
@@ -210,10 +210,6 @@ const MonthlySalary = () => {
   };
 
   // Handle export
-  const handleExportPDF = () => {
-    exportToPDF(salaryData, filters, totalRecords);
-  };
-
   const handleExportExcel = () => {
     exportToExcel(salaryData, filters);
   };
