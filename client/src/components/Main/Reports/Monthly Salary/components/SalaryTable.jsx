@@ -7,6 +7,8 @@ const SalaryTable = memo(({
   loading,
   dataExists,
   monthYear,
+  currentPage,
+  pageSize,
   onViewDetails,
   onPay,
   onDownloadPDF,
@@ -51,6 +53,7 @@ const SalaryTable = memo(({
         <table className="w-full" id="salaryTable">
           <thead>
             <tr className="bg-gray-50 border-b">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">S. No.</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Emp. ID</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Emp. Name</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Sub Dept.</th>
@@ -59,9 +62,10 @@ const SalaryTable = memo(({
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Salary/ Hour</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Present Days</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100">Basic Hours</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50">Basic Pay</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 border">Basic Pay</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100">OT Hours</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50">OT Pay</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 border">OT Pay</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider ">Auto Pay</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Hours</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border">Total Pay</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">TDS</th>
@@ -86,6 +90,7 @@ const SalaryTable = memo(({
               salaryData.map((item, index) => (
                 <SalaryTableRow
                   key={item.id || index}
+                  serialNumber={((currentPage - 1) * pageSize) + index + 1}
                   item={item}
                   onView={onViewDetails}
                   onPay={onPay}

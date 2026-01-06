@@ -6,6 +6,7 @@ import { SubDepartment } from '../models/department.model.js'
 import MonthlySalaryModel from '../models/salary.model/monthlySalary.model.js'
 import BreakTime from '../models/setting.model/workingHours.model.js'
 import Charge from '../models/setting.model/charge.model.js'
+import Holiday from '../models/setting.model/holidays.model.js'
 import { computeTotalsFromPunchLogs } from './attendance.service.js'
 
 /* -------------------------------------------------------------------------- */
@@ -111,13 +112,9 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
 
   if (name.includes('office staff')) {
     return {
+      ...DEFAULT_SALARY_RULE,
       fixedSalary: false,
-      allowFestivalOT: true,
       allowDailyOT: false,
-      allowSundayOT: true,
-      allowNightOT: true,
-      absenceDeduction: true,
-      gatePassDeduction: false,
       oneHolidayPerMonth: true,
       shiftHours: 8
     }
@@ -159,6 +156,13 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   )
   const empType = employee.empType || ''
 
+  // Detect special Sunday rules for specific sub-departments
+  const subDeptName = (employee.subDepartment && typeof employee.subDepartment === 'object'
+    ? (employee.subDepartment.name || '')
+    : (rule?.name || '')
+  ).toLowerCase()
+  const isDressingSubDept = subDeptName.includes('dressing')
+
   // Derive shift hours dynamically, preferring employee.shift when present
   let shiftHours = 0
   if (employee.shift) {
@@ -195,6 +199,194 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     employee: employee._id,
     date: { $gte: from, $lte: to }
   })
+
+  // For Sunday and festival autopay we may need to inspect days
+  // immediately before `from` (e.g. last days of previous month).
+  // Look back up to max(N) working days plus a small buffer.
+  const requiredLastWorking = (
+    typeof rule?.sundayAutopayRequiredLastWorkingDays === 'number'
+      ? rule.sundayAutopayRequiredLastWorkingDays
+      : DEFAULT_SALARY_RULE.sundayAutopayRequiredLastWorkingDays
+  ) || 0
+  const requiredFestivalPrev = (
+    typeof rule?.festivalAutopayRequiredPrevDays === 'number'
+      ? rule.festivalAutopayRequiredPrevDays
+      : DEFAULT_SALARY_RULE.festivalAutopayRequiredPrevDays
+  ) || 0
+
+  const baseLookback = Math.max(requiredLastWorking, requiredFestivalPrev)
+  const lookbackDays = baseLookback > 0 ? (baseLookback + 7) : 0
+  let extraAttendances = []
+  let fromLookback = null
+  if (lookbackDays > 0) {
+    fromLookback = new Date(from)
+    fromLookback.setDate(fromLookback.getDate() - lookbackDays)
+    extraAttendances = await Attendance.find({
+      employee: employee._id,
+      date: { $gte: fromLookback, $lt: from }
+    })
+  }
+
+  const allAttendances = [...extraAttendances, ...attendances]
+
+  // Use LOCAL calendar date (YYYY-MM-DD) as key to avoid
+  // timezone/UTC off-by-one issues when matching dates.
+  const toLocalDateKey = (d) => {
+    if (!(d instanceof Date)) return ''
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const attendanceByIso = new Map()
+  for (const a of allAttendances) {
+    if (!a || !a.date) continue
+    const d = (a.date instanceof Date) ? a.date : new Date(a.date)
+    const key = toLocalDateKey(d)
+    if (!key) continue
+    attendanceByIso.set(key, a)
+  }
+
+  /* Sunday autopay calculation (hours only used for pay, not frontend basicHours) */
+  let sundayAutopayDays = 0
+  // Generic Sunday autopay (last N working days) applies to all
+  // non-fixed-salary employees EXCEPT Dressing, which has its
+  // own mandatory Sunday rule handled separately below.
+  if (!rule?.fixedSalary && requiredLastWorking > 0 && !isDressingSubDept) {
+    const cursor = new Date(from)
+    cursor.setHours(0, 0, 0, 0)
+    const end = new Date(to)
+    end.setHours(0, 0, 0, 0)
+
+    while (cursor <= end) {
+      const dow = cursor.getDay()
+      if (dow === 0) { // Sunday (autopay candidate)
+        let workingCount = 0
+        let allWorkingPresent = true
+
+        const back = new Date(cursor)
+
+        // Rule: use the last N consecutive calendar days
+        // immediately before this Sunday. Each of those
+        // days must have attendance status present or
+        // halfday.
+        const minDate = extraAttendances.length > 0 && fromLookback
+          ? fromLookback
+          : null
+
+        for (let i = 0; i < requiredLastWorking; i++) {
+          back.setDate(back.getDate() - 1)
+
+          if (minDate && back < minDate) {
+            allWorkingPresent = false
+            break
+          }
+
+          const key = toLocalDateKey(back)
+          const att = attendanceByIso.get(key)
+          const status = att?.status || ''
+          const st = String(status).toLowerCase()
+          if (!(st === 'present' || st === 'halfday')) {
+            allWorkingPresent = false
+            break
+          }
+
+          workingCount++
+        }
+
+        if (workingCount >= requiredLastWorking && allWorkingPresent) {
+          sundayAutopayDays++
+        }
+      }
+
+      cursor.setDate(cursor.getDate() + 1)
+    }
+  }
+
+  // Sunday autopay for Dressing sub-department:
+  // Sunday work is mandatory for 2 Sundays; any remaining
+  // Sundays in the month are auto-paid as long as the
+  // employee has worked at least 2 Sundays.
+  if (!rule?.fixedSalary && isDressingSubDept) {
+    const start = new Date(from)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(to)
+    end.setHours(0, 0, 0, 0)
+
+    let totalSundays = 0
+    let sundaysPresent = 0
+
+    const dayCursor = new Date(start)
+    while (dayCursor <= end) {
+      if (dayCursor.getDay() === 0) {
+        totalSundays++
+        const key = toLocalDateKey(dayCursor)
+        const att = attendanceByIso.get(key)
+        const status = att?.status || ''
+        const st = String(status).toLowerCase()
+        if (st === 'present' || st === 'halfday') {
+          sundaysPresent++
+        }
+      }
+      dayCursor.setDate(dayCursor.getDate() + 1)
+    }
+
+    const mandatorySundays = 2
+    if (totalSundays > mandatorySundays && sundaysPresent >= mandatorySundays) {
+      sundayAutopayDays = totalSundays - mandatorySundays
+    } else {
+      sundayAutopayDays = 0
+    }
+  }
+
+  /* Festival autopay calculation (similar consecutive-day rule) */
+  let festivalAutopayDays = 0
+  if (!rule?.fixedSalary && requiredFestivalPrev > 0) {
+    const holidays = await Holiday.find({
+      date: { $gte: from, $lte: to }
+    }).lean()
+
+    for (const h of holidays) {
+      if (!h || !h.date) continue
+
+      const fest = new Date(h.date)
+      fest.setHours(0, 0, 0, 0)
+
+      let allPrevPresent = true
+      let count = 0
+      const back = new Date(fest)
+
+      const minDate = extraAttendances.length > 0 && fromLookback
+        ? fromLookback
+        : null
+
+      for (let i = 0; i < requiredFestivalPrev; i++) {
+        back.setDate(back.getDate() - 1)
+
+        if (minDate && back < minDate) {
+          allPrevPresent = false
+          break
+        }
+
+        const key = toLocalDateKey(back)
+        const att = attendanceByIso.get(key)
+        const status = att?.status || ''
+        const st = String(status).toLowerCase()
+
+        if (!(st === 'present' || st === 'halfday')) {
+          allPrevPresent = false
+          break
+        }
+
+        count++
+      }
+
+      if (count >= requiredFestivalPrev && allPrevPresent) {
+        festivalAutopayDays++
+      }
+    }
+  }
 
   /* Aggregate attendance */
   let basicHours = 0
@@ -240,6 +432,10 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   /* Salary calculation */
   let basicPay = 0
   let otPay = 0
+  const sundayAutopayHours = sundayAutopayDays * shiftHours
+  const sundayAutopayPay = +(sundayAutopayHours * hourlyRate).toFixed(2)
+  const festivalAutopayHours = festivalAutopayDays * shiftHours
+  const festivalAutopayPay = +(festivalAutopayHours * hourlyRate).toFixed(2)
 
   if (rule?.fixedSalary) {
     basicPay = employee.salary || 0
@@ -252,7 +448,11 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
       otPay = otHours * otRate
     }
   } else {
-    basicPay = basicHours * hourlyRate
+    // For variable salary employees, add Sunday autopay on top of
+    // worked-hour basic pay. We keep basicHours (frontend) based only
+    // on actual attendance; autopay hours are not merged into
+    // basicHours so hours display stays separate.
+    basicPay = basicHours * hourlyRate + sundayAutopayPay + festivalAutopayPay
     otPay = otHours * otRate
   }
 
@@ -382,6 +582,14 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     otHours: +otHours.toFixed(2),
     workingHrs: +basicHours.toFixed(2),
     overtimeHrs: +otHours.toFixed(2),
+
+    sundayAutopayDays,
+    sundayAutopayHours,
+    sundayAutopayPay,
+
+    festivalAutopayDays,
+    festivalAutopayHours,
+    festivalAutopayPay,
 
     basicPay: +basicPay.toFixed(2),
     otPay: +otPay.toFixed(2),
