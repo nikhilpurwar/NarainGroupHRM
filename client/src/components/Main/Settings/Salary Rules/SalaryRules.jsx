@@ -37,7 +37,7 @@ const defaultRule = {
   name: '',
   fixedSalary: false,
   allowFestivalOT: false,
-  allowDailyOT: false,
+  allowDayOT: false,
   allowSundayOT: false,
   allowNightOT: false,
   absenceDeduction: false,
@@ -51,7 +51,7 @@ const defaultRule = {
 
 const toggleFields = [
   { key: 'fixedSalary', label: 'Fixed Salary', icon: <MdOutlineCurrencyRupee />, description: 'Employee receives fixed salary regardless of attendance' },
-  { key: 'allowDailyOT', label: 'Daily OT Allowed', icon: <FiClock />, description: 'Allow daily overtime calculations' },
+  { key: 'allowDayOT', label: 'Day OT Allowed', icon: <FiClock />, description: 'Allow daily overtime calculations' },
   { key: 'allowFestivalOT', label: 'Festival OT Allowed', icon: <MdOutlineFestival />, description: 'Allow overtime on festival days' },
   { key: 'allowSundayOT', label: 'Sunday OT Allowed', icon: <FiSun />, description: 'Allow overtime on Sundays' },
   { key: 'allowNightOT', label: 'Night OT Allowed', icon: <FiMoon />, description: 'Allow night shift overtime' },
@@ -112,8 +112,8 @@ const SalaryRules = () => {
     if (activeFilters.allowOT !== null) {
       result = result.filter(rule =>
         activeFilters.allowOT
-          ? rule.allowDailyOT || rule.allowFestivalOT || rule.allowSundayOT || rule.allowNightOT
-          : !(rule.allowDailyOT || rule.allowFestivalOT || rule.allowSundayOT || rule.allowNightOT)
+          ? rule.allowDayOT || rule.allowFestivalOT || rule.allowSundayOT || rule.allowNightOT
+          : !(rule.allowDayOT || rule.allowFestivalOT || rule.allowSundayOT || rule.allowNightOT)
       )
     }
 
@@ -313,7 +313,7 @@ const SalaryRules = () => {
 
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
-                          {r.allowDailyOT && (
+                          {r.allowDayOT && (
                             <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Daily</span>
                           )}
                           {r.allowSundayOT && (
@@ -325,7 +325,7 @@ const SalaryRules = () => {
                           {r.allowNightOT && (
                             <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">Night</span>
                           )}
-                          {!r.allowDailyOT && !r.allowSundayOT && !r.allowFestivalOT && !r.allowNightOT && (
+                          {!r.allowDayOT && !r.allowSundayOT && !r.allowFestivalOT && !r.allowNightOT && (
                             <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">No OT</span>
                           )}
                         </div>

@@ -115,6 +115,16 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             basicPay,
             otHours,
             otPay,
+            // OT detail buckets from backend (for D/N/S/F view)
+            dayOtHours: it.dayOtHours || 0,
+            nightOtHours: it.nightOtHours || 0,
+            sundayOtHours: it.sundayOtHours || 0,
+            festivalOtHours: it.festivalOtHours || 0,
+            // OT allowance flags from SalaryRule (used to show crossed-out OT)
+            allowDayOT: it.allowDayOT,
+            allowNightOT: it.allowNightOT,
+            allowSundayOT: it.allowSundayOT,
+            allowFestivalOT: it.allowFestivalOT,
             totalHours,
             totalPay,
             autoPayAmount,

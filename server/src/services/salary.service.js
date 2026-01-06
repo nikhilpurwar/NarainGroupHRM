@@ -16,7 +16,7 @@ import { computeTotalsFromPunchLogs } from './attendance.service.js'
 const DEFAULT_SALARY_RULE = {
   fixedSalary: false,
   allowFestivalOT: true,
-  allowDailyOT: true,
+  allowDayOT: true,
   allowSundayOT: true,
   allowNightOT: true,
   absenceDeduction: true,
@@ -53,7 +53,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       fixedSalary: true,
       allowFestivalOT: false,
-      allowDailyOT: false,
+      allowDayOT: false,
       allowSundayOT: false,
       allowNightOT: false,
       absenceDeduction: false,
@@ -66,7 +66,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       fixedSalary: true,
       allowFestivalOT: false,
-      allowDailyOT: false,
+      allowDayOT: false,
       allowSundayOT: false,
       allowNightOT: true,
       absenceDeduction: false,
@@ -79,7 +79,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       fixedSalary: true,
       allowFestivalOT: true,
-      allowDailyOT: true,
+      allowDayOT: true,
       allowSundayOT: true,
       allowNightOT: true,
       absenceDeduction: true,
@@ -101,7 +101,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       fixedSalary: true,
       allowFestivalOT: true,
-      allowDailyOT: false,
+      allowDayOT: false,
       allowSundayOT: true,
       allowNightOT: true,
       absenceDeduction: true,
@@ -114,7 +114,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       ...DEFAULT_SALARY_RULE,
       fixedSalary: false,
-      allowDailyOT: false,
+      allowDayOT: false,
       oneHolidayPerMonth: true,
       shiftHours: 8
     }
@@ -124,7 +124,7 @@ export async function getSalaryRuleForSubDepartment(subDeptId) {
     return {
       fixedSalary: true,
       allowFestivalOT: false,
-      allowDailyOT: false,
+      allowDayOT: false,
       allowSundayOT: false,
       allowNightOT: false,
       absenceDeduction: false,
@@ -390,25 +390,71 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
 
   /* Aggregate attendance */
   let basicHours = 0
-  let otHours = 0
   let presentDays = 0
 
-    attendances.forEach((a) => {
-      let regular = a.regularHours || 0
-      let overtime = a.overtimeHours || 0
+  // Track OT by type so SalaryRule flags can be applied strictly
+  // Prefer per-day buckets stored on Attendance; fall back to recomputation if missing.
+  let dayOtHours = 0          // OT on normal working days (daytime)
+  let nightOtHours = 0        // OT during night window on normal days
+  let sundayOtHours = 0       // OT on weekends (Sunday/Saturday)
+  let festivalOtHours = 0     // OT on holidays
 
-      // If punch logs exist, recompute hours live so open IN punches
-      // are counted up to now (works for both variable and fixed salary).
-      if (Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
-        const totals = computeTotalsFromPunchLogs(a.punchLogs, shiftHours, { countOpenAsNow: true })
-        regular = totals.regularHours
-        overtime = totals.overtimeHours
+  attendances.forEach((a) => {
+    let regular = a.regularHours || 0
+    let overtime = a.overtimeHours || 0
+
+    let dayBucket = a.dayOtHours || 0
+    let nightBucket = a.nightOtHours || 0
+    let sundayBucket = a.sundayOtHours || 0
+    let festivalBucket = a.festivalOtHours || 0
+
+    // If punch logs exist and buckets are missing (older data), recompute live
+    if (Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
+      const totals = computeTotalsFromPunchLogs(
+        a.punchLogs,
+        shiftHours,
+        { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
+      )
+      regular = totals.regularHours
+      overtime = totals.overtimeHours
+
+      if (!a.dayOtHours && !a.nightOtHours && !a.sundayOtHours && !a.festivalOtHours) {
+        dayBucket = totals.dayOtHours
+        nightBucket = totals.nightOtHours
+        sundayBucket = totals.sundayOtHours
+        festivalBucket = totals.festivalOtHours
       }
+    }
 
-      basicHours += regular
-      otHours += overtime
-      if (a.status === 'present') presentDays++
+    basicHours += regular
+
+    if (dayBucket || nightBucket || sundayBucket || festivalBucket) {
+      dayOtHours += dayBucket
+      nightOtHours += nightBucket
+      sundayOtHours += sundayBucket
+      festivalOtHours += festivalBucket
+    } else if (overtime > 0) {
+      // Fallback for legacy records without buckets
+      if (a.isHoliday) {
+        festivalOtHours += overtime
+      } else if (a.isWeekend) {
+        sundayOtHours += overtime
+      } else {
+        dayOtHours += overtime
+      }
+    }
+
+    if (a.status === 'present') presentDays++
   })
+
+  // Apply OT rules strictly from SalaryRule
+  const payableOtHours =
+    (rule?.allowDayOT ? dayOtHours : 0) +
+    (rule?.allowNightOT ? nightOtHours : 0) +
+    (rule?.allowSundayOT ? sundayOtHours : 0) +
+    (rule?.allowFestivalOT ? festivalOtHours : 0)
+
+  const otHours = payableOtHours
 
   /* Rates */
   let hourlyRate = 0
@@ -426,7 +472,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   salaryPerHour = shiftHours ? +(salaryPerDay / shiftHours).toFixed(2) : 0
   hourlyRate = salaryPerHour
 
-  // Overtime rate is 1.5x the normal hourly rate
+  // Overtime rate is 1.0x the normal hourly rate (can be adjusted by policy)
   const otRate = hourlyRate * 1
 
   /* Salary calculation */
@@ -438,23 +484,19 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   const festivalAutopayPay = +(festivalAutopayHours * hourlyRate).toFixed(2)
 
   if (rule?.fixedSalary) {
+    // Fixed salary employees: basic pay is monthly salary only,
+    // OT is paid strictly based on allowed OT types above.
     basicPay = employee.salary || 0
-    if (
-      rule.allowDailyOT ||
-      rule.allowFestivalOT ||
-      rule.allowSundayOT ||
-      rule.allowNightOT
-    ) {
-      otPay = otHours * otRate
-    }
   } else {
     // For variable salary employees, add Sunday autopay on top of
     // worked-hour basic pay. We keep basicHours (frontend) based only
     // on actual attendance; autopay hours are not merged into
     // basicHours so hours display stays separate.
     basicPay = basicHours * hourlyRate + sundayAutopayPay + festivalAutopayPay
-    otPay = otHours * otRate
   }
+
+  // OT pay always computed from payable OT hours dictated by rules
+  otPay = otHours * otRate
 
   const totalPay = basicPay + otPay
 
@@ -575,11 +617,23 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
 
     salaryType: rule?.fixedSalary ? 'Fixed' : 'Variable',
 
+  // Expose OT allowance flags so frontend can show which
+  // OT buckets are actually payable vs just worked.
+  allowDayOT: !!(rule && rule.allowDayOT),
+  allowNightOT: !!(rule && rule.allowNightOT),
+  allowSundayOT: !!(rule && rule.allowSundayOT),
+  allowFestivalOT: !!(rule && rule.allowFestivalOT),
+
     presentDays,
     present: presentDays,
 
     basicHours: +basicHours.toFixed(2),
     otHours: +otHours.toFixed(2),
+    // Detailed OT buckets (hours)
+    dayOtHours: +dayOtHours.toFixed(2),
+    nightOtHours: +nightOtHours.toFixed(2),
+    sundayOtHours: +sundayOtHours.toFixed(2),
+    festivalOtHours: +festivalOtHours.toFixed(2),
     workingHrs: +basicHours.toFixed(2),
     overtimeHrs: +otHours.toFixed(2),
 

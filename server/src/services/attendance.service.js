@@ -168,11 +168,40 @@ export async function bulkUpsertAttendances(items = [], options = {}) {
   return res
 }
 
+// Internal helper: classify a single minute (Date object) into day/night based on time window
+// Night OT window is 20:00–06:00 local time as per business rule.
+function isNightMinute(dateObj) {
+  if (!(dateObj instanceof Date)) return false;
+  const h = dateObj.getHours();
+  return (h >= 20 || h < 6);
+}
+
 // Compute totals and last in/out from an array of punch logs
-// Returns { totalHours, regularHours, overtimeHours, lastInTime, lastOutTime, pairs }
-export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { countOpenAsNow = false, now = new Date() } = {}) {
+// Returns {
+//   totalHours, regularHours, overtimeHours,
+//   lastInTime, lastOutTime, pairs,
+//   totalMinutes, totalHoursDisplay, regularHoursDisplay, overtimeHoursDisplay,
+//   // OT buckets (hours):
+//   dayOtHours, nightOtHours, sundayOtHours, festivalOtHours
+// }
+export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { countOpenAsNow = false, now = new Date(), dayMeta = { isWeekend: false, isHoliday: false } } = {}) {
   if (!Array.isArray(punchLogs) || punchLogs.length === 0) {
-    return { totalHours: 0, regularHours: 0, overtimeHours: 0, lastInTime: null, lastOutTime: null, pairs: [] }
+    return {
+      totalHours: 0,
+      regularHours: 0,
+      overtimeHours: 0,
+      lastInTime: null,
+      lastOutTime: null,
+      pairs: [],
+      totalMinutes: 0,
+      totalHoursDisplay: '0h 0m',
+      regularHoursDisplay: '0h 0m',
+      overtimeHoursDisplay: '0h 0m',
+      dayOtHours: 0,
+      nightOtHours: 0,
+      sundayOtHours: 0,
+      festivalOtHours: 0,
+    }
   }
 
   // Ensure punchLogs are sorted by time asc
@@ -219,6 +248,36 @@ export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { cou
   const regularHours = totalHours <= shift ? totalHours : shift;
   const overtimeHours = totalHours > shift ? +(totalHours - shift).toFixed(2) : 0;
 
+   // Split overtimeMinutes into buckets based on day type + night window
+   const overtimeMinutes = Math.round(overtimeHours * 60);
+    let dayOtMinutes = 0;
+   let nightOtMinutes = 0;
+   let sundayOtMinutes = 0;
+   let festivalOtMinutes = 0;
+
+   if (overtimeMinutes > 0) {
+     const { isWeekend = false, isHoliday = false } = dayMeta || {};
+     if (isHoliday) {
+       festivalOtMinutes = overtimeMinutes;
+     } else if (isWeekend) {
+       sundayOtMinutes = overtimeMinutes;
+     } else {
+       // Normal working day 
+       // Split OT into night vs day based purely on punch times (no salary rules)
+       const refOut = lastOutTime || (pairs.length ? pairs[pairs.length - 1].out : null);
+       if (refOut) {
+         for (let i = 0; i < overtimeMinutes; i++) {
+           const m = new Date(refOut.getTime() - (i + 1) * 60000);
+           if (isNightMinute(m)) {
+             nightOtMinutes++;
+           }
+         }
+       }
+       // Whatever is not night OT on a normal working day is treated as day OT
+       dayOtMinutes = Math.max(0, overtimeMinutes - nightOtMinutes);
+     }
+   }
+
   // Helper: format minutes into "Xh Ym" string
   const formatMinutes = (mins) => {
     const h = Math.floor(mins / 60);
@@ -237,6 +296,10 @@ export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { cou
     totalHoursDisplay: formatMinutes(totalMinutes),
     regularHoursDisplay: formatMinutes(Math.round(regularHours * 60)),
     overtimeHoursDisplay: formatMinutes(Math.round(overtimeHours * 60)),
+    dayOtHours: +(dayOtMinutes / 60).toFixed(2),
+    nightOtHours: +(nightOtMinutes / 60).toFixed(2),
+    sundayOtHours: +(sundayOtMinutes / 60).toFixed(2),
+    festivalOtHours: +(festivalOtMinutes / 60).toFixed(2),
   };
 }
 
@@ -263,7 +326,21 @@ export async function autoMarkAbsentsForMonth(employeeId, year, month, { skipWee
 
     const existing = await Attendance.findOne({ employee: employeeId, date: { $gte: new Date(`${iso}T00:00:00Z`), $lte: new Date(`${iso}T23:59:59Z`) } })
     if (!existing) {
-      const doc = await Attendance.create({ employee: employeeId, date: day, status: 'absent', inTime: null, outTime: null, totalHours: 0, regularHours: 0, overtimeHours: 0, punchLogs: [], note: 'Auto-marked absent' })
+      const doc = await Attendance.create({
+        employee: employeeId,
+        date: day,
+        status: 'absent',
+        inTime: null,
+        outTime: null,
+        totalHours: 0,
+        regularHours: 0,
+        overtimeHours: 0,
+        nightOtHours: 0,
+        sundayOtHours: 0,
+        festivalOtHours: 0,
+        punchLogs: [],
+        note: 'Auto-marked absent'
+      })
       created.push(doc)
     }
   }
@@ -290,7 +367,10 @@ export default {
 // Utility: parse a date (YYYY-MM-DD) and time string into a Date object.
 export function parseDateTime(dateIso, timeStr) {
   if (!dateIso) return null
-  if (!timeStr) return new Date(dateIso + 'T00:00:00Z')
+  // Treat date/time as LOCAL time (server timezone), not UTC.
+  // This keeps night-OT detection (based on local hours) consistent
+  // with how users enter times like "08:00 am".
+  if (!timeStr) return new Date(dateIso + 'T00:00:00')
   // Normalize time string to HH:MM:SS 24-hour
   // Support formats: 'HH:MM', 'HH:MM:SS', 'hh:mm:ss AM/PM'
   try {
@@ -312,7 +392,7 @@ export function parseDateTime(dateIso, timeStr) {
       if (parts.length === 2) t = `${parts[0].padStart(2,'0')}:${parts[1].padStart(2,'0')}:00`
       if (parts.length === 1) t = `${parts[0].padStart(2,'0')}:00:00`
     }
-    const iso = `${dateIso}T${t}Z`
+    const iso = `${dateIso}T${t}`
     const dt = new Date(iso)
     if (Number.isNaN(dt.getTime())) return null
     return dt
@@ -377,6 +457,9 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
           totalHours: 0,
           regularHours: 0,
           overtimeHours: 0,
+          nightOtHours: 0,
+          sundayOtHours: 0,
+          festivalOtHours: 0,
           breakMinutes: 0,
           isWeekend: nextDayIsWeekend,
           isHoliday: false,

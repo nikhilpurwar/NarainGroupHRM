@@ -5,7 +5,6 @@ const SalaryTableRow = memo(({
   item,
   serialNumber,
   onView,
-  onPay,
   onDownloadPDF,
   onLoanDeductChange
 }) => {
@@ -100,7 +99,7 @@ const SalaryTableRow = memo(({
       <td className="px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 border">₹{item.basicPay?.toLocaleString() || '0'}</td>
 
       {/* ot hours */}
-      <td className="px-4 py-3 text-center bg-gray-50">
+      {/* <td className="px-4 py-3 text-center bg-gray-50">
         <div className="flex flex-col items-center">
           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
             {splitDaysHoursMinutes(item.otHours).d} Shift
@@ -111,6 +110,71 @@ const SalaryTableRow = memo(({
           <span className="text-xs text-gray-500 whitespace-nowrap">
             ({item.otHours}H)
           </span>
+        </div>
+      </td> */}
+
+      {/* OT breakdown (D/N/S/F) */}
+      <td className="bg-gray-50 text-sm px-2 ">
+        <div className="inline-flex flex-col min-w-[110px]">
+          <div className="flex items-center justify-between text-sm font-semibold text-gray-500 border-b border-gray-300 pb-1 mb-1">
+            <span className="flex-1 text-center">D</span>
+            <span className="flex-1 text-center">N</span>
+            <span className="flex-1 text-center">S</span>
+            <span className="flex-1 text-center">F</span>
+          </div>
+          {(() => {
+            const dayOt = Number(item.dayOtHours || 0);
+            const nightOt = Number(item.nightOtHours || 0);
+            const sundayOt = Number(item.sundayOtHours || 0);
+            const festivalOt = Number(item.festivalOtHours || 0);
+
+            const allowDayOT = item.allowDayOT !== false;
+            const allowNightOT = item.allowNightOT !== false;
+            const allowSundayOT = item.allowSundayOT !== false;
+            const allowFestivalOT = item.allowFestivalOT !== false;
+
+            const totalOt = (dayOt + nightOt + sundayOt + festivalOt).toFixed(2);
+            const payableOt = Number(item.otHours || 0).toFixed(2);
+
+            return (
+              <>
+                <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-800 divide-x divide-gray-300">
+                  <span
+                    className={`px-1 flex-1 text-center ${(!allowDayOT && dayOt > 0) ? 'line-through text-gray-400' : ''}`}
+                    title={!allowDayOT && dayOt > 0 ? 'Not paid due to salary rule' : undefined}
+                  >
+                    {dayOt.toFixed(2)}
+                  </span>
+                  <span
+                    className={`px-1 flex-1 text-center text-indigo-600 ${(!allowNightOT && nightOt > 0) ? 'line-through text-gray-400' : ''}`}
+                    title={!allowNightOT && nightOt > 0 ? 'Not paid due to salary rule' : undefined}
+                  >
+                    {nightOt.toFixed(2)}
+                  </span>
+                  <span
+                    className={`px-1 flex-1 text-center text-emerald-600 ${(!allowSundayOT && sundayOt > 0) ? 'line-through text-gray-400' : ''}`}
+                    title={!allowSundayOT && sundayOt > 0 ? 'Not paid due to salary rule' : undefined}
+                  >
+                    {sundayOt.toFixed(2)}
+                  </span>
+                  <span
+                    className={`px-1 flex-1 text-center text-orange-600 ${(!allowFestivalOT && festivalOt > 0) ? 'line-through text-gray-400' : ''}`}
+                    title={!allowFestivalOT && festivalOt > 0 ? 'Not paid due to salary rule' : undefined}
+                  >
+                    {festivalOt.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-300 pt-1">
+                  <span className="font-semibold">Total</span>
+                  <span className="ml-auto font-semibold text-gray-800">{totalOt}h</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-gray-500 pt-0.5">
+                  <span className="font-semibold">Payable</span>
+                  <span className="ml-auto font-semibold text-gray-800">{payableOt}h</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </td>
 

@@ -51,7 +51,8 @@ export const attendanceReport = async (req, res) => {
 
         const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
 
-        // Ensure each attendance doc has computed totals and last in/out based on punchLogs
+        // Ensure each attendance doc has computed totals and last in/out based on punchLogs,
+        // including OT buckets.
         for (let i = 0; i < atts.length; i++) {
           const a = atts[i];
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
@@ -74,7 +75,7 @@ export const attendanceReport = async (req, res) => {
             const computed = attendanceService.computeTotalsFromPunchLogs(
               a.punchLogs,
               shiftHours,
-              { countOpenAsNow: true }
+              { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
             );
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
@@ -83,6 +84,10 @@ export const attendanceReport = async (req, res) => {
             a.totalHoursDisplay = computed.totalHoursDisplay;
             a.regularHoursDisplay = computed.regularHoursDisplay;
             a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+            a.dayOtHours = computed.dayOtHours;
+            a.nightOtHours = computed.nightOtHours;
+            a.sundayOtHours = computed.sundayOtHours;
+            a.festivalOtHours = computed.festivalOtHours;
             a._computedPairs = computed.pairs;
           }
         }
@@ -185,8 +190,9 @@ export const attendanceReport = async (req, res) => {
     endDate.setSeconds(endDate.getSeconds() - 1);
 
     const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
-    // Ensure each attendance doc has computed totals and last in/out based on punchLogs
-        for (let i = 0; i < atts.length; i++) {
+    // Ensure each attendance doc has computed totals and last in/out based on punchLogs,
+    // including OT buckets.
+    for (let i = 0; i < atts.length; i++) {
       const a = atts[i];
       if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
         const shiftCfg = await attendanceService.getShiftConfig();
@@ -208,7 +214,7 @@ export const attendanceReport = async (req, res) => {
         const computed = attendanceService.computeTotalsFromPunchLogs(
           a.punchLogs,
           shiftHours,
-          { countOpenAsNow: true }
+          { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
         );
         a.totalHours = computed.totalHours;
         a.regularHours = computed.regularHours;
@@ -217,6 +223,10 @@ export const attendanceReport = async (req, res) => {
         a.totalHoursDisplay = computed.totalHoursDisplay;
         a.regularHoursDisplay = computed.regularHoursDisplay;
         a.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+        a.dayOtHours = computed.dayOtHours;
+        a.nightOtHours = computed.nightOtHours;
+        a.sundayOtHours = computed.sundayOtHours;
+        a.festivalOtHours = computed.festivalOtHours;
         a._computedPairs = computed.pairs;
       }
     }
@@ -417,7 +427,11 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
         shiftHours_exist = shiftCfg_exist.shiftHours;
       }
       if (!shiftHours_exist) shiftHours_exist = 8;
-      const computed = attendanceService.computeTotalsFromPunchLogs(existingAttendance.punchLogs, shiftHours_exist);
+      const computed = attendanceService.computeTotalsFromPunchLogs(
+        existingAttendance.punchLogs,
+        shiftHours_exist,
+        { countOpenAsNow: true, dayMeta: { isWeekend: existingAttendance.isWeekend, isHoliday: existingAttendance.isHoliday } }
+      );
       existingAttendance.totalHours = computed.totalHours;
       existingAttendance.regularHours = computed.regularHours;
       existingAttendance.overtimeHours = computed.overtimeHours;
@@ -425,6 +439,10 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       existingAttendance.totalHoursDisplay = computed.totalHoursDisplay;
       existingAttendance.regularHoursDisplay = computed.regularHoursDisplay;
       existingAttendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+      existingAttendance.dayOtHours = computed.dayOtHours;
+      existingAttendance.nightOtHours = computed.nightOtHours;
+      existingAttendance.sundayOtHours = computed.sundayOtHours;
+      existingAttendance.festivalOtHours = computed.festivalOtHours;
       await existingAttendance.save();
       
       // Record punch in debounce cache
@@ -481,6 +499,7 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       overtimeHoursDisplay: '0h 0m',
       regularHours: 0,
       overtimeHours: 0,
+      dayOtHours: 0,
       breakMinutes: 0,
       isWeekend,
       isHoliday: false,
@@ -554,7 +573,11 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
       shiftHours_out = shiftCfg_out.shiftHours;
     }
     if (!shiftHours_out) shiftHours_out = 8;
-    const computed = attendanceService.computeTotalsFromPunchLogs(attendance.punchLogs, shiftHours_out);
+    const computed = attendanceService.computeTotalsFromPunchLogs(
+      attendance.punchLogs,
+      shiftHours_out,
+      { dayMeta: { isWeekend: attendance.isWeekend, isHoliday: attendance.isHoliday } }
+    );
     const totalHours = computed.totalHours;
     const regularHours = computed.regularHours;
     const overtimeHours = computed.overtimeHours;
@@ -566,6 +589,10 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     attendance.totalHoursDisplay = computed.totalHoursDisplay;
     attendance.regularHoursDisplay = computed.regularHoursDisplay;
     attendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+    attendance.dayOtHours = computed.dayOtHours;
+    attendance.nightOtHours = computed.nightOtHours;
+    attendance.sundayOtHours = computed.sundayOtHours;
+    attendance.festivalOtHours = computed.festivalOtHours;
     attendance.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.inTime;
     attendance.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.outTime;
     attendance.note = `Punch OUT via barcode scanner | Total: ${computed.totalHoursDisplay} | Regular: ${computed.regularHoursDisplay} | OT: ${computed.overtimeHoursDisplay}`;
