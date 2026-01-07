@@ -366,7 +366,7 @@ const DailySalary = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-sm border border-blue-200 p-4">
+        <div className="card-hover bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-sm border border-blue-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-blue-600 font-medium">Total Payable</p>
@@ -380,7 +380,7 @@ const DailySalary = () => {
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-4">
+        <div className="card-hover bg-gradient-to-r from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-green-600 font-medium">Total Overtime</p>
@@ -394,7 +394,7 @@ const DailySalary = () => {
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl shadow-sm border border-purple-200 p-4">
+        <div className="card-hover bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl shadow-sm border border-purple-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-purple-600 font-medium">Total Employees</p>
@@ -408,7 +408,7 @@ const DailySalary = () => {
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl shadow-sm border border-yellow-200 p-4">
+        <div className="card-hover bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl shadow-sm border border-yellow-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-yellow-600 font-medium">Total Working Hours</p>

@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, ListRestart } from 'lucide-react';
 import SalaryTableRow from './SalaryTableRow';
 
 const SalaryTable = memo(({
@@ -12,10 +12,11 @@ const SalaryTable = memo(({
   onViewDetails,
   onPay,
   onDownloadPDF,
-  onLoanDeductChange
+  onLoanDeductChange,
+  onRecalculate
 }) => {
 
-  if (loading ) {
+  if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-4 py-4 border-b bg-gray-50">
@@ -45,8 +46,16 @@ const SalaryTable = memo(({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="px-4 py-4 border-b bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-4 border-b bg-gray-50">
         <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
+        <button
+          type="button"
+          title='Recalculate Monthly Salary'
+          className='button-hover'
+          onClick={onRecalculate}
+        >
+          <ListRestart className="inline-block " size={26} />
+        </button>
       </div>
 
       <div className="overflow-x-auto">

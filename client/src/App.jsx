@@ -6,8 +6,9 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 import { HierarchyProvider } from './context/HierarchyContext'
-import Login from './components/Login'
-import SignUp from './components/SignUp'
+import Login from './components/Auth/Login'
+import SignUp from './components/Auth/SignUp'
+// import ChangePassword from './components/Auth/ChangePassword'
 import Layout from './components/Layout/Layout'
 import Dashboard from './components/Main/Dashboard/Dashboard'
 import AllEmployees from './components/Main/All Employees/AllEmployees'
@@ -31,14 +32,71 @@ import SalaryRules from './components/Main/Settings/Salary Rules/SalaryRules'
 import AddEditEmployee from './components/Main/All Employees/components/AddEditEmployee'
 
 function App() {
+  const RequireAuth = ({ children }) => {
+    if (typeof window === 'undefined') return children
+
+    let token = null
+    try {
+      const sessionToken = sessionStorage.getItem('token')
+      const expiresAt = sessionStorage.getItem('expiresAt')
+      if (sessionToken) {
+        if (expiresAt && Date.now() > Number(expiresAt)) {
+          // session expired - clear session storage
+          sessionStorage.removeItem('token')
+          sessionStorage.removeItem('user')
+          sessionStorage.removeItem('expiresAt')
+        } else {
+          token = sessionToken
+        }
+      }
+      if (!token) {
+        token = localStorage.getItem('token')
+      }
+    } catch {
+      token = null
+    }
+
+    if (!token) return <Navigate to="/login" replace />
+    return children
+  }
+
+  const RequireGuest = ({ children }) => {
+    if (typeof window === 'undefined') return children
+
+    let token = null
+    try {
+      const sessionToken = sessionStorage.getItem('token')
+      const expiresAt = sessionStorage.getItem('expiresAt')
+      if (sessionToken) {
+        if (expiresAt && Date.now() > Number(expiresAt)) {
+          // expired - clear session storage so guest can see login
+          sessionStorage.removeItem('token')
+          sessionStorage.removeItem('user')
+          sessionStorage.removeItem('expiresAt')
+        } else {
+          token = sessionToken
+        }
+      }
+      if (!token) {
+        token = localStorage.getItem('token')
+      }
+    } catch {
+      token = null
+    }
+
+    if (token) return <Navigate to="/" replace />
+    return children
+  }
+
   return (
     <HierarchyProvider>
       <Router>
         <ToastContainer position="top-right" autoClose={3000} />
         <Routes>
-          <Route path="/login" element={<Login />}></Route>
-          <Route path="/signup" element={<SignUp />}></Route>
-          <Route path="/" element={<Layout />}>
+          <Route path="/login" element={<RequireGuest><Login /></RequireGuest>}></Route>
+          <Route path="/signup" element={<RequireGuest><SignUp /></RequireGuest>}></Route>
+          {/* <Route path="/change-password" element={<ChangePassword />}></Route> */}
+          <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/employees" element={<AllEmployees />} />

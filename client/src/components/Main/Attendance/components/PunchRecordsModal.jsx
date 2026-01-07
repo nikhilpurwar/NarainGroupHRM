@@ -32,7 +32,7 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-2xl p-6 relative max-h-[80vh] overflow-y-auto">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-2xl p-6 relative max-h-[80vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4 mb-4">

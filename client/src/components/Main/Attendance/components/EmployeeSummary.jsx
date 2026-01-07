@@ -59,7 +59,7 @@ const EmployeeSummary = ({ emp, isMobile }) => {
 
   // Desktop/Tablet View
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-b-xl shadow p-4 sm:p-6 mb-4 border border-blue-200">
+    <div className="card-hover bg-gradient-to-r from-blue-50 to-purple-50 rounded-b-xl shadow p-4 sm:p-6 mb-4 border border-blue-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* ID Card */}

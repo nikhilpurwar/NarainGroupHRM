@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react"
 import { NavLink, useNavigate, useLocation } from "react-router-dom"
+import axios from "axios"
 
 const Sidebar = ({ isCollapsed }) => {
   const [open, setOpen] = useState({
@@ -16,7 +17,11 @@ const Sidebar = ({ isCollapsed }) => {
 
   const storedUser =
     typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
+      ? JSON.parse(
+          sessionStorage.getItem("user") ||
+          localStorage.getItem("user") ||
+          "null"
+        )
       : null
 
   const role = storedUser?.role
@@ -80,9 +85,17 @@ const Sidebar = ({ isCollapsed }) => {
   /* ---------------- LOGOUT ---------------- */
 
   const doLogout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    navigate("/login")
+    try {
+      // Clear tokens and user details from both storages
+      localStorage.removeItem("token")
+      localStorage.removeItem("user")
+      sessionStorage.removeItem("token")
+      sessionStorage.removeItem("user")
+      try { delete axios.defaults.headers.common["Authorization"] } catch {}
+      navigate("/login")
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   /* ---------------- RENDER ---------------- */

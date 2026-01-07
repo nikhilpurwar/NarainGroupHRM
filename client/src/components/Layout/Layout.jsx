@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import Main from '../Main/Main'
@@ -7,6 +8,7 @@ import Main from '../Main/Main'
 const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const location = useLocation()
+  const navigate = useNavigate()
 
   const pageConfig = {
     dashboard: { path: '/dashboard', title: 'Dashboard', subtitle: 'Overview' },
@@ -40,6 +42,30 @@ const Layout = () => {
   const currentTopbar = match
     ? { title: match.title, subtitle: match.subtitle }
     : { title: 'Admin Panel', subtitle: '' }
+
+  // Auto-logout after 2 minutes for non-persistent sessions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        if (typeof window === 'undefined') return
+        const expiresAt = sessionStorage.getItem('expiresAt')
+        const sessionToken = sessionStorage.getItem('token')
+        if (sessionToken && expiresAt && Date.now() > Number(expiresAt)) {
+          sessionStorage.removeItem('token')
+          sessionStorage.removeItem('user')
+          sessionStorage.removeItem('expiresAt')
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          try { delete axios.defaults.headers.common['Authorization'] } catch {}
+          navigate('/login')
+        }
+      } catch (e) {
+        console.error('Auto-logout check failed', e)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [navigate])
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100">

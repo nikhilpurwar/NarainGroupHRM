@@ -36,6 +36,8 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
 
   if (!isOpen) return null
 
+  const isTodaySelected = date === todayIso
+
   const buildAmPmTime = (hourStr, minuteStr, meridiem) => {
     if (!hourStr) return ''
     const hNum = Number(hourStr)
@@ -65,7 +67,10 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     }
 
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
-    const outTime = outHour ? buildAmPmTime(outHour, outMinute, outMeridiem) : ''
+    // For current date, do not allow or send Punch-Out time
+    const outTime = !isTodaySelected && outHour
+      ? buildAmPmTime(outHour, outMinute, outMeridiem)
+      : ''
 
     try {
       setSubmitting(true)
@@ -77,7 +82,7 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4 mb-8">
           <h2 className="text-xl font-semibold">Add Attendance (Past Date)</h2>
@@ -121,7 +126,16 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={date}
               max={todayIso}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                const newDate = e.target.value
+                setDate(newDate)
+                // Clear any previously entered Punch-Out when switching to today
+                if (newDate === todayIso) {
+                  setOutHour('')
+                  setOutMinute('00')
+                  setOutMeridiem('PM')
+                }
+              }}
             />
           </div>
 
@@ -169,9 +183,10 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
               </label>
               <div className="flex items-center gap-2">
                 <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   value={outHour}
                   onChange={(e) => setOutHour(e.target.value)}
+                  disabled={isTodaySelected}
                 >
                   <option value="">HH</option>
                   {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => (
@@ -180,18 +195,20 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
                 </select>
                 <span className="text-gray-600">:</span>
                 <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   value={outMinute}
                   onChange={(e) => setOutMinute(e.target.value)}
+                  disabled={isTodaySelected}
                 >
                   {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
                 <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   value={outMeridiem}
                   onChange={(e) => setOutMeridiem(e.target.value)}
+                  disabled={isTodaySelected}
                 >
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>

@@ -51,8 +51,14 @@ export const attendanceReport = async (req, res) => {
 
         const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
 
+        // Normalize "today" once for clamping open IN punches on past days
+        const todayForClamp = new Date();
+        todayForClamp.setHours(0, 0, 0, 0);
+
         // Ensure each attendance doc has computed totals and last in/out based on punchLogs,
-        // including OT buckets.
+        // including OT buckets. For past days with an open IN, we clamp the
+        // calculation at the end of that attendance day (next day at boundary hour)
+        // instead of letting it grow until the current time.
         for (let i = 0; i < atts.length; i++) {
           const a = atts[i];
           if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
@@ -72,10 +78,30 @@ export const attendanceReport = async (req, res) => {
               shiftHours = shiftCfg.shiftHours;
             }
             if (!shiftHours) shiftHours = 8;
+
+            // Determine the reference "now" for this attendance: for past days,
+            // cap at the end of that attendance day (next day at boundary hour)
+            // so continuous IN does not keep increasing OT across days.
+            const attendanceDate = a.date ? new Date(a.date) : null;
+            let nowForThisAttendance = new Date();
+            if (attendanceDate) {
+              const dayStart = new Date(attendanceDate);
+              dayStart.setHours(0, 0, 0, 0);
+              if (dayStart < todayForClamp) {
+                const boundaryHour = (typeof shiftCfg.boundaryHour === 'number' && shiftCfg.boundaryHour >= 0 && shiftCfg.boundaryHour <= 23)
+                  ? shiftCfg.boundaryHour
+                  : 7;
+                const endOfAttendanceDay = new Date(dayStart);
+                endOfAttendanceDay.setDate(endOfAttendanceDay.getDate() + 1);
+                endOfAttendanceDay.setHours(boundaryHour, 0, 0, 0);
+                nowForThisAttendance = endOfAttendanceDay;
+              }
+            }
+
             const computed = attendanceService.computeTotalsFromPunchLogs(
               a.punchLogs,
               shiftHours,
-              { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
+              { countOpenAsNow: true, now: nowForThisAttendance, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
             );
             a.totalHours = computed.totalHours;
             a.regularHours = computed.regularHours;
@@ -190,8 +216,13 @@ export const attendanceReport = async (req, res) => {
     endDate.setSeconds(endDate.getSeconds() - 1);
 
     const { docs: atts } = await attendanceService.getMonthlyAttendances(emp._id, queryYear, queryMonth, { page: 1, limit: 1000 });
+
+    // Normalize today for clamping open IN on past days
+    const todayForClamp = new Date();
+    todayForClamp.setHours(0, 0, 0, 0);
+
     // Ensure each attendance doc has computed totals and last in/out based on punchLogs,
-    // including OT buckets.
+    // including OT buckets. Clamp open IN for past days at end-of-attendance-day.
     for (let i = 0; i < atts.length; i++) {
       const a = atts[i];
       if (a && Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
@@ -211,10 +242,27 @@ export const attendanceReport = async (req, res) => {
           shiftHours = shiftCfg.shiftHours;
         }
         if (!shiftHours) shiftHours = 8;
+
+        const attendanceDate = a.date ? new Date(a.date) : null;
+        let nowForThisAttendance = new Date();
+        if (attendanceDate) {
+          const dayStart = new Date(attendanceDate);
+          dayStart.setHours(0, 0, 0, 0);
+          if (dayStart < todayForClamp) {
+            const boundaryHour = (typeof shiftCfg.boundaryHour === 'number' && shiftCfg.boundaryHour >= 0 && shiftCfg.boundaryHour <= 23)
+              ? shiftCfg.boundaryHour
+              : 7;
+            const endOfAttendanceDay = new Date(dayStart);
+            endOfAttendanceDay.setDate(endOfAttendanceDay.getDate() + 1);
+            endOfAttendanceDay.setHours(boundaryHour, 0, 0, 0);
+            nowForThisAttendance = endOfAttendanceDay;
+          }
+        }
+
         const computed = attendanceService.computeTotalsFromPunchLogs(
           a.punchLogs,
           shiftHours,
-          { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
+          { countOpenAsNow: true, now: nowForThisAttendance, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
         );
         a.totalHours = computed.totalHours;
         a.regularHours = computed.regularHours;

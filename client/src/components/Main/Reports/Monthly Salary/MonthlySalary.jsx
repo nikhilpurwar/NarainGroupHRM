@@ -43,7 +43,7 @@ const SalarySummaryStats = memo(({ salaryData, summary, totalRecords }) => {
     : 0;
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="card-hover bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">Total Payroll</p>
@@ -57,7 +57,7 @@ const SalarySummaryStats = memo(({ salaryData, summary, totalRecords }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="card-hover bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">Total Deductions</p>
@@ -71,7 +71,7 @@ const SalarySummaryStats = memo(({ salaryData, summary, totalRecords }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="card-hover bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">Net Payable</p>
@@ -85,7 +85,7 @@ const SalarySummaryStats = memo(({ salaryData, summary, totalRecords }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border p-4">
+      <div className="card-hover bg-white rounded-xl shadow-sm border p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">Average Salary</p>
@@ -209,6 +209,33 @@ const MonthlySalary = () => {
     }
   };
 
+  // Trigger backend monthly salary calculation and refresh data
+  const handleRecalculate = async () => {
+    if (!filters.month || !filters.year) {
+      toast.error('Please select month and year before recalculating');
+      return;
+    }
+    try {
+      const payload = { month: `${filters.year}-${filters.month}` };
+      const res = await axios.post(`${API_URL}/api/salary/monthly/calculate`, payload);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to recalculate salary');
+      }
+      toast.success('Monthly salary recalculated successfully');
+      // Refresh data
+      checkDataExists().then(exists => {
+        if (exists) {
+          fetchSalaryData();
+        } else {
+          setSalaryData([]);
+        }
+      });
+    } catch (error) {
+      console.error('Error recalculating monthly salary:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to recalculate salary');
+    }
+  };
+
   // Handle export
   const handleExportExcel = () => {
     exportToExcel(salaryData, filters);
@@ -266,6 +293,7 @@ const MonthlySalary = () => {
         onPay={handlePay}
         onDownloadPDF={handleDownloadEmployeePDF}
         onLoanDeductChange={handleLoanDeductChange}
+        onRecalculate={handleRecalculate}
       />
 
       {/* Pagination */}

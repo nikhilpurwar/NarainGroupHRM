@@ -130,7 +130,7 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 main-scroll">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 main-scroll">
 
         {/* HEADER */}
         <div className="flex justify-between items-center border-b pb-3 sticky top-0 bg-white z-10">

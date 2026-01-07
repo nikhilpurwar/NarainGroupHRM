@@ -160,7 +160,7 @@ const AttendanceFilter = ({ filters, setFilters, onSearch, reportData, isMobile 
 
   // Desktop/Tablet View
   return (
-    <div className="bg-gray-900 rounded-t-xl shadow p-4 overflow-x-auto border border-blue-200">
+    <div className="card-hover bg-gray-900 rounded-t-xl shadow p-4 overflow-x-auto border border-blue-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-3 min-w-max lg:min-w-full">
         {/* Month Dropdown */}
         <div className="col-span-2 relative group">
