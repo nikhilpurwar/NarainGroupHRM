@@ -82,7 +82,7 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4 mb-8">
           <h2 className="text-xl font-semibold">Add Attendance (Past Date)</h2>

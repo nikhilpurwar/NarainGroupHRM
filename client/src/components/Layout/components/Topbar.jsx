@@ -1,20 +1,122 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CgMenuLeft } from "react-icons/cg";
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { FaUserAlt, FaCaretDown, FaCaretUp } from "react-icons/fa";
+import ChangePassword from "../../Auth/ChangePassword";
 
 const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     const [open, setOpen] = useState(false);
+    const [userName, setUserName] = useState("");
+    const [userEmail, setUserEmail] = useState("");
+    const [avatarUrl, setAvatarUrl] = useState("");
+    const [employeeId, setEmployeeId] = useState("");
+    const [showChangePassword, setShowChangePassword] = useState(false);
+    const [greeting, setGreeting] = useState("");
+    const dropdownRef = useRef(null);
 
     const navigate = useNavigate()
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+
+    useEffect(() => {
+        try {
+            if (typeof window === 'undefined') return
+            const stored = sessionStorage.getItem('user') || localStorage.getItem('user')
+            if (stored) {
+                const parsed = JSON.parse(stored)
+                setUserName(parsed?.name || "")
+                setUserEmail(parsed?.email || "")
+            }
+        } catch (e) {
+            console.error('Failed to read user from storage', e)
+        }
+    }, [])
+
+    useEffect(() => {
+        const fetchEmployeeAvatar = async () => {
+            if (!userEmail) return
+            try {
+                const token = typeof window !== 'undefined'
+                    ? (sessionStorage.getItem('token') || localStorage.getItem('token'))
+                    : null
+                const res = await fetch(`${API_URL}/api/employees`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                })
+                const data = await res.json()
+                if (!res.ok || !data?.success) return
+
+                const employees = Array.isArray(data.data) ? data.data : []
+                const emp = employees.find(e => e.empId === userEmail || e.email === userEmail)
+                if (emp) {
+                    setEmployeeId(emp._id || "")
+                    if (emp.avatar) {
+                        setAvatarUrl(emp.avatar)
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch employee avatar', e)
+            }
+        }
+
+        fetchEmployeeAvatar()
+    }, [API_URL, userEmail])
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setOpen(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [])
 
     const doLogout = () => {
         try {
             localStorage.removeItem('token')
             localStorage.removeItem('user')
-            try { window.axios && (window.axios.defaults.headers.common.Authorization = '') } catch {}
+            sessionStorage.removeItem('token')
+            sessionStorage.removeItem('user')
+            try { delete axios.defaults.headers.common['Authorization'] } catch { }
             navigate('/login')
         } catch (e) { console.error(e) }
     }
+
+    const getGreetingByTime = () => {
+        const hour = new Date().getHours();
+
+        if (hour >= 5 && hour < 12) return { key: 'morning', text: 'Good Morning' };
+        if (hour >= 12 && hour < 17) return { key: 'noon', text: 'Good Afternoon' };
+        return { key: 'evening', text: 'Good Evening' };
+    };
+
+    useEffect(() => {
+        if (!userName) return;
+
+        const { key, text } = getGreetingByTime();
+        const sessionKey = `greeted_${key}`;
+
+        // already greeted in this time slot
+        if (sessionStorage.getItem(sessionKey)) return;
+
+        const firstName = userName.split(" ")[0];
+        setGreeting(`${text}, ${firstName} Sir`);
+
+        sessionStorage.setItem(sessionKey, 'true');
+
+        // auto hide greeting after 6 seconds
+        const timer = setTimeout(() => setGreeting(""), 6000);
+        return () => clearTimeout(timer);
+    }, [userName]);
+
+
 
     return (
         <div className="w-full bg-gray-900 text-white border-b shadow-sm">
@@ -36,35 +138,78 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                     </div>
                 </div>
 
+                {/* Center Greeting */}
+                <div className="absolute left-1/2 transform -translate-x-1/2">
+                    {greeting && (
+                        <div className="px-6 py-2 rounded-xl
+            bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600
+            text-white font-extrabold text-lg tracking-wide
+            shadow-[0_10px_30px_rgba(0,0,0,0.6)]
+            animate-fadeInUp
+            transform-gpu
+            hover:scale-105
+            transition-all duration-300
+            [text-shadow:2px_2px_6px_rgba(0,0,0,0.6)]
+        ">
+                            {greeting}
+                        </div>
+                    )}
+                </div>
+
                 {/* Right side with user menu */}
-                <div className="relative">
+                <div className="relative" ref={dropdownRef}>
                     <button
                         onClick={() => setOpen(!open)}
-                        className="flex items-center focus:outline-none"
+                        className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-indigo-700 hover:to-purple-700 transition-transform transition-shadow duration-150"
                     >
-                        <span className="relative w-10 h-10 rounded-full overflow-hidden borde border-gray-300">
-                            <img
-                                src="http://iudo.in/hrm/public/uploads/1759752557_profile.jpg"
-                                alt="User"
-                                className="w-full h-full object-cover"
-                            />
-                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+                        <button>
+                            {open ? <FaCaretUp size={16} className="text-white" /> : <FaCaretDown size={16} className="text-white" />}
+                        </button>
+                        {userName && (
+                            <span className="mr-2 text-md font-bold text-white drop-shadow-sm hidden sm:inline">
+                                {userName}
+                            </span>
+                        )}
+                        <span className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-500 flex items-center justify-center bg-gradient-to-br from-gray-700 via-gray-900 to-black shadow-inner">
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt={userName || 'User'}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <FaUserAlt className="text-gray-200 text-lg" />
+                            )}
+                            {/* <span className="absolute bottom-0 right-0  w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span> */}
                         </span>
+
                     </button>
 
                     {/* Dropdown menu */}
                     {open && (
-                        <div className="absolute right-0 top-14 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                        <div className="absolute right-0.5 top-15.5 w-52 bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50 transform origin-top-right animate-dropdown">
                             <div className="py-1">
-                                <a
-                                    href="http://iudo.in/hrm/user-profile/1"
-                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                <button
+                                    onClick={() => {
+                                        if (employeeId) {
+                                            setOpen(false);
+                                            navigate(`/profile/${employeeId}`);
+                                        }
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:rounded-xl disabled:text-gray-400 disabled:cursor-not-allowed"
+                                    disabled={!employeeId}
                                 >
                                     My Profile
-                                </a>
+                                </button>
+                                <button
+                                    onClick={() => { setOpen(false); setShowChangePassword(true); }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:rounded-xl"
+                                >
+                                    Change Password
+                                </button>
                                 <button
                                     onClick={doLogout}
-                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-200 hover:rounded-xl"
                                 >
                                     Logout
                                 </button>
@@ -73,6 +218,11 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                     )}
                 </div>
             </div>
+            <ChangePassword
+                isOpen={showChangePassword}
+                onClose={() => setShowChangePassword(false)}
+                initialEmail={userEmail}
+            />
         </div>
     );
 };

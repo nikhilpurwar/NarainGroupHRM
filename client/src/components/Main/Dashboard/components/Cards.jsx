@@ -2,7 +2,7 @@ import React from 'react'
 
 const Cards = ({ title, icon, present, absent }) => {
   return (
-    <div className='flex flex-col gap-2 bg-gray-200 shadow-md p-4 rounded-lg'>
+    <div className='card-hover flex flex-col gap-2 bg-gray-200 shadow-md p-4 rounded-lg'>
       <div className='flex justify-between'>
         <div className="flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full">
           <i className={`fas ${icon} text-2xl text-gray-700`}></i>

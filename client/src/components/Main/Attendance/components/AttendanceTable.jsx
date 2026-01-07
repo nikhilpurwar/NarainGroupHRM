@@ -213,7 +213,7 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
 
   // Desktop/Tablet View
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow overflow-auto border border-blue-200">
+    <div className="card-hover bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow overflow-auto border border-blue-200">
 
       {/* Shows total Present and Absent of seleted month and year from filter */}
       {/* compute present/absent from Status row (ignore holidays) */}

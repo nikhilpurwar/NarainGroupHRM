@@ -333,7 +333,7 @@ const Attendance = () => {
             <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
-              className="flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
+              className="button-hover flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
             >
               <IoMdAddCircle size={30} className="inline mr-1" />
               Add Attendance

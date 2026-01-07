@@ -148,7 +148,7 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
 
     if (isMobile) {
         return (
-            <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <div className="card-hover bg-white rounded-lg shadow p-4 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700">Monthly Summary</h3>
                 {monthLabel && (
                     <div className="text-[11px] text-gray-500 mb-3">Selected month: {monthLabel} {yearLabel}</div>

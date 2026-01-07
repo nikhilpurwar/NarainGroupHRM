@@ -78,7 +78,7 @@ const ViewAdvance = ({ data, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl ">
+      <div className="card-hover bg-white rounded-2xl shadow-2xl w-full max-w-4xl ">
         
         {/* HEADER */}
         <div className="rounded-t-2xl sticky top-0 bg-gray-900 z-10 border-b p-6">

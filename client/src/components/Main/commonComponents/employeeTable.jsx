@@ -156,7 +156,7 @@ const EmployeeTable = ({
     return (
         <div>
             {showFilters && (
-                <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
+                <div className="card-hover bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
                     <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
                         {/* Search Input */}
                         <div className="relative col-span-2">
@@ -280,7 +280,7 @@ const EmployeeTable = ({
                         <p className="text-center py-6 text-gray-500">Loading employees...</p>
                     </div>
                 ) : (
-                    <table className="w-full min-w-7xl table-auto">
+                    <table className="card-hover w-full min-w-7xl table-auto">
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
                                 <th className="px-4 py-3">#</th>
