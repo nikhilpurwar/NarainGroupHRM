@@ -49,6 +49,7 @@ import holidayRoutes from "./src/routes/settings/holiday.route.js";
 import chargeRoutes from "./src/routes/settings/charge.route.js";
 import workingHours from "./src/routes/settings/workingHours.route.js";
 import userRoutes from "./src/routes/settings/user.route.js";
+import permissionRoutes from "./src/routes/settings/permission.route.js";
 
 // attendance imports
 import attendanceRoutes from "./src/routes/attendance.route.js";
@@ -69,6 +70,7 @@ app.use("/api/break-times", workingHours);
 app.use("/api/auth", authRoutes);
 app.use("/api/department", departmentRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/permissions", permissionRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
 // Barcode attendance - also available at direct /api/store-emp-attend path
 app.use("/api", attendanceRoutes);

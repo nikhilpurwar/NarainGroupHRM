@@ -17,7 +17,7 @@ const DEFAULT_AVATAR =
 const ManageAdvance = () => {
   const [advances, setAdvances] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [advanceToDelete, setAdvanceToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -59,21 +59,21 @@ const ManageAdvance = () => {
     try {
       setDeleting(true);
       await axios.delete(`${API}/api/advance/${advanceToDelete._id}`);
-      
+
       toast.success("Advance record deleted successfully");
-      
+
       setAdvances(prev => prev.filter(a => a._id !== advanceToDelete._id));
-      
+
       setShowDeleteConfirm(false);
       setAdvanceToDelete(null);
-      
+
       const remainingOnPage = advances.filter(a => a._id !== advanceToDelete._id).length;
       const itemsBeforePage = (currentPage - 1) * pageSize;
-      
+
       if (remainingOnPage === 0 && currentPage > 1) {
         setCurrentPage(prev => prev - 1);
       }
-      
+
     } catch (error) {
       console.error("Delete error:", error);
       toast.error(error.response?.data?.message || "Failed to delete advance record");
@@ -125,10 +125,63 @@ const ManageAdvance = () => {
   const goNext = () =>
     setCurrentPage((p) => Math.min(p + 1, totalPages));
 
+  const formatDate = (date) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d)) return "-";
+
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const StatusToggle3D = ({ isActive, onClick }) => {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={isActive ? 'Set Inactive' : 'Set Active'}
+        className={`
+                relative w-12 h-5 rounded-full
+                flex items-center
+                transition-all duration-300 ease-out
+                focus:outline-none
+                ${isActive
+            ? 'bg-gradient-to-r from-green-400 to-green-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(34,197,94,0.45)]'
+            : 'bg-gradient-to-r from-red-400 to-red-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(239,68,68,0.45)]'}
+            `}
+      >
+        {/* Knob */}
+        <span
+          className={`
+                    absolute top-0.5 left-0.5 w-4 h-4 rounded-full
+                    bg-gradient-to-b from-white via-gray-100 to-gray-300
+                    shadow-[0_2px_5px_rgba(0,0,0,0.45)]
+                    transition-transform duration-300 ease-out
+                    ${isActive ? 'translate-x-7' : 'translate-x-0'}
+                `}
+        />
+
+        {/* ON / OFF */}
+        {/* <span
+          className="
+                    absolute inset-0 flex items-center justify-center
+                    text-[10px] font-bold tracking-wide text-white
+                    pointer-events-none select-none drop-shadow-sm
+                "
+        >
+          {isActive ? 'ON' : 'OFF'}
+        </span> */}
+      </button>
+    );
+  };
+
+
   /* ================= DELETE CONFIRMATION MODAL ================= */
   const DeleteConfirmationModal = () => {
     if (!showDeleteConfirm || !advanceToDelete) return null;
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
         <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
@@ -154,7 +207,7 @@ const ManageAdvance = () => {
                 <p className="text-sm text-gray-500">{advanceToDelete.employee?.empId}</p>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-600">Type:</span>
@@ -247,7 +300,7 @@ const ManageAdvance = () => {
             <thead className="">
               <tr className="bg-gray-200 text-left text-sm font-medium text-gray-700">
                 <th className="px-4 py-3 border-b">#</th>
-                <th className="mr-5 px-4 py-3 border-b">Employee</th>
+                <th className="px-4 py-3 border-b">Employee</th>
                 <th className="px-4 py-3 border-b">Date</th>
                 <th className="px-4 py-3 border-b" title="Date Installment Start Deducting">
                   <div className="flex items-center gap-1">
@@ -302,18 +355,18 @@ const ManageAdvance = () => {
                     key={a._id}
                     className="border-b hover:bg-gray-50/50 transition-colors"
                   >
-                    <td className="p-4 text-gray-600">
+                    <td className="p-4 font-bold text-gray-600">
                       {indexOfFirst + i + 1}
                     </td>
 
                     <td className="p-4">
-                      <div className="w-40 flex gap-3 items-center">
+                      <div className="flex gap-3 items-center">
                         <img
                           src={a.employee?.avatar || DEFAULT_AVATAR}
                           className="w-10 h-10 rounded-full border-2 border-white shadow"
                           alt={a.employee?.name}
                         />
-                        <div className="flex flex-col"> 
+                        <div className="flex flex-col">
                           <p className="font-semibold text-gray-900">
                             {a.employee?.name}
                           </p>
@@ -324,16 +377,15 @@ const ManageAdvance = () => {
                       </div>
                     </td>
 
-                    <td className="p-4 text-gray-700">{a.date}</td>
-                    <td className="p-4 text-gray-700">{a.start_from || "-"}</td>
+                    <td className="p-4 text-gray-700">{formatDate(a.date)}</td>
+                    <td className="p-4 text-gray-700">{formatDate(a.start_from)}</td>
 
                     <td className="p-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          a.type === "loan"
-                            ? "bg-blue-50 text-blue-700 border border-blue-100"
-                            : "bg-purple-50 text-purple-700 border border-purple-100"
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${a.type === "loan"
+                          ? "bg-blue-50 text-blue-700 border border-blue-100"
+                          : "bg-purple-50 text-purple-700 border border-purple-100"
+                          }`}
                       >
                         {a.type}
                       </span>
@@ -342,11 +394,11 @@ const ManageAdvance = () => {
                     <td className="p-4">
                       <div className="font-semibold text-gray-900">₹{a.amount}</div>
                     </td>
-                    
+
                     <td className="p-4">
                       <div className="text-green-600 font-medium">₹{a.deduction || 0}</div>
                     </td>
-                    
+
                     <td className="p-4">
                       <div className="text-red-600 font-medium">₹{a.balance || 0}</div>
                     </td>
@@ -356,16 +408,13 @@ const ManageAdvance = () => {
                     </td>
 
                     <td className="p-4">
-                      <button
-                        onClick={() => onToggleStatus(a._id, a.status)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          a.status === "active"
-                            ? "bg-green-100 text-green-800 hover:bg-green-200"
-                            : "bg-red-100 text-red-800 hover:bg-red-200"
-                        }`}
-                      >
-                        {a.status}
-                      </button>
+                      <StatusToggle3D
+                        isActive={a.status === "active"}
+                        onClick={(e) => {
+                          e.stopPropagation?.();
+                          onToggleStatus(a._id, a.status);
+                        }}
+                      />
                     </td>
 
                     <td className="p-4">

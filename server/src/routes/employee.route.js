@@ -11,18 +11,20 @@ import {
   getQRCodes,
   getEmployeeProfile,
 } from "../controllers/employee.controller.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { checkPermission } from "../middleware/permission.middleware.js";
 
 const router = express.Router();
 
-router.post("/", createEmployee);
-router.get("/", getEmployees);
-router.get("/barcodes", getBarcodes);
-router.get("/qrcodes", getQRCodes);
-router.get("/:id", getEmployeeById);
-router.get("/:id/profile", getEmployeeProfile);
-router.put("/:id", updateEmployee);
-router.delete("/:id", deleteEmployee);
-router.post("/:id/attendance", addAttendance);
-router.get("/:id/attendance", getAttendance);
+router.post("/", authenticate, checkPermission, createEmployee);
+router.get("/", authenticate, checkPermission, getEmployees);
+router.get("/barcodes", authenticate, checkPermission, getBarcodes);
+router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
+router.get("/:id", authenticate, getEmployeeById);
+router.get("/:id/profile", authenticate, getEmployeeProfile);
+router.put("/:id", authenticate, checkPermission, updateEmployee);
+router.delete("/:id", authenticate, checkPermission, deleteEmployee);
+router.post("/:id/attendance", authenticate, addAttendance);
+router.get("/:id/attendance", authenticate, getAttendance);
 
 export default router;

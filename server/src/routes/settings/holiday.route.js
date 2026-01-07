@@ -6,13 +6,15 @@ import {
   updateHoliday,
   deleteHoliday,
 } from "../../controllers/setting.controller/holiday.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { checkPermission } from "../../middleware/permission.middleware.js";
 
 const router = express.Router();
 
-router.post("/", createHoliday);   
-router.get("/", getHolidays);     
-router.get("/:id", getHolidayById);     
-router.put("/:id", updateHoliday);    
+router.post("/", authenticate, checkPermission, createHoliday);   
+router.get("/", authenticate, checkPermission, getHolidays);     
+router.get("/:id", authenticate, checkPermission, getHolidayById);     
+router.put("/:id", authenticate, checkPermission, updateHoliday);    
 router.delete("/:id", deleteHoliday);  
 
 export default router;

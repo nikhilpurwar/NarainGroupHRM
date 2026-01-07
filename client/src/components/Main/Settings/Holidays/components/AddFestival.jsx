@@ -71,7 +71,7 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-4 relative">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-md p-4 relative">
 
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-3">
