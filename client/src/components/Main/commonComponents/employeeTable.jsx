@@ -152,6 +152,48 @@ const EmployeeTable = ({
         setCurrentPage(1)
     }
 
+    const StatusToggle3D = ({ isActive, onClick }) => {
+        return (
+            <button
+                onClick={onClick}
+                type="button"
+                title={isActive ? 'Set Inactive' : 'Set Active'}
+                className={`
+                relative w-12 h-6 rounded-full
+                transition-all duration-300 ease-out
+                focus:outline-none
+                flex items-center
+                ${isActive
+                        ? 'bg-gradient-to-r from-green-400 to-green-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(34,197,94,0.45)]'
+                        : 'bg-gradient-to-r from-red-400 to-red-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(239,68,68,0.45)]'}
+            `}
+            >
+                {/* Toggle Knob */}
+                <span
+                    className={`
+                    absolute top-[3.5px] left-[4.3px] w-4 h-4 rounded-full
+                    bg-gradient-to-b from-white via-gray-100 to-gray-300
+                    shadow-[0_2px_5px_rgba(0,0,0,0.45)]
+                    transition-transform duration-300 ease-out
+                    ${isActive ? 'translate-x-6' : 'translate-x-0'}
+                `}
+                />
+
+                {/* ON / OFF text */}
+                {/* <span
+                    className={`
+                    absolute inset-0 flex items-center justify-center
+                    text-[9px] font-bold tracking-wide text-white
+                    pointer-events-none select-none
+                    drop-shadow-sm
+                `}
+                >
+                    {isActive ? 'Active' : 'Inactive'}
+                </span> */}
+            </button>
+        );
+    };
+
 
     return (
         <div>
@@ -347,20 +389,23 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>
                                             <td className="px-4 py-3">
-                                                {renderActions ? (
+                                                {!renderActions ? (
+                                                    <StatusToggle3D
+                                                        isActive={emp.status === 'active'}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onToggleStatus(emp._id || emp.id, emp.status);
+                                                        }}
+                                                    />
+                                                ) : (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }}
                                                         className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`}
                                                     >
                                                         {emp.status === 'active' ? 'Active' : 'Inactive'}
                                                     </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }}
-                                                        className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`}
-                                                        title={`Set ${emp.status === 'active' ? 'inactive' : 'active'}`}>
-                                                        {emp.status === 'active' ? 'Active' : 'Inactive'}
-                                                    </button>)}
+                                                )
+                                                }                                            
                                             </td>
 
                                             {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}

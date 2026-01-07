@@ -28,6 +28,7 @@ const Layout = () => {
     // group: { path: '/group', title: 'Group', subtitle: 'Departments' },
     designation: { path: '/designation', title: 'Designation', subtitle: 'Departments' },
     'user-list': { path: '/user-list', title: 'Manage Users', subtitle: 'Settings' },
+    permission: { path: '/permissions', title: 'Permissions & Accessibility', subtitle: 'Settings' },
     breaks: { path: '/breaks', title: 'Working Hours', subtitle: 'Settings' },
     festival: { path: '/festival', title: 'Holidays', subtitle: 'Settings' },
     charges: { path: '/charges', title: 'Charges', subtitle: 'Settings' },

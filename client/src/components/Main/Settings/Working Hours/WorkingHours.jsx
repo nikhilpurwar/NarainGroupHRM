@@ -66,20 +66,17 @@ const WorkingHours = () => {
 
         {/* Header */}
         <div className="flex justify-between items-center p-4 bg-gray-900 text-white text-xl font-semibold">
-          Break Time
-          {role === 'admin' && (
+          Break Time          
             <button
               onClick={handleAdd}
               className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-full hover:bg-gray-200"
             >
               <IoIosAddCircle size={22} />
               Add Break
-            </button>
-          )}
+            </button>          
         </div>
 
-        {/* Modal */}
-        {role === 'admin' && (
+        {/* Modal */}        
           <AddEditTimings
             isOpen={showModal}
             onClose={() => setShowModal(false)}
@@ -87,7 +84,6 @@ const WorkingHours = () => {
             timing={selectedTiming}
             refreshList={fetchData}
           />
-        )}
 
         {/* Loader */}
         {loading && (
@@ -139,9 +135,7 @@ const WorkingHours = () => {
                   <td>{item.shiftEnd}</td>
                   <td>{item.breakInTime}</td>
                   <td>{item.breakOutTime}</td>
-                  <td className="flex justify-center gap-3 py-3">
-                    {role === 'admin' ? (
-                      <>
+                  <td className="flex justify-center gap-3 py-3">                   
                         <FiEdit
                           size={16}
                           onClick={() => handleEdit(item)}
@@ -151,11 +145,7 @@ const WorkingHours = () => {
                           size={16}
                           onClick={() => handleDelete(item._id || item.id)}
                           className="text-red-600 cursor-pointer hover:scale-110"
-                        />
-                      </>
-                    ) : (
-                      <span className="text-sm text-gray-500">No actions</span>
-                    )}
+                        />                     
                   </td>
                 </tr>
               ))}

@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { HierarchyProvider } from './context/HierarchyContext'
 import Login from './components/Auth/Login'
 import SignUp from './components/Auth/SignUp'
+import ProtectedRoute from './components/Auth/ProtectedRoute'
 // import ChangePassword from './components/Auth/ChangePassword'
 import Layout from './components/Layout/Layout'
 import Dashboard from './components/Main/Dashboard/Dashboard'
@@ -29,6 +30,7 @@ import WorkingHours from './components/Main/Settings/Working Hours/WorkingHours'
 import Holidays from './components/Main/Settings/Holidays/Holidays'
 import Charges from './components/Main/Settings/Charges/Charges'
 import SalaryRules from './components/Main/Settings/Salary Rules/SalaryRules'
+import Permissions from './components/Main/Settings/Permissions/Permissions'
 import AddEditEmployee from './components/Main/All Employees/components/AddEditEmployee'
 
 function App() {
@@ -98,32 +100,33 @@ function App() {
           {/* <Route path="/change-password" element={<ChangePassword />}></Route> */}
           <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/employees" element={<AllEmployees />} />
-            <Route path="/employee/add" element={<AddEditEmployee />} />
-            <Route path="/employee/:id/edit" element={<AddEditEmployee />} />
-            <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/barcodes" element={<Barcodes />} />
-            <Route path="/attReport" element={<Attendance />} />
-            <Route path="/liveattend" element={<LiveAttendance />} />
-            <Route path="/advance" element={<ManageAdvance />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/employees" element={<ProtectedRoute><AllEmployees /></ProtectedRoute>} />
+            <Route path="/employee/add" element={<ProtectedRoute><AddEditEmployee /></ProtectedRoute>} />
+            <Route path="/employee/:id/edit" element={<ProtectedRoute><AddEditEmployee /></ProtectedRoute>} />
+            <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/barcodes" element={<ProtectedRoute><Barcodes /></ProtectedRoute>} />
+            <Route path="/attReport" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+            <Route path="/liveattend" element={<ProtectedRoute><LiveAttendance /></ProtectedRoute>} />
+            <Route path="/advance" element={<ProtectedRoute><ManageAdvance /></ProtectedRoute>} />
 
-            <Route path="/emp-salary-report" element={<MonthlySalary />} />
-            <Route path="/daily_report" element={<DailySalary />} />
-            <Route path="/attendence-report" element={<ReportsAttendance />} />
+            <Route path="/emp-salary-report" element={<ProtectedRoute><MonthlySalary /></ProtectedRoute>} />
+            <Route path="/daily_report" element={<ProtectedRoute><DailySalary /></ProtectedRoute>} />
+            <Route path="/attendence-report" element={<ProtectedRoute><ReportsAttendance /></ProtectedRoute>} />
 
             {/* Department & Designations */}
-            <Route path="/departments" element={<HeadDepartments />} />
-            <Route path="/subdepartment" element={<SubDepartments />} />
-            {/* <Route path="/group" element={<Groups />} /> */}
-            <Route path="/designation" element={<Designations />} />
+            <Route path="/departments" element={<ProtectedRoute><HeadDepartments /></ProtectedRoute>} />
+            <Route path="/subdepartment" element={<ProtectedRoute><SubDepartments /></ProtectedRoute>} />
+            {/* <Route path="/group" element={<ProtectedRoute><Groups /></ProtectedRoute>} /> */}
+            <Route path="/designation" element={<ProtectedRoute><Designations /></ProtectedRoute>} />
 
             {/* Settings */}
-            <Route path="/user-list" element={<ManageUsers />} />
-            <Route path="/breaks" element={<WorkingHours />} />
-            <Route path="/festival" element={<Holidays />} />
-            <Route path="/charges" element={<Charges />} />
-            <Route path="/salary-rules" element={<SalaryRules />} />
+            <Route path="/user-list" element={<ProtectedRoute requiredRoles={['Admin']}><ManageUsers /></ProtectedRoute>} />
+            <Route path="/breaks" element={<ProtectedRoute><WorkingHours /></ProtectedRoute>} />
+            <Route path="/festival" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
+            <Route path="/charges" element={<ProtectedRoute><Charges /></ProtectedRoute>} />
+            <Route path="/salary-rules" element={<ProtectedRoute><SalaryRules /></ProtectedRoute>} />
+            <Route path="/permissions" element={<ProtectedRoute requiredRoles={['Admin']}><Permissions /></ProtectedRoute>} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

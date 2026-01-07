@@ -9,6 +9,7 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     const [open, setOpen] = useState(false);
     const [userName, setUserName] = useState("");
     const [userEmail, setUserEmail] = useState("");
+    const [userRole, setUserRole] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [employeeId, setEmployeeId] = useState("");
     const [showChangePassword, setShowChangePassword] = useState(false);
@@ -19,6 +20,37 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 
+    // Role-based styling
+    const getRoleStyle = (role) => {
+        const roleStyles = {
+            'Admin': {
+                bg: 'bg-red-600',
+                text: 'text-white',
+                badge: 'bg-red-700',
+                border: 'border-red-600'
+            },
+            'Account': {
+                bg: 'bg-blue-600',
+                text: 'text-white',
+                badge: 'bg-blue-700',
+                border: 'border-blue-600'
+            },
+            'gate': {
+                bg: 'bg-green-600',
+                text: 'text-white',
+                badge: 'bg-green-700',
+                border: 'border-green-600'
+            },
+            'HR': {
+                bg: 'bg-purple-600',
+                text: 'text-white',
+                badge: 'bg-purple-700',
+                border: 'border-purple-600'
+            }
+        }
+        return roleStyles[role] || { bg: 'bg-gray-600', text: 'text-white', badge: 'bg-gray-700', border: 'border-gray-600' }
+    }
+
     useEffect(() => {
         try {
             if (typeof window === 'undefined') return
@@ -27,6 +59,7 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                 const parsed = JSON.parse(stored)
                 setUserName(parsed?.name || "")
                 setUserEmail(parsed?.email || "")
+                setUserRole(parsed?.role || "")
             }
         } catch (e) {
             console.error('Failed to read user from storage', e)
@@ -160,11 +193,11 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                 <div className="relative" ref={dropdownRef}>
                     <button
                         onClick={() => setOpen(!open)}
-                        className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-indigo-700 hover:to-purple-700 transition-transform transition-shadow duration-150"
+                        className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-gray-900 hover:to-indigo-800 transition-transform transition-shadow duration-150"
                     >
-                        <button>
+                        <span>
                             {open ? <FaCaretUp size={16} className="text-white" /> : <FaCaretDown size={16} className="text-white" />}
-                        </button>
+                        </span>
                         {userName && (
                             <span className="mr-2 text-md font-bold text-white drop-shadow-sm hidden sm:inline">
                                 {userName}
@@ -188,7 +221,12 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                     {/* Dropdown menu */}
                     {open && (
                         <div className="absolute right-0.5 top-15.5 w-52 bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50 transform origin-top-right animate-dropdown">
-                            <div className="py-1">
+                            <div className="">
+                                {userRole && (
+                                    <span className={`block w-full text-left px-4 py-2 text-sm font-semibold ${getRoleStyle(userRole).text} ${getRoleStyle(userRole).bg} rounded-t-xl`}>
+                                        Role: {userRole}
+                                    </span>
+                                )}
                                 <button
                                     onClick={() => {
                                         if (employeeId) {
@@ -196,20 +234,20 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
                                             navigate(`/profile/${employeeId}`);
                                         }
                                     }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:rounded-xl disabled:text-gray-400 disabled:cursor-not-allowed"
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
                                     disabled={!employeeId}
                                 >
                                     My Profile
                                 </button>
                                 <button
                                     onClick={() => { setOpen(false); setShowChangePassword(true); }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:rounded-xl"
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-200"
                                 >
                                     Change Password
                                 </button>
                                 <button
                                     onClick={doLogout}
-                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-200 hover:rounded-xl"
+                                    className="block w-full text-left px-4 py-2 pb-3 text-sm text-red-600 hover:bg-red-100 hover:rounded-b-xl"
                                 >
                                     Logout
                                 </button>

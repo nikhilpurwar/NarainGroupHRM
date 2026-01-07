@@ -50,9 +50,20 @@ const LiveAttendance = () => {
   }, []);
 
   useEffect(() => {
-    const socket = clientIO(API_URL, { transports: ["websocket", "polling"] });
+    const socket = clientIO(API_URL, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
     socket.on("connect", () => {
-      // connected
+      console.log("✓ Socket.IO connected");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket.IO connection error:", err);
     });
 
     socket.on("attendance:updated", (payload) => {
@@ -60,11 +71,14 @@ const LiveAttendance = () => {
       setAttendanceMap((prev) => ({ ...prev, [payload.employee]: payload.attendance }));
     });
 
-    socket.on("disconnect", () => { });
+    socket.on("disconnect", () => {
+      console.log("Socket.IO disconnected");
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [API_URL]);
 
   const presentCount = Object.values(attendanceMap).filter(a => a && a.status !== 'absent').length;
 

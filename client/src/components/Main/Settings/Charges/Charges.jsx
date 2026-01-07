@@ -67,15 +67,13 @@ const Charges = () => {
         {/* Header */}
         <div className="flex justify-between items-center p-4 bg-gray-900 text-white text-xl font-semibold">
           Charges List
-          {role === 'admin' && (
-            <button
-              onClick={handleAdd}
-              className="flex items-center gap-2 bg-white text-gray-900 rounded-full px-4 py-2 hover:bg-gray-200"
-            >
-              <IoIosAddCircle size={22} />
-              Add Charges
-            </button>
-          )}
+          <button
+            onClick={handleAdd}
+            className="flex items-center gap-2 bg-white text-gray-900 rounded-full px-4 py-2 hover:bg-gray-200"
+          >
+            <IoIosAddCircle size={22} />
+            Add Charges
+          </button>
         </div>
 
         {/* Modal */}
@@ -133,22 +131,16 @@ const Charges = () => {
                     {c.status === 1 ? "Active" : "Inactive"}
                   </td>
                   <td className="flex gap-3 px-4 py-3 border-t">
-                    {role === 'admin' ? (
-                      <>
-                        <FiEdit
-                          size={16}
-                          onClick={() => handleEdit(c)}
-                          className="text-blue-600 cursor-pointer"
-                        />
-                        <MdDeleteOutline
-                          size={16}
-                          onClick={() => handleDelete(c._id)}
-                          className="text-red-600 cursor-pointer"
-                        />
-                      </>
-                    ) : (
-                      <span className="text-sm text-gray-500">No actions</span>
-                    )}
+                    <FiEdit
+                      size={16}
+                      onClick={() => handleEdit(c)}
+                      className="text-blue-600 cursor-pointer"
+                    />
+                    <MdDeleteOutline
+                      size={16}
+                      onClick={() => handleDelete(c._id)}
+                      className="text-red-600 cursor-pointer"
+                    />
                   </td>
                 </tr>
               ))}

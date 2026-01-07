@@ -48,7 +48,7 @@ const AddEditRules = ({ modalOpen, setModalOpen, editing, form, setForm, subDepa
                                 Sub Department *
                             </label>
                             <select
-                                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                className="card-hover w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 value={form.subDepartment}
                                 onChange={e => setForm(f => ({ ...f, subDepartment: e.target.value }))}
                             >
@@ -66,7 +66,7 @@ const AddEditRules = ({ modalOpen, setModalOpen, editing, form, setForm, subDepa
                                 Rule Name *
                             </label>
                             <input
-                                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                className="card-hover w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 placeholder="e.g., Factory Workers Salary Rules"
                                 value={form.name}
                                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -81,7 +81,7 @@ const AddEditRules = ({ modalOpen, setModalOpen, editing, form, setForm, subDepa
                             {toggleFields.map(t => (
                                 <div
                                     key={t.key}
-                                    className={`border rounded-xl p-4 cursor-pointer transition-all ${form[t.key]
+                                    className={`card-hover border rounded-xl p-4 cursor-pointer transition-all ${form[t.key]
                                         ? 'border-blue-300 bg-blue-50'
                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                         }`}
@@ -110,14 +110,14 @@ const AddEditRules = ({ modalOpen, setModalOpen, editing, form, setForm, subDepa
                     {/* Numeric Input Fields */}
                     <div className="mb-6">
                         <h4 className="text-lg font-semibold text-gray-900 mb-4">Additional Settings</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {[
-                                { key: 'shiftHours', label: 'Daily Shift Hours', min: 1, max: 24 },
                                 { key: 'sundayAutopayRequiredLastWorkingDays', label: 'Sunday AutoPay - Required Working Days', min: 0, max: 31 },
                                 { key: 'festivalAutopayRequiredPrevDays', label: 'Festival AutoPay - Required Previous Days', min: 0, max: 31 },
+                                { key: 'shiftHours', label: 'Daily Shift Hours', min: 1, max: 24 },
                                 { key: 'workingDaysPerWeek', label: 'Working Days Per Week', min: 5, max: 6 }
                             ].map(field => (
-                                <div key={field.key}>
+                                <div key={field.key} >
                                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                                         {getFieldIcon(field.key)}
                                         {field.label}
@@ -127,7 +127,7 @@ const AddEditRules = ({ modalOpen, setModalOpen, editing, form, setForm, subDepa
                                             type="number"
                                             min={field.min}
                                             max={field.max}
-                                            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all pr-12"
+                                            className="card-hover w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all pr-12"
                                             value={form[field.key]}
                                             onChange={e => setForm(f => ({ ...f, [field.key]: +e.target.value }))}
                                         />

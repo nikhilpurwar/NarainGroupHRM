@@ -3,6 +3,8 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom"
 import axios from "axios"
 
 const Sidebar = ({ isCollapsed }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+  const [permissions, setPermissions] = useState(null)
   const [open, setOpen] = useState({
     reports: false,
     dept: false,
@@ -29,7 +31,7 @@ const Sidebar = ({ isCollapsed }) => {
   /* ---------------- MENU CONFIG ---------------- */
 
   const mainMenu = useMemo(() => {
-    if (role === "gate") {
+    if (role === "Gate") {
       return [
         { path: "/attReport", icon: "fa-file-lines", label: "Attendance" },
         { path: "/liveattend", icon: "fa-chart-line", label: "Live Attendance" },
@@ -44,6 +46,25 @@ const Sidebar = ({ isCollapsed }) => {
     ]
   }, [role])
 
+  // Apply permissions filter if available
+  const filterByPermissions = (items) => {
+    // if permissions not loaded yet, show nothing briefly (or show all for Admin)
+    if (!permissions) return role === 'Admin' ? items : []
+    // Admin sees everything
+    if (role === 'Admin') return items
+    return items.filter(item => {
+      const allowed = permissions[item.path]
+      // If no restriction defined for this route, hide it for non-admins
+      if (allowed === undefined) return false
+      // If allowedRoles is empty array, hide it
+      if (Array.isArray(allowed) && allowed.length === 0) return false
+      // Otherwise check if user's role is in allowedRoles
+      return allowed.includes(role)
+    })
+  }
+
+  const visibleMainMenu = filterByPermissions(mainMenu)
+
   const reportsMenu = [
     { path: "/emp-salary-report", label: "Monthly Salary" },
     { path: "/daily_report", label: "Daily Salary" },
@@ -57,12 +78,44 @@ const Sidebar = ({ isCollapsed }) => {
   ]
 
   const settingsMenu = [
-    { path: "/user-list", label: "Manage Users" },
     { path: "/breaks", label: "Working Hours" },
     { path: "/festival", label: "Holidays" },
     { path: "/charges", label: "Charges" },
+    { path: "/user-list", label: "Manage Users" },
+    { path: "/permissions", label: "Permissions" },
     { path: "/salary-rules", label: "Salary Rules" },
   ]
+
+  const visibleReportsMenu = filterByPermissions(reportsMenu)
+  const visibleDeptMenu = filterByPermissions(deptMenu)
+  const visibleSettingsMenu = filterByPermissions(settingsMenu)
+
+  useEffect(() => {
+    const loadPermissions = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
+        const res = await fetch(`${API_URL}/api/permissions`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+        const data = await res.json()
+        if (res.ok && data?.success && Array.isArray(data.data)) {
+          const map = {}
+          data.data.forEach(p => { map[p.route] = p.allowedRoles || [] })
+          setPermissions(map)
+        } else if (!res.ok) {
+          console.error('Failed to load permissions: HTTP error', res.status)
+          setPermissions({})
+        }
+      } catch (e) {
+        console.error('Failed to load permissions', e)
+        setPermissions({})
+      }
+    }
+    loadPermissions()
+  }, [])
 
   /* ---------------- AUTO OPEN DROPDOWNS ---------------- */
 
@@ -118,7 +171,7 @@ const Sidebar = ({ isCollapsed }) => {
       {/* MENU */}
       <nav className="flex-1 overflow-y-auto sidebar-scroll pb-4">
         <ul className="space-y-1 p-3">
-          {mainMenu.map(item => (
+          {visibleMainMenu.map(item => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
@@ -139,7 +192,7 @@ const Sidebar = ({ isCollapsed }) => {
           open={open.reports}
           toggle={() => setOpen(o => ({ ...o, reports: !o.reports }))}
           collapsed={effectiveCollapsed}
-          items={reportsMenu}
+          items={visibleReportsMenu}
         />
 
         <Dropdown
@@ -148,7 +201,7 @@ const Sidebar = ({ isCollapsed }) => {
           open={open.dept}
           toggle={() => setOpen(o => ({ ...o, dept: !o.dept }))}
           collapsed={effectiveCollapsed}
-          items={deptMenu}
+          items={visibleDeptMenu}
         />
 
         <Dropdown
@@ -157,7 +210,7 @@ const Sidebar = ({ isCollapsed }) => {
           open={open.settings}
           toggle={() => setOpen(o => ({ ...o, settings: !o.settings }))}
           collapsed={effectiveCollapsed}
-          items={settingsMenu}
+          items={visibleSettingsMenu}
         />
       </nav>
 

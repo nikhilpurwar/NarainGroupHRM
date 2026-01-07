@@ -113,7 +113,7 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-4">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-md p-4">
 
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-3">
