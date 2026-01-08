@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import { useDispatch } from 'react-redux'
+import { fetchPermissions as fetchPermissionsThunk } from '../../../../store/permissionsSlice'
 import { toast } from 'react-toastify'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
@@ -55,7 +57,7 @@ const Permissions = () => {
     useEffect(() => {
         const loadRoles = async () => {
             try {
-                const res = await axios.get(`${API_URL}/api/settings/users`)
+                const res = await axios.get(`${API_URL}/api/users`)
                 const users = res.data?.data || []
                 const roles = Array.from(new Set(users.map(u => u.role).filter(Boolean)))
 
@@ -113,11 +115,19 @@ const Permissions = () => {
     //     )
     // }
 
+    
+
+    const dispatch = useDispatch()
+
     useEffect(() => {
-        fetchPermissions()
+        // dispatch redux thunk to populate central permissions map
+        dispatch(fetchPermissionsThunk()).catch(() => {})
+        // also load local array for this page
+        loadPermissions()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const fetchPermissions = async () => {
+    const loadPermissions = async () => {
         setLoading(true)
         try {
             const res = await axios.get(`${API_URL}/api/permissions`)
@@ -158,7 +168,7 @@ const Permissions = () => {
             const res = await axios.post(`${API_URL}/api/permissions`, payload)
             if (res.data?.success) {
                 toast.success('✓ Permission updated successfully')
-                fetchPermissions() // Refresh data
+                loadPermissions() // Refresh data
             } else {
                 throw new Error(res.data?.message || 'Update failed')
             }
@@ -187,7 +197,7 @@ const Permissions = () => {
 
             await Promise.all(updates)
             toast.success(`✓ ${selectedRoles.includes(role) ? 'Removed' : 'Granted'} ${role} access to all routes`)
-            fetchPermissions()
+            loadPermissions()
         } catch (e) {
             console.error('Bulk update error:', e)
             toast.error('Failed to update permissions')
@@ -224,7 +234,7 @@ const Permissions = () => {
                         </div>
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={fetchPermissions}
+                                onClick={loadPermissions}
                                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
                             >
                                 <FiRefreshCw className="w-4 h-4" />

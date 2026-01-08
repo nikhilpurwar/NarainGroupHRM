@@ -198,7 +198,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   const attendances = await Attendance.find({
     employee: employee._id,
     date: { $gte: from, $lte: to }
-  })
+  }).lean()
 
   // For Sunday and festival autopay we may need to inspect days
   // immediately before `from` (e.g. last days of previous month).
@@ -224,7 +224,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     extraAttendances = await Attendance.find({
       employee: employee._id,
       date: { $gte: fromLookback, $lt: from }
-    })
+    }).lean()
   }
 
   const allAttendances = [...extraAttendances, ...attendances]

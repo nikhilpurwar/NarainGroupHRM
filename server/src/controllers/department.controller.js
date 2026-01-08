@@ -2,7 +2,10 @@ import { HeadDepartment, SubDepartment, Designation } from '../models/department
 
 export const listHeadDepartments = async (req, res) => {
   try {
-    const list = await HeadDepartment.find().populate('reportsTo').sort({ hierarchy: 1, name: 1 })
+    const list = await HeadDepartment.find()
+      .populate('reportsTo', 'name empId')
+      .sort({ hierarchy: 1, name: 1 })
+      .lean()
     res.json({ success: true, data: list })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -33,7 +36,7 @@ export const createHeadDepartment = async (req, res) => {
 export const updateHeadDepartment = async (req, res) => {
   try {
     const payload = { ...req.body }
-    const d = await HeadDepartment.findByIdAndUpdate(req.params.id, payload, { new: true }).populate('reportsTo')
+    const d = await HeadDepartment.findByIdAndUpdate(req.params.id, payload, { new: true }).populate('reportsTo', 'name empId')
     if (!d) return res.status(404).json({ success: false, message: 'Not found' })
     res.json({ success: true, data: d })
   } catch (err) {
@@ -54,9 +57,10 @@ export const deleteHeadDepartment = async (req, res) => {
 export const listSubDepartments = async (req, res) => {
   try {
     const list = await SubDepartment.find()
-      .populate('headDepartment')
-      .populate('reportsTo')
+      .populate('headDepartment', 'name')
+      .populate('reportsTo', 'name empId')
       .sort({ name: 1 })
+      .lean()
     res.json({ success: true, data: list })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -88,8 +92,9 @@ export const updateSubDepartment = async (req, res) => {
   try {
     const payload = { ...req.body }
     const s = await SubDepartment.findByIdAndUpdate(req.params.id, payload, { new: true })
-      .populate('headDepartment')
-      .populate('reportsTo')
+      .populate('headDepartment', 'name')
+      .populate('reportsTo', 'name empId')
+      .lean()
     if (!s) return res.status(404).json({ success: false, message: 'Not found' })
     res.json({ success: true, data: s })
   } catch (err) {
@@ -167,9 +172,10 @@ export const deleteSubDepartment = async (req, res) => {
 export const listDesignations = async (req, res) => {
   try {
     const list = await Designation.find()
-      .populate('subDepartment')
-      .populate('reportsToDesignation')
+      .populate('subDepartment', 'name')
+      .populate('reportsToDesignation', 'name')
       .sort({ 'subDepartment._id': 1, name: 1 })
+      .lean()
     res.json({ success: true, data: list })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })

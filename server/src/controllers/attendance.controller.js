@@ -34,11 +34,10 @@ export const attendanceReport = async (req, res) => {
 
     if (employeeId) {
       const emp = await Employee.findById(employeeId)
-        .populate('headDepartment')
-        .populate('subDepartment')
-        // .populate('group')
-        .populate('designation')
-        // .populate('reportsTo', 'name empId');
+        .populate('headDepartment', 'name')
+        .populate('subDepartment', 'name')
+        .populate('designation', 'name')
+        .lean();
       if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
 
       const days = monthDays(queryYear, queryMonth);
@@ -200,11 +199,10 @@ export const attendanceReport = async (req, res) => {
     const q = {};
     if (search) q.name = { $regex: search, $options: 'i' };
     const emp = await Employee.findOne(q)
-      .populate('headDepartment')
-      .populate('subDepartment')
-      // .populate('group')
-      .populate('designation')
-      // .populate('reportsTo', 'name empId');
+      .populate('headDepartment', 'name')
+      .populate('subDepartment', 'name')
+      .populate('designation', 'name')
+      .lean();
     if (!emp) return res.json({ success: true, data: null });
 
     const days = monthDays(queryYear, queryMonth);

@@ -1,4 +1,5 @@
 import Employee from "../models/employee.model.js";
+import User from "../models/setting.model/user.model.js";
 import Attendance from "../models/attendance.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
@@ -98,10 +99,12 @@ export const createEmployee = async (req, res) => {
 export const getEmployees = async (req, res) => {
   try {
     const emps = await Employee.find()
-      .populate('headDepartment')
-      .populate('subDepartment')
-      .populate('designation')
-      .sort({ createdAt: -1 });
+      .select('name empId fatherName mobile salary status headDepartment subDepartment designation avatar')
+      .populate('headDepartment', 'name')
+      .populate('subDepartment', 'name')
+      .populate('designation', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, data: emps });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -111,11 +114,29 @@ export const getEmployees = async (req, res) => {
 export const getEmployeeById = async (req, res) => {
   try {
     const emp = await Employee.findById(req.params.id)
-      .populate('headDepartment')
-      .populate('subDepartment')
-      .populate('designation');
+      .populate('headDepartment', 'name')
+      .populate('subDepartment', 'name')
+      .populate('designation', 'name')
+      .lean();
 
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
+
+    // If requester is not Admin, allow access only to their own employee profile
+    try {
+      const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
+      const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
+      if (role !== 'Admin') {
+        const requesterEmail = requester?.email
+        // Allow if user's email matches employee.empId or employee.email
+        if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
+          return res.status(403).json({ success: false, message: 'Forbidden' })
+        }
+      }
+    } catch (e) {
+      // if user lookup fails, deny access for non-admins
+      if (!(req.user && req.user.role === 'Admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+    }
+
     res.json({ success: true, data: emp });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -127,9 +148,9 @@ export const addAttendance = async (req, res) => {
     const { date, status, inTime, outTime, note } = req.body;
 
     const emp = await Employee.findById(req.params.id)
-      .populate('headDepartment')
-      .populate('subDepartment')
-      .populate('designation');
+      .populate('headDepartment', 'name')
+      .populate('subDepartment', 'name')
+      .populate('designation', 'name');
 
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
 
@@ -443,7 +464,7 @@ export const getAttendance = async (req, res) => {
   try {
     const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
-    const records = await Attendance.find({ employee: emp._id }).sort({ date: 1 });
+    const records = await Attendance.find({ employee: emp._id }).sort({ date: 1 }).lean();
     res.json({ success: true, data: records });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -475,6 +496,19 @@ export const getEmployeeProfile = async (req, res) => {
       .populate('subDepartment')
       .populate('designation');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
+    // Same access control as getEmployeeById
+    try {
+      const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
+      const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
+      if (role !== 'Admin') {
+        const requesterEmail = requester?.email
+        if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
+          return res.status(403).json({ success: false, message: 'Forbidden' })
+        }
+      }
+    } catch (e) {
+      if (!(req.user && req.user.role === 'Admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+    }
     res.json({ success: true, data: emp });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

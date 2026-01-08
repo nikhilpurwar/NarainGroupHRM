@@ -3,12 +3,12 @@ import SalaryRule from '../../models/setting.model/salaryRule.model.js'
 import salaryRecalcService from '../../services/salaryRecalculation.service.js'
 
 export const listSalaryRules = asyncHandler(async (req, res) => {
-  const rules = await SalaryRule.find().populate('subDepartment')
+  const rules = await SalaryRule.find().populate('subDepartment', 'name').lean()
   res.json({ success: true, data: rules })
 })
 
 export const getSalaryRule = asyncHandler(async (req, res) => {
-  const r = await SalaryRule.findById(req.params.id).populate('subDepartment')
+  const r = await SalaryRule.findById(req.params.id).populate('subDepartment', 'name').lean()
   if (!r) return res.status(404).json({ success: false, message: 'Not found' })
   res.json({ success: true, data: r })
 })

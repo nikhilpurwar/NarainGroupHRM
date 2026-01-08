@@ -125,7 +125,7 @@ const WorkingHours = () => {
             <tbody>
               {list.map((item, i) => (
                 <tr
-                  key={item.id}
+                  key={item._id}
                   className="border-t hover:bg-gray-50 text-center"
                 >
                   <td className="px-4 py-3">{i + 1}</td>

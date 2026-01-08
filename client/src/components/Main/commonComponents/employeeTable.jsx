@@ -38,10 +38,12 @@ const EmployeeTable = ({
             try {
                 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 
+                const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
+                const headers = token ? { Authorization: `Bearer ${token}` } : {}
                 const [deptsRes, subDeptsRes, designationsRes] = await Promise.all([
-                    axios.get(`${apiUrl}/api/department/head-departments`),
-                    axios.get(`${apiUrl}/api/department/sub-departments`),
-                    axios.get(`${apiUrl}/api/department/designations`)
+                    axios.get(`${apiUrl}/api/department/head-departments`, { headers }),
+                    axios.get(`${apiUrl}/api/department/sub-departments`, { headers }),
+                    axios.get(`${apiUrl}/api/department/designations`, { headers })
                 ])
 
                 setDepartments(deptsRes.data.data || [])
@@ -94,10 +96,13 @@ const EmployeeTable = ({
         const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
         const fetchForPage = async () => {
             try {
+                const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
+                const headers = token ? { Authorization: `Bearer ${token}` } : {}
                 const promises = currentData.map(e => {
                     const id = e._id || e.id
                     return axios.get(`${apiUrl}/api/attendance-report`, {
-                        params: { employeeId: id, month: currentMonth, year: currentYear }
+                        params: { employeeId: id, month: currentMonth, year: currentYear },
+                        headers
                     })
                         .then(r => {
                             const data = r.data?.data || {}
@@ -328,9 +333,9 @@ const EmployeeTable = ({
                                 <th className="px-4 py-3">#</th>
                                 <th className="px-4 py-3">Emp ID</th>
                                 <th className="px-4 py-3">Name</th>
-                                {!renderActions && <th className="px-4 py-3">Father Name</th>}
+                                <th className="px-4 py-3">Father Name</th>
                                 <th className="px-4 py-3">Mobile</th>
-                                {!renderActions && <th className="px-4 py-3">Salary</th>}
+                                <th className="px-4 py-3">Salary</th>
                                 <th className="px-4 py-3">Department</th>
                                 <th className="px-4 py-3">Sub Dept.</th>
                                 <th className="px-4 py-3">Designation</th>
@@ -382,9 +387,9 @@ const EmployeeTable = ({
                                                     {emp.name.split(" ")[0]} <br /> {emp.name.split(" ")[1]}
                                                 </span>
                                             </td>
-                                            {!renderActions && <td className="px-4 py-3">{emp.fatherName}</td>}
-                                            <td className="px-4 py-3">{emp.mobile}</td>
-                                            {!renderActions && <td className="px-4 py-3">₹{emp.salary}</td>}
+                                            <td className="px-4 py-3">{emp.fatherName || '—'}</td>
+                                            <td className="px-4 py-3">{emp.mobile || '—'}</td>
+                                            <td className="px-4 py-3">{typeof emp.salary === 'number' ? `₹${emp.salary}` : (emp.salary ? `₹${emp.salary}` : '—')}</td>
                                             <td className="px-4 py-3">{emp.headDepartment?.name || emp.headDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.subDepartment?.name || emp.subDepartment || ''}</td>
                                             <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>
@@ -467,7 +472,7 @@ const EmployeeTable = ({
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan="11" className="text-center py-6 text-gray-500">
+                                    <td colSpan={renderActions ? 13 : 11} className="text-center py-6 text-gray-500">
                                         <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
                                             No employees found
                                         </div>

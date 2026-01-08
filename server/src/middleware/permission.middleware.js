@@ -1,4 +1,4 @@
-import Permission from '../models/setting.model/permission.model.js'
+import { findPermissionByCandidates } from '../utils/permissionCache.js'
 
 export const checkPermission = async (req, res, next) => {
   try {
@@ -26,17 +26,14 @@ export const checkPermission = async (req, res, next) => {
     // normalize candidates (remove trailing slashes)
     const normalized = Array.from(new Set(candidates.map(c => c.replace(/\/+$/g, '')))).filter(Boolean)
 
-    const perm = await Permission.findOne({ route: { $in: normalized } })
-    
+    // Try cache lookup first
+    const perm = findPermissionByCandidates(normalized)
+
     // If no permission entry exists, allow access
-    if (!perm) {
-      return next()
-    }
-    
+    if (!perm) return next()
+
     // If allowedRoles is not provided, treat as unrestricted
-    if (!perm.allowedRoles) {
-      return next()
-    }
+    if (!perm.allowedRoles) return next()
 
     // If allowedRoles is an empty array, deny access to everyone
     if (Array.isArray(perm.allowedRoles) && perm.allowedRoles.length === 0) {
@@ -44,9 +41,7 @@ export const checkPermission = async (req, res, next) => {
     }
 
     // Check if user's role is in allowed roles
-    if (Array.isArray(perm.allowedRoles) && perm.allowedRoles.includes(userRole)) {
-      return next()
-    }
+    if (Array.isArray(perm.allowedRoles) && perm.allowedRoles.includes(userRole)) return next()
     // If request came from an allowed frontend page (referer), allow based on that page's permission
     try {
       const referer = req.get('Referer') || req.get('Origin')
@@ -59,10 +54,8 @@ export const checkPermission = async (req, res, next) => {
             if (!refererPath.startsWith('/api')) refCandidates.push('/api' + refererPath)
             refCandidates.push(refererPath.replace(/^\/settings/, ''))
             const refNorm = Array.from(new Set(refCandidates.map(c => c.replace(/\/+$/g, '')))).filter(Boolean)
-            const refPerm = await Permission.findOne({ route: { $in: refNorm } })
-            if (refPerm && Array.isArray(refPerm.allowedRoles) && refPerm.allowedRoles.includes(userRole)) {
-              return next()
-            }
+            const refPerm = findPermissionByCandidates(refNorm)
+            if (refPerm && Array.isArray(refPerm.allowedRoles) && refPerm.allowedRoles.includes(userRole)) return next()
           }
         } catch (e) {
           // ignore malformed referer

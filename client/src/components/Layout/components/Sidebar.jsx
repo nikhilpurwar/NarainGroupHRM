@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react"
 import { NavLink, useNavigate, useLocation } from "react-router-dom"
 import axios from "axios"
+import usePermissions from '../../../hooks/usePermissions'
 
 const Sidebar = ({ isCollapsed }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
-  const [permissions, setPermissions] = useState(null)
+  const { permissionsMap: permissions } = usePermissions()
   const [open, setOpen] = useState({
     reports: false,
     dept: false,
@@ -27,6 +28,7 @@ const Sidebar = ({ isCollapsed }) => {
       : null
 
   const role = storedUser?.role
+  // permissions read from Redux store (with window fallback)
 
   /* ---------------- MENU CONFIG ---------------- */
 
@@ -48,8 +50,9 @@ const Sidebar = ({ isCollapsed }) => {
 
   // Apply permissions filter if available
   const filterByPermissions = (items) => {
-    // if permissions not loaded yet, show nothing briefly (or show all for Admin)
-    if (!permissions) return role === 'Admin' ? items : []
+    // if permissions not loaded yet, show items optimistically so navigation is instant.
+    // Actual access will be enforced by `ProtectedRoute` after permissions load.
+    if (!permissions) return items
     // Admin sees everything
     if (role === 'Admin') return items
     return items.filter(item => {
@@ -90,32 +93,7 @@ const Sidebar = ({ isCollapsed }) => {
   const visibleDeptMenu = filterByPermissions(deptMenu)
   const visibleSettingsMenu = filterByPermissions(settingsMenu)
 
-  useEffect(() => {
-    const loadPermissions = async () => {
-      try {
-        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
-        const res = await fetch(`${API_URL}/api/permissions`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        })
-        const data = await res.json()
-        if (res.ok && data?.success && Array.isArray(data.data)) {
-          const map = {}
-          data.data.forEach(p => { map[p.route] = p.allowedRoles || [] })
-          setPermissions(map)
-        } else if (!res.ok) {
-          console.error('Failed to load permissions: HTTP error', res.status)
-          setPermissions({})
-        }
-      } catch (e) {
-        console.error('Failed to load permissions', e)
-        setPermissions({})
-      }
-    }
-    loadPermissions()
-  }, [])
+  // permissions are provided by the central store via usePermissions()
 
   /* ---------------- AUTO OPEN DROPDOWNS ---------------- */
 
