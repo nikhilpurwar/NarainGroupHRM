@@ -154,6 +154,11 @@ export const addAttendance = async (req, res) => {
 
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
 
+    // Block operations for inactive employees
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' })
+    }
+
     // If no explicit inTime/outTime provided, treat this as a punch toggle (IN/OUT) using configured boundary
     if (!inTime && !outTime) {
       const now = new Date();
@@ -519,6 +524,15 @@ export const updateEmployee = async (req, res) => {
   try {
     const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
+    // Block modifications for inactive employees by non-admins
+    try {
+      const requesterRole = req.user && req.user.role ? req.user.role.toString().toLowerCase() : null
+      if (emp.status && emp.status.toString().toLowerCase() !== 'active' && requesterRole !== 'Admin') {
+        return res.status(403).json({ success: false, message: 'Employee is inactive' })
+      }
+    } catch (e) {
+      // ignore and continue; fail-safe will block unauthorized later
+    }
     const prevEmpId = emp.empId;
     Object.assign(emp, req.body);
     // if empId changed or missing, regenerate barcode/QR

@@ -31,6 +31,9 @@ const EmployeeTable = ({
     const [subDepartments, setSubDepartments] = useState([])
     const [designations, setDesignations] = useState([])
     const [schemaLoading, setSchemaLoading] = useState(true)
+    // Local optimistic status overrides and pending toggles per employee id
+    const [localStatusMap, setLocalStatusMap] = useState({})
+    const [pendingToggles, setPendingToggles] = useState({})
 
     // Fetch all schema options from backend
     useEffect(() => {
@@ -157,7 +160,7 @@ const EmployeeTable = ({
         setCurrentPage(1)
     }
 
-    const StatusToggle3D = ({ isActive, onClick }) => {
+    const StatusToggle3D = ({ isActive, onClick, isPending = false }) => {
         return (
             <button
                 onClick={onClick}
@@ -184,6 +187,11 @@ const EmployeeTable = ({
                 `}
                 />
 
+                {/* Small spinner when pending */}
+                <span className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isPending ? '' : 'hidden'}`}>
+                    <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin"></span>
+                </span>
+
                 {/* ON / OFF text */}
                 {/* <span
                     className={`
@@ -198,6 +206,46 @@ const EmployeeTable = ({
             </button>
         );
     };
+
+    // Optimistic toggle handler: updates UI immediately, calls API (or delegates to onToggleStatus), disables only that row, and reverts on failure
+    const toggleStatusOptimistic = async (empId, currentStatus) => {
+        const prev = currentStatus
+        const next = prev === 'active' ? 'inactive' : 'active'
+
+        // set optimistic UI
+        setLocalStatusMap(s => ({ ...s, [empId]: next }))
+        setPendingToggles(p => ({ ...p, [empId]: true }))
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
+            const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
+            const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+            // If parent handler returns a promise, use it. Otherwise, call API directly.
+            let parentResult = null
+            try {
+                parentResult = onToggleStatus && onToggleStatus(empId, prev)
+            } catch (e) {
+                parentResult = null
+            }
+
+            if (parentResult && typeof parentResult.then === 'function') {
+                await parentResult
+            } else {
+                // call API directly
+                await axios.put(`${apiUrl}/api/employees/${empId}`, { status: next }, { headers })
+            }
+
+            // success: clear pending for this row
+            setPendingToggles(p => { const np = { ...p }; delete np[empId]; return np })
+            // keep optimistic localStatus; parent/refresh may overwrite later
+        } catch (err) {
+            console.error('Failed to update status', err)
+            // revert optimistic UI
+            setLocalStatusMap(s => ({ ...s, [empId]: prev }))
+            setPendingToggles(p => { const np = { ...p }; delete np[empId]; return np })
+        }
+    }
 
 
     return (
@@ -395,20 +443,36 @@ const EmployeeTable = ({
                                             <td className="px-4 py-3">{emp.designation?.name || emp.designation || ''}</td>
                                             <td className="px-4 py-3">
                                                 {!renderActions ? (
-                                                    <StatusToggle3D
-                                                        isActive={emp.status === 'active'}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onToggleStatus(emp._id || emp.id, emp.status);
-                                                        }}
-                                                    />
+                                                    (() => {
+                                                        const id = emp._id || emp.id
+                                                        const displayed = localStatusMap[id] ?? emp.status
+                                                        const isPending = Boolean(pendingToggles[id])
+                                                        return (
+                                                            <StatusToggle3D
+                                                                isActive={displayed === 'active'}
+                                                                isPending={isPending}
+                                                                onClick={(e) => { e.stopPropagation(); if (!isPending) toggleStatusOptimistic(id, localStatusMap[id] ?? emp.status) }}
+                                                            />
+                                                        )
+                                                    })()
                                                 ) : (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); onToggleStatus(emp._id || emp.id, emp.status) }}
-                                                        className={`px-3 py-1 rounded-full text-sm ${emp.status === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'}`}
-                                                    >
-                                                        {emp.status === 'active' ? 'Active' : 'Inactive'}
-                                                    </button>
+                                                    (() => {
+                                                        const id = emp._id || emp.id
+                                                        const displayed = localStatusMap[id] ?? emp.status
+                                                        const isPending = Boolean(pendingToggles[id])
+                                                        return (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); if (!isPending) toggleStatusOptimistic(id, localStatusMap[id] ?? emp.status) }}
+                                                                disabled={isPending}
+                                                                className={`px-3 py-1 rounded-full text-sm ${displayed === 'active' ? 'bg-green-200 text-green-600' : 'bg-red-100 text-red-600'} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <span className={`inline-flex items-center ${isPending ? 'gap-2' : ''}`}>
+                                                                    {isPending && <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />}
+                                                                    <span>{displayed === 'active' ? 'Active' : 'Inactive'}</span>
+                                                                </span>
+                                                            </button>
+                                                        )
+                                                    })()
                                                 )
                                                 }                                            
                                             </td>

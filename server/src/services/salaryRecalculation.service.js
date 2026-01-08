@@ -47,15 +47,36 @@ export async function recalculateAndUpdateMonthlySalary(date = new Date()) {
     })
 
     // Merge back any existing status/note so Mark as Paid persists across recalculations
-    const mergedItems = (report.items || []).map((it) => {
+    // Also preserve previously stored items for employees that are not part of the freshly computed report
+    const reportItems = (report.items || []).map((it) => {
       const key = String(it.empId || it.id || it._id || '')
       const prev = statusMap.get(key)
       return {
         ...it,
+        empKey: key,
         status: prev?.status || it.status || 'Calculated',
         note: prev?.note || it.note || ''
       }
     })
+
+    const reportMap = new Map(reportItems.map(it => [it.empKey, it]))
+
+    // Start with report items (active employees)
+    const mergedItems = [...reportItems]
+
+    // Append previous items that are missing from the report (likely inactive employees)
+    if (existing && Array.isArray(existing.items)) {
+      for (const it of existing.items) {
+        const key = String(it.empId || it.id || it._id || '')
+        if (!reportMap.has(key)) {
+          // preserve previous item exactly so inactive employees remain visible
+          mergedItems.push(it)
+        }
+      }
+    }
+
+    // Strip helper fields and persist
+    const finalItems = mergedItems.map(({ empKey, ...rest }) => rest)
 
     // Update or create the monthly salary record
     const result = await MonthlySalaryModel.findOneAndUpdate(
@@ -64,9 +85,9 @@ export async function recalculateAndUpdateMonthlySalary(date = new Date()) {
         monthKey,
         fromDate: monthStart,
         toDate: monthEnd,
-        items: mergedItems,
+        items: finalItems,
         summary: report.summary || {},
-        totalRecords: report.totalRecords || 0,
+        totalRecords: finalItems.length || 0,
         updatedAt: new Date()
       },
       { upsert: true, new: true }

@@ -28,6 +28,17 @@ export const login = async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Invalid Employee ID/Email' })
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) return res.status(401).json({ success: false, message: 'Invalid password' })
+    // If this user maps to an employee record, ensure employee is active
+    try {
+      if (user && user.role && user.role.toString().toLowerCase() !== 'Admin') {
+        const emp = await Employee.findOne({ $or: [{ empId: user.email }, { email: user.email }] }).lean()
+        if (emp && emp.status && emp.status.toString().toLowerCase() !== 'active') {
+          return res.status(403).json({ success: false, message: 'Employee is inactive' })
+        }
+      }
+    } catch (e) {
+      // ignore lookup errors; don't block login on lookup failure
+    }
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' })
     res.json({ success: true, data: { user: { _id: user._id, name: user.name, email: user.email, role: user.role }, token } })
   } catch (err) {

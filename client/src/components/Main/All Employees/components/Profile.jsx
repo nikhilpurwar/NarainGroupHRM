@@ -50,7 +50,9 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(`${API}/${id}/profile`)
+        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const res = await axios.get(`${API}/${id}/profile`, { headers })
         setEmp(res.data.data)
       } catch (err) {
         console.error(err)
