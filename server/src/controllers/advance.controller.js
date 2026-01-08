@@ -14,7 +14,10 @@ const ensureUploadDir = () => {
 
 export const listAdvances = async (req, res) => {
   try {
-    const list = await Advance.find().populate('employee').sort({ createdAt: -1 })
+    const list = await Advance.find()
+      .populate('employee', 'name empId')
+      .sort({ createdAt: -1 })
+      .lean()
     res.json({ success: true, data: list })
   } catch (err) {
     console.error('listAdvances error', err)
@@ -24,7 +27,7 @@ export const listAdvances = async (req, res) => {
 
 export const getAdvance = async (req, res) => {
   try {
-    const adv = await Advance.findById(req.params.id).populate('employee')
+    const adv = await Advance.findById(req.params.id).populate('employee', 'name empId').lean()
     if (!adv) return res.status(404).json({ success: false, message: 'Not found' })
     res.json({ success: true, data: adv })
   } catch (err) {

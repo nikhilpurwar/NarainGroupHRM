@@ -18,7 +18,7 @@ export const createCharge = async (req, res) => {
 
 export const listCharges = async (req, res) => {
   try {
-    const list = await Charge.find().sort({ createdAt: -1 })
+    const list = await Charge.find().sort({ createdAt: -1 }).lean()
     res.json({ success: true, data: list })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -27,7 +27,7 @@ export const listCharges = async (req, res) => {
 
 export const getCharge = async (req, res) => {
   try {
-    const c = await Charge.findById(req.params.id)
+    const c = await Charge.findById(req.params.id).lean()
     if (!c) return res.status(404).json({ success: false, message: 'Not found' })
     res.json({ success: true, data: c })
   } catch (err) {

@@ -1,5 +1,8 @@
 // import { useState } from 'react'
 import './App.css'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+import { fetchPermissions } from './store/permissionsSlice'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
 import { ToastContainer } from 'react-toastify'
@@ -34,6 +37,12 @@ import Permissions from './components/Main/Settings/Permissions/Permissions'
 import AddEditEmployee from './components/Main/All Employees/components/AddEditEmployee'
 
 function App() {
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    // load permissions once at app startup
+    dispatch(fetchPermissions()).catch(() => {})
+  }, [dispatch])
   const RequireAuth = ({ children }) => {
     if (typeof window === 'undefined') return children
 

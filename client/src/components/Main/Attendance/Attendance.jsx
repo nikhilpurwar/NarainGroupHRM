@@ -9,6 +9,9 @@ import PunchRecordsModal from "./components/PunchRecordsModal"
 import MonthlySummaryCard from "./components/MonthlySummaryCard"
 import ManualAttendanceModal from "./components/ManualAttendanceModal"
 import { toast } from "react-toastify"
+import { useDispatch, useSelector } from 'react-redux'
+import { ensureEmployees } from '../../../store/employeesSlice'
+import { ensureTodayAttendance } from '../../../store/attendanceSlice'
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
@@ -28,8 +31,10 @@ const Attendance = () => {
 
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [employees, setEmployees] = useState([])
   const [empsLoading, setEmpsLoading] = useState(false)
+  const dispatch = useDispatch()
+  const employees = useSelector(s => s.employees.data || [])
+  const attendanceMap = useSelector(s => s.attendance.map || {})
   const [viewMode, setViewMode] = useState("list")
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -42,41 +47,14 @@ const Attendance = () => {
   const lastRequestedRef = useRef(null)
   const loadEmployeesRef = useRef(null)
   const loadHolidaysRef = useRef(null)
-
-  /* ---------------- Resize ---------------- */
   useEffect(() => {
-    const resize = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener("resize", resize)
-    return () => window.removeEventListener("resize", resize)
-  }, [])
-
-  /* ---------------- Load Employees & Holidays ---------------- */
-  useEffect(() => {
-    // Extract loaders so they can be reused after barcode/punch actions
+    // Ensure cached employees and today's attendance are available
     const loadEmployees = async () => {
       try {
         setEmpsLoading(true)
-        const [resEmps, resAtt] = await Promise.all([
-          axios.get(`${API_URL}/api/employees`),
-          axios.get(`${API_URL}/api/attendance/today`)
-        ])
-
-        const list = resEmps.data?.data || []
-        const attMap = resAtt.data?.data?.map ? resAtt.data.data.map : {}
-
-        const enriched = list.map(emp => {
-          const key = emp._id
-          const todayRec = attMap && attMap[key] ? attMap[key] : null
-          return {
-            ...emp,
-            attendanceMarked: !!todayRec,
-            attendanceStatus: todayRec ? todayRec.status || 'present' : null,
-          }
-        })
-
-        setEmployees(enriched)
-      } catch (err) {
-        console.error('Failed to load employees', err)
+        await dispatch(ensureEmployees())
+      } catch (e) {
+        console.error('ensureEmployees failed', e)
       } finally {
         setEmpsLoading(false)
       }
@@ -98,7 +76,7 @@ const Attendance = () => {
     // expose loaders to refs for later use
     loadEmployeesRef.current = loadEmployees
     loadHolidaysRef.current = loadHolidays
-  }, [])
+  }, [dispatch])
 
   /* ---------------- Fetch Report ---------------- */
   const fetchReport = async params => {
@@ -175,17 +153,9 @@ const Attendance = () => {
 
       // Update employee list using response type
       const punchType = res.data?.type
-      setEmployees(prev =>
-        prev.map(e =>
-          e._id === emp._id
-            ? {
-              ...e,
-              attendanceMarked: true,
-              attendanceStatus: punchType === 'in' ? 'present' : 'out',
-            }
-            : e
-        )
-      )
+      // Refresh cached employees and today's attendance so UI updates instantly
+      try { await dispatch(ensureEmployees()) } catch (e) {}
+      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
 
       // Refresh employees list so badges/counts update across UI
       try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }

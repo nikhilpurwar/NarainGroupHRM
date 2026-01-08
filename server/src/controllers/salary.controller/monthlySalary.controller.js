@@ -205,21 +205,36 @@ export const recalculateSalaryForEmployee = asyncHandler(async (req, res) => {
 		return res.status(404).json({ success: false, message: 'Employee not found' })
 	}
 
-	// Compute salary for this specific employee (always from live data)
-	const report = await salaryService.computeSalaryReport({ 
-		fromDate: fromDate.toISOString(), 
-		toDate: toDate.toISOString(), 
-		employeeId: employee._id,
-		page: 1,
-		pageSize: 1,
-		useCache: false
-	})
+	// If employee is active, compute salary from live data. If inactive, try to use stored monthly record.
+	let salaryItem = null
+	if (employee.status && employee.status.toString().toLowerCase() === 'active') {
+		const report = await salaryService.computeSalaryReport({ 
+			fromDate: fromDate.toISOString(), 
+			toDate: toDate.toISOString(), 
+			employeeId: employee._id,
+			page: 1,
+			pageSize: 1,
+			useCache: false
+		})
 
-	if (!report.items || report.items.length === 0) {
-		return res.status(404).json({ success: false, message: 'No salary data found for this employee' })
+		if (!report.items || report.items.length === 0) {
+			return res.status(404).json({ success: false, message: 'No salary data found for this employee' })
+		}
+
+		salaryItem = report.items[0]
+	} else {
+		// Inactive employee: use stored monthly salary item if available
+		const monthKey = `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}`
+		const monthlyRecord = await MonthlySalaryModel.findOne({ monthKey }).lean()
+		if (!monthlyRecord || !Array.isArray(monthlyRecord.items)) {
+			return res.status(404).json({ success: false, message: 'No salary data found for this employee (inactive)' })
+		}
+		const item = monthlyRecord.items.find(it => String(it.empId) === String(empId) || String(it.id) === String(employee._id) || String(it._id) === String(employee._id))
+		if (!item) {
+			return res.status(404).json({ success: false, message: 'No salary data found for this employee (inactive)' })
+		}
+		salaryItem = item
 	}
-
-	const salaryItem = report.items[0]
 	
 	// Update with new loan deduction
 	const newLoanDeduct = Number(loanDeduct) || 0

@@ -20,7 +20,7 @@ export const createHoliday = async (req, res) => {
 // Get all holidays
 export const getHolidays = async (req, res) => {
   try {
-    const holidays = await Holiday.find().sort({ createdAt: -1 });
+    const holidays = await Holiday.find().sort({ createdAt: -1 }).lean();
 
     res.status(200).json({
       success: true,
@@ -34,7 +34,7 @@ export const getHolidays = async (req, res) => {
 // Get a single holiday by ID
 export const getHolidayById = async (req, res) => {
   try {
-    const holiday = await Holiday.findById(req.params.id);
+    const holiday = await Holiday.findById(req.params.id).lean();
 
     if (!holiday) {
       return res.status(404).json({ success: false, message: "Holiday not found" });

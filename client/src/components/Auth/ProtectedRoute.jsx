@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import usePermissions from '../../hooks/usePermissions'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 
@@ -26,58 +27,66 @@ const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const userRole = storedUser?.role
   const location = useLocation()
 
-  const [permissionsMap, setPermissionsMap] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
-        const res = await fetch(`${API_URL}/api/permissions`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        })
-        const data = await res.json()
-        if (res.ok && data?.success && Array.isArray(data.data)) {
-          const map = {}
-          data.data.forEach(p => { map[p.route] = p.allowedRoles || [] })
-          setPermissionsMap(map)
-        } else {
-          setPermissionsMap({})
-        }
-      } catch (e) {
-        setPermissionsMap({})
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const { permissionsMap, status } = usePermissions()
+  const loading = status === 'loading'
 
   if (!userRole) return <Navigate to="/login" replace />
 
-  // Admin bypass
-  if (userRole === 'Admin') return children
+  // Normalize role for case-insensitive comparisons
+  const role = (userRole || '').toString().toLowerCase()
+
+  // Admin bypass (case-insensitive)
+  if (role === 'admin') return children
 
   // If explicit requiredRoles prop is provided, honor it
   if (requiredRoles.length > 0) {
-    if (requiredRoles.includes(userRole)) return children
+    const normalizedReq = requiredRoles.map(r => r.toString().toLowerCase())
+    if (normalizedReq.includes(role)) return children
     return <AccessDenied userRole={userRole} />
   }
-
-  // Wait for permissions to load
-  if (loading) return null
+  // While permissions are loading, allow immediate render to avoid blocking navigation.
+  // Permission enforcement will occur once the map is available.
+  if (loading) return children
 
   // Check permission for current pathname
   const path = location.pathname
-  const allowed = permissionsMap?.[path]
+
+  const findAllowedForPath = (pmap, pathname) => {
+    if (!pmap) return null
+    // exact match
+    if (pmap[pathname]) return pmap[pathname]
+    // try pattern match for routes with params like /profile/:id
+    const keys = Object.keys(pmap)
+    for (let k of keys) {
+      try {
+        if (k.includes('/:') || k.includes(':')) {
+          const pattern = '^' + k.replace(/:[^/]+/g, '[^/]+') + '$'
+          const re = new RegExp(pattern)
+          if (re.test(pathname)) return pmap[k]
+        } else {
+          // allow permission defined as '/profile' to match '/profile/:id'
+          const base = k.replace(/\/$/, '')
+          const pattern = '^' + base + '(?:/[^/]+)?$'
+          const re = new RegExp(pattern)
+          if (re.test(pathname)) return pmap[k]
+        }
+      } catch (e) {
+        // ignore invalid regex
+      }
+    }
+    return null
+  }
+
+  const allowed = findAllowedForPath(permissionsMap, path)
 
   // If no permission entry, deny for non-admins (sidebar also hides these)
-  if (!allowed) return <AccessDenied userRole={userRole} />
+  if (!allowed) {
+    // Allow profile routes to render and let server enforce owner-only access
+    if (path.startsWith('/profile')) return children
+    return <AccessDenied userRole={userRole} />
+  }
 
-  if (Array.isArray(allowed) && allowed.includes(userRole)) return children
+  if (Array.isArray(allowed) && allowed.some(a => a.toString().toLowerCase() === role)) return children
 
   return <AccessDenied userRole={userRole} />
 }

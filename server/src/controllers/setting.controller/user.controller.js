@@ -11,7 +11,7 @@ const normalizeRole = (r) => {
 
 export const listUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 })
+    const users = await User.find().select('-password').sort({ createdAt: -1 }).lean()
     res.json({ success: true, data: users })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -34,7 +34,7 @@ export const createUser = async (req, res) => {
 
 export const getUser = async (req, res) => {
   try {
-    const u = await User.findById(req.params.id).select('-password')
+    const u = await User.findById(req.params.id).select('-password').lean()
     if (!u) return res.status(404).json({ success: false, message: 'Not found' })
     res.json({ success: true, data: u })
   } catch (err) {

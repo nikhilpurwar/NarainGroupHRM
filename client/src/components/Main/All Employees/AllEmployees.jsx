@@ -1,34 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
 import EmployeeTable from "../commonComponents/employeeTable"
+import { useDispatch, useSelector } from 'react-redux'
+import { ensureEmployees, fetchEmployees } from '../../../store/employeesSlice'
 
 const AllEmployees = () => {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch()
+  const employees = useSelector(s => s.employees.data || [])
+  const loading = useSelector(s => s.employees.status === 'loading')
   const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
   const API_BASE = `${API_URL}/api/employees`;
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(API_BASE);
-        setEmployees(res.data?.data || []);
-      } catch (err) {
-        console.error("Employees API Error", err?.message || err);
-        toast.error("Failed to load employees");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+    dispatch(ensureEmployees())
+  }, [dispatch])
 
   const handleAddEmployee = () => navigate("/employee/add");
 
@@ -37,7 +28,8 @@ const AllEmployees = () => {
     if (!confirm) return;
     try {
       await axios.delete(`${API_BASE}/${empId}`);
-      setEmployees((prev) => prev.filter((e) => (e._id || e.id) !== empId));
+      // Force refetch immediately so status and list update
+      dispatch(fetchEmployees())
       toast.success("Employee deleted");
     } catch (err) {
       console.error("Delete failed", err);
@@ -49,7 +41,8 @@ const AllEmployees = () => {
     const next = currentStatus === "active" ? "inactive" : "active";
     try {
       await axios.put(`${API_BASE}/${empId}`, { status: next });
-      setEmployees((prev) => prev.map((e) => ((e._id === empId || e.id === empId) ? { ...e, status: next } : e)));
+      // Force refetch so UI updates immediately
+      dispatch(fetchEmployees())
       toast.success(`Employee ${next}`);
     } catch (err) {
       console.error("Toggle failed", err);

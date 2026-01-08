@@ -1,53 +1,29 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
 import { io as clientIO } from "socket.io-client";
+import { useDispatch, useSelector } from 'react-redux'
+import { ensureEmployees } from '../../../store/employeesSlice'
+import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice'
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 const API = `${API_URL}/api/employees`;
 const ATTENDANCE_API = `${API_URL}/api/attendance-report`;
 
 const LiveAttendance = () => {
-  const [employees, setEmployees] = useState([]);
-  const [attendanceMap, setAttendanceMap] = useState({});
-  const [attendanceIso, setAttendanceIso] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch()
+  const employees = useSelector(s => s.employees.data || [])
+  const attendanceMap = useSelector(s => s.attendance.map || {})
+  const attendanceIso = useSelector(s => s.attendance.attendanceIso)
+  const loading = useSelector(s => s.employees.status === 'loading' || s.attendance.status === 'loading')
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [eRes, aRes] = await Promise.all([
-          axios.get(API),
-          axios.get(`${ATTENDANCE_API}/today`),
-        ]);
-
-        const emps = eRes.data?.data || [];
-        setEmployees(emps);
-
-        const attendPayload = aRes.data?.data || {};
-        setAttendanceIso(attendPayload.attendanceIso || null);
-
-        // normalize map: keys are employee ids (strings)
-        const map = {};
-        if (attendPayload.map) {
-          for (const k of Object.keys(attendPayload.map)) {
-            map[k] = attendPayload.map[k];
-          }
-        }
-        setAttendanceMap(map);
-      } catch (err) {
-        console.error("Failed to load live attendance:", err);
-        toast.error("Failed to load live attendance");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    // ensure cached data is available; will fetch in background if stale
+    dispatch(ensureEmployees())
+    dispatch(ensureTodayAttendance())
+  }, [dispatch]);
 
   useEffect(() => {
     const socket = clientIO(API_URL, {
@@ -68,7 +44,7 @@ const LiveAttendance = () => {
 
     socket.on("attendance:updated", (payload) => {
       if (!payload || !payload.employee) return;
-      setAttendanceMap((prev) => ({ ...prev, [payload.employee]: payload.attendance }));
+      dispatch(updateAttendanceEntry({ employeeId: payload.employee, attendance: payload.attendance }))
     });
 
     socket.on("disconnect", () => {

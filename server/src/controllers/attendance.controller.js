@@ -34,11 +34,10 @@ export const attendanceReport = async (req, res) => {
 
     if (employeeId) {
       const emp = await Employee.findById(employeeId)
-        .populate('headDepartment')
-        .populate('subDepartment')
-        // .populate('group')
-        .populate('designation')
-        // .populate('reportsTo', 'name empId');
+        .populate('headDepartment', 'name')
+        .populate('subDepartment', 'name')
+        .populate('designation', 'name')
+        .lean();
       if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
 
       const days = monthDays(queryYear, queryMonth);
@@ -200,11 +199,10 @@ export const attendanceReport = async (req, res) => {
     const q = {};
     if (search) q.name = { $regex: search, $options: 'i' };
     const emp = await Employee.findOne(q)
-      .populate('headDepartment')
-      .populate('subDepartment')
-      // .populate('group')
-      .populate('designation')
-      // .populate('reportsTo', 'name empId');
+      .populate('headDepartment', 'name')
+      .populate('subDepartment', 'name')
+      .populate('designation', 'name')
+      .lean();
     if (!emp) return res.json({ success: true, data: null });
 
     const days = monthDays(queryYear, queryMonth);
@@ -406,6 +404,11 @@ export const scanAttendance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Employee not found with this code' });
     }
 
+    // Do not allow inactive employees to punch
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' });
+    }
+
     const now = new Date();
     const currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -453,6 +456,10 @@ export const scanAttendance = async (req, res) => {
 // Handle Punch IN
 async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = null, existingAttendance = null) {
   try {
+    // Prevent punch for inactive employees
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' })
+    }
     // If existingAttendance provided, append IN punch
     if (existingAttendance) {
       existingAttendance.punchLogs = existingAttendance.punchLogs || [];
@@ -599,6 +606,10 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
 // Handle Punch OUT
 async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
   try {
+    // Prevent punch for inactive employees
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' })
+    }
     const attendance = attendanceDoc;
 
     // Append OUT punch and recompute totals/pairs from punchLogs

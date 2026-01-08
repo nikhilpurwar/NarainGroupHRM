@@ -1,8 +1,15 @@
 import Permission from '../../models/setting.model/permission.model.js'
+import { refreshPermissionCache, getAllPermissions } from '../../utils/permissionCache.js'
 
 export const listPermissions = async (req, res) => {
   try {
-    const perms = await Permission.find().sort({ route: 1 })
+    // prefer returning cached permissions for speed
+    let perms = getAllPermissions()
+    if (!perms || perms.length === 0) {
+      // cache cold? refresh and read from DB
+      await refreshPermissionCache()
+      perms = getAllPermissions()
+    }
     res.json({ success: true, data: perms })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -18,10 +25,14 @@ export const upsertPermission = async (req, res) => {
       existing.label = label || existing.label
       existing.allowedRoles = Array.isArray(allowedRoles) ? allowedRoles : existing.allowedRoles
       await existing.save()
+      // refresh cache after update
+      try { await refreshPermissionCache() } catch (e) { console.error('Permission cache refresh failed', e) }
       return res.json({ success: true, data: existing })
     }
 
     const created = await Permission.create({ route, label, allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [] })
+    // refresh cache after create
+    try { await refreshPermissionCache() } catch (e) { console.error('Permission cache refresh failed', e) }
     res.status(201).json({ success: true, data: created })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
