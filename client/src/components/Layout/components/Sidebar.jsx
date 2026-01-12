@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom"
 import axios from "axios"
 import usePermissions from '../../../hooks/usePermissions'
 
-const Sidebar = ({ isCollapsed }) => {
+const Sidebar = ({ isCollapsed, toggleSidebar }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
   const { permissionsMap: permissions } = usePermissions()
   const [open, setOpen] = useState({
@@ -14,6 +14,17 @@ const Sidebar = ({ isCollapsed }) => {
   const [isHovered, setHovered] = useState(false)
 
   const effectiveCollapsed = Boolean(isCollapsed) && !isHovered
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // On small screens we treat `collapsed` as closed — don't render the slim sidebar
+  // (decision to actually hide will be applied after all hooks are declared)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -21,10 +32,10 @@ const Sidebar = ({ isCollapsed }) => {
   const storedUser =
     typeof window !== "undefined"
       ? JSON.parse(
-          sessionStorage.getItem("user") ||
-          localStorage.getItem("user") ||
-          "null"
-        )
+        sessionStorage.getItem("user") ||
+        localStorage.getItem("user") ||
+        "null"
+      )
       : null
 
   const role = storedUser?.role
@@ -127,7 +138,7 @@ const Sidebar = ({ isCollapsed }) => {
       localStorage.removeItem("user")
       sessionStorage.removeItem("token")
       sessionStorage.removeItem("user")
-      try { delete axios.defaults.headers.common["Authorization"] } catch {}
+      try { delete axios.defaults.headers.common["Authorization"] } catch { }
       navigate("/login")
     } catch (e) {
       console.error(e)
@@ -136,78 +147,91 @@ const Sidebar = ({ isCollapsed }) => {
 
   /* ---------------- RENDER ---------------- */
 
+  const shouldOverlay = !effectiveCollapsed && isMobile
+
+  // Hide collapsed sidebar on mobile: return null after all hooks have run
+  if (isMobile && Boolean(isCollapsed)) return null
+
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={`${effectiveCollapsed ? "w-20" : "w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen shrink-0`}
-    >
-      {/* LOGO */}
-      <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
-        <img
-          src={effectiveCollapsed ? "/logo1.png" : "/logo2.png"}
-          alt="logo"
-          className={effectiveCollapsed ? "h-16 w-16 object-contain" : "h-12 object-contain"}
-        />
+    <>
+      {/* Backdrop for mobile when sidebar is open */}
+      {shouldOverlay && (
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => toggleSidebar && toggleSidebar()} />
+      )}
+
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`${effectiveCollapsed ? "w-auto md:w-21" : "md:w-64"} bg-gray-900 border-r border-gray-700 text-white transition-all duration-300 flex flex-col h-screen ${shouldOverlay ? 'absolute left-0 top-0 z-50' : 'shrink-0'}`}
+      >
+        {/* LOGO */}
+        <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
+          <img
+            src={effectiveCollapsed ? "/logo1.png" : "/logo2.png"}
+            alt="logo"
+            className={effectiveCollapsed ? "w-14 object-contain" : "h-12 object-contain"}
+          />
+        </div>
+
+        {/* MENU */}
+        <nav className="flex-1 overflow-y-auto sidebar-scroll pb-4">
+          <ul className="space-y-1 p-2.5 md:p-4">
+            {visibleMainMenu.map(item => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  onClick={() => { if (isMobile && toggleSidebar) toggleSidebar() }}
+                  className={({ isActive }) =>
+                    `${baseLink} ${effectiveCollapsed ? "justify-center" : ""} ${isActive ? activeLink : inactiveLink}`
+                  }
+                >
+                  <i className={`fa-solid ${item.icon} text-lg`} />
+                  {!effectiveCollapsed && <span className="text-sm">{item.label}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+
+          <Dropdown
+            title="Reports"
+            icon="fa-file"
+            open={open.reports}
+            toggle={() => setOpen(o => ({ ...o, reports: !o.reports }))}
+            collapsed={effectiveCollapsed}
+            items={visibleReportsMenu}
+          />
+
+          <Dropdown
+            title="Departments"
+            icon="fa-building"
+            open={open.dept}
+            toggle={() => setOpen(o => ({ ...o, dept: !o.dept }))}
+            collapsed={effectiveCollapsed}
+            items={visibleDeptMenu}
+          />
+
+          <Dropdown
+            title="Settings"
+            icon="fa-cog"
+            open={open.settings}
+            toggle={() => setOpen(o => ({ ...o, settings: !o.settings }))}
+            collapsed={effectiveCollapsed}
+            items={visibleSettingsMenu}
+          />
+        </nav>
+
+        {/* LOGOUT */}
+        <div className="border-t border-gray-700 p-3">
+          <button
+            onClick={doLogout}
+            className="w-full flex items-center gap-3 px-3 py-3 hover:bg-red-600 rounded"
+          >
+            <i className="fa-solid fa-arrow-right-from-bracket" />
+            {!effectiveCollapsed && <span>Logout</span>}
+          </button>
+        </div>
       </div>
-
-      {/* MENU */}
-      <nav className="flex-1 overflow-y-auto sidebar-scroll pb-4">
-        <ul className="space-y-1 p-3">
-          {visibleMainMenu.map(item => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `${baseLink} ${effectiveCollapsed ? "justify-center px-0" : ""} ${isActive ? activeLink : inactiveLink}`
-                }
-              >
-                <i className={`fa-solid ${item.icon} text-lg`} />
-                {!effectiveCollapsed && <span className="text-sm">{item.label}</span>}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-
-        <Dropdown
-          title="Reports"
-          icon="fa-file"
-          open={open.reports}
-          toggle={() => setOpen(o => ({ ...o, reports: !o.reports }))}
-          collapsed={effectiveCollapsed}
-          items={visibleReportsMenu}
-        />
-
-        <Dropdown
-          title="Departments"
-          icon="fa-building"
-          open={open.dept}
-          toggle={() => setOpen(o => ({ ...o, dept: !o.dept }))}
-          collapsed={effectiveCollapsed}
-          items={visibleDeptMenu}
-        />
-
-        <Dropdown
-          title="Settings"
-          icon="fa-cog"
-          open={open.settings}
-          toggle={() => setOpen(o => ({ ...o, settings: !o.settings }))}
-          collapsed={effectiveCollapsed}
-          items={visibleSettingsMenu}
-        />
-      </nav>
-
-      {/* LOGOUT */}
-      <div className="border-t border-gray-700 p-3">
-        <button
-          onClick={doLogout}
-          className="w-full flex items-center gap-3 px-3 py-3 hover:bg-red-600 rounded"
-        >
-          <i className="fa-solid fa-arrow-right-from-bracket" />
-          {!effectiveCollapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 

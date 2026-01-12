@@ -1,6 +1,9 @@
 import Employee from "../models/employee.model.js";
 import User from "../models/setting.model/user.model.js";
 import Attendance from "../models/attendance.model.js";
+import Advance from "../models/advance.model.js";
+import MonthlySummary from "../models/monthlySummary.model.js";
+import MonthlySalaryModel from "../models/salary.model/monthlySalary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
@@ -601,6 +604,42 @@ export const deleteEmployee = async (req, res) => {
   try {
     const emp = await Employee.findByIdAndDelete(req.params.id);
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
+
+    // Cascade cleanup: attendance, advances, monthly summaries
+    try {
+      await Promise.all([
+        Attendance.deleteMany({ employee: emp._id }),
+        Advance.deleteMany({ employee: emp._id }),
+        MonthlySummary.deleteMany({ employee: emp._id })
+      ]);
+
+      // Remove entries related to this employee from MonthlySalary.items
+      // Items may reference employee via `empId` (string) or numeric/string IDs.
+      const empKeys = [String(emp._id), String(emp.empId || '')].filter(Boolean);
+      if (empKeys.length) {
+        const monthlyRecords = await MonthlySalaryModel.find({ 'items.empId': { $in: empKeys } });
+        for (const rec of monthlyRecords) {
+          const filtered = (rec.items || []).filter(it => {
+            const itemKey = String(it?.empId || it?.id || it?._id || '')
+            return !empKeys.includes(itemKey)
+          })
+          rec.items = filtered
+          rec.totalRecords = filtered.length || 0
+          await rec.save()
+        }
+      }
+
+      // Trigger salary recalculation for current + previous month to keep caches consistent
+      try {
+        salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(() => {})
+      } catch (e) {
+        // ignore
+      }
+    } catch (cleanupErr) {
+      console.error('Employee cascade cleanup failed:', cleanupErr);
+      // continue returning success for deletion of employee record itself
+    }
+
     res.json({ success: true, message: "Deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
