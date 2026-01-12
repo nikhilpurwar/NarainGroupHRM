@@ -43,8 +43,7 @@ const seed = async () => {
       const code = sd.code || sd.name.replace(/\s+/g, '_').toUpperCase().slice(0, 10)
       for (let i = 1; i <= 2; i++) {
         employeesToInsert.push({
-          name: `Test ${sd.name} ${i}`,
-          empId: `TEST_${code}_${i}`,
+          name: `Test ${sd.name} ${i}`,          
           status: 'active',
           headDepartment: sd.headDepartment || null,
           subDepartment: sd._id,

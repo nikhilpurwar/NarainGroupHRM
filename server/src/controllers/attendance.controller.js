@@ -432,8 +432,30 @@ export const scanAttendance = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Employee is inactive' });
     }
 
-    const now = new Date();
-    const currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Prefer client-provided timestamp when available to preserve user's local time.
+    // Client should send `clientTs` (epoch ms) or `punchTime` (ISO) and optionally `tzOffsetMinutes`.
+    let now;
+    const clientTsRaw = req.body?.clientTs || req.body?.punchTime || req.query?.ts;
+    if (clientTsRaw) {
+      // try numeric epoch first
+      const asNumber = Number(clientTsRaw);
+      if (!Number.isNaN(asNumber)) now = new Date(asNumber);
+      else now = new Date(clientTsRaw);
+      if (!(now instanceof Date) || isNaN(now)) now = new Date();
+    } else {
+      now = new Date();
+    }
+
+    // Build display time string. If client provided timezone offset, compute client's local time string.
+    const tzOffsetMinutes = typeof req.body?.tzOffsetMinutes !== 'undefined' ? Number(req.body.tzOffsetMinutes) : null;
+    let currentTimeString;
+    if (tzOffsetMinutes !== null && !Number.isNaN(tzOffsetMinutes)) {
+      // clientOffset = minutes to add to local time to get UTC; to get local from UTC: local = utc - offset
+      const clientLocal = new Date(now.getTime() - (tzOffsetMinutes * 60000));
+      currentTimeString = clientLocal.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } else {
+      currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
 
     // Check for duplicate punch (debounce)
     if (attendanceService.isPunchDuplicate(emp._id.toString(), null)) {
