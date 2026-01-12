@@ -62,15 +62,37 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
       return
     }
     if (!inHour) {
-      setError('Please enter Punch-In time')
+      setError('Please enter Punch-In hour')
+      return
+    }
+    if (!inMinute) {
+      setError('Please enter Punch-In minute')
+      return
+    }
+    if (!inMeridiem) {
+      setError('Please select Punch-In AM/PM')
       return
     }
 
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
-    // For current date, do not allow or send Punch-Out time
-    const outTime = !isTodaySelected && outHour
-      ? buildAmPmTime(outHour, outMinute, outMeridiem)
-      : ''
+
+    // For back-date (not today) require Punch-Out fields as well
+    let outTime = ''
+    if (!isTodaySelected) {
+      if (!outHour) {
+        setError('Please enter Punch-Out hour for past date')
+        return
+      }
+      if (!outMinute) {
+        setError('Please enter Punch-Out minute for past date')
+        return
+      }
+      if (!outMeridiem) {
+        setError('Please select Punch-Out AM/PM for past date')
+        return
+      }
+      outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
+    }
 
     try {
       setSubmitting(true)

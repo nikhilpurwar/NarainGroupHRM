@@ -41,7 +41,11 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
       // Call the attendance API with the barcode code
       const res = await axios.post(
         `${API_URL}/api/store-emp-attend?code=${code}`,
-        { date: new Date().toLocaleDateString('en-CA') }
+        {
+          date: new Date().toLocaleDateString('en-CA'),
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset()
+        }
       )
 
       if (res.data?.success || res.data?.data) {
@@ -159,7 +163,11 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
       setIsMarking(true)
       const res = await axios.post(
         `${API_URL}/api/store-emp-attend?code=${encodeURIComponent(code)}`,
-        { date: new Date().toLocaleDateString('en-CA') }
+        {
+          date: new Date().toLocaleDateString('en-CA'),
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset()
+        }
       )
 
       if (res.data?.success || res.data?.data) {
