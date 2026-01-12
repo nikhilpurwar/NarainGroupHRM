@@ -7,10 +7,13 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 
 const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
   const inputRef = useRef(null)
+  const videoRef = useRef(null)
+  const detectorRef = useRef(null)
   const [scanning, setScanning] = useState(false)
   const [scannedCode, setScannedCode] = useState('')
   const [isMarking, setIsMarking] = useState(false)
   const [successData, setSuccessData] = useState(null)
+  const [cameraActive, setCameraActive] = useState(false)
 
   // Auto-focus input when modal opens
   useEffect(() => {
@@ -18,15 +21,17 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
       setTimeout(() => {
         inputRef.current?.focus()
       }, 100)
+      // start camera if BarcodeDetector available
+      startCamera()
     }
+    if (!isOpen) stopCamera()
+    return () => stopCamera()
   }, [isOpen])
 
   // Handle barcode input
   const handleBarcodeInput = async (e) => {
-    const code = e.target.value.trim()
-    
+    const code = (e?.target?.value || '').trim()
     if (!code) return
-
     setScanning(true)
     setScannedCode(code)
 
@@ -83,6 +88,110 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
     }
   }
 
+  // Camera + BarcodeDetector handling
+  const startCamera = async () => {
+    if (!isOpen) return
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+        setCameraActive(true)
+        // init BarcodeDetector if available
+        if ('BarcodeDetector' in window) {
+          try {
+            const formats = ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code']
+            detectorRef.current = new window.BarcodeDetector({ formats })
+            requestAnimationFrame(detectFrame)
+          } catch (err) {
+            // ignore and fallback
+          }
+        }
+      }
+    } catch (err) {
+      // permission denied or no camera
+      console.warn('Camera not available', err)
+      setCameraActive(false)
+    }
+  }
+
+  const stopCamera = () => {
+    try {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks()
+        tracks.forEach(t => t.stop())
+        videoRef.current.srcObject = null
+      }
+    } catch (e) {}
+    detectorRef.current = null
+    setCameraActive(false)
+  }
+
+  const detectFrame = async () => {
+    try {
+      if (!videoRef.current || videoRef.current.readyState < 2) {
+        requestAnimationFrame(detectFrame)
+        return
+      }
+      if (!detectorRef.current) return
+      const barcodes = await detectorRef.current.detect(videoRef.current)
+      if (barcodes && barcodes.length > 0) {
+        const code = barcodes[0].rawValue || barcodes[0].raw
+        if (code) {
+          // stop camera and mark attendance
+          stopCamera()
+          setScannedCode(code)
+          await markAttendanceFromCode(code)
+          return
+        }
+      }
+    } catch (err) {
+      // detection may throw occasionally; continue
+      console.warn('Barcode detect error', err)
+    }
+    requestAnimationFrame(detectFrame)
+  }
+
+  const markAttendanceFromCode = async (code) => {
+    setScanning(true)
+    try {
+      setIsMarking(true)
+      const res = await axios.post(
+        `${API_URL}/api/store-emp-attend?code=${encodeURIComponent(code)}`,
+        { date: new Date().toLocaleDateString('en-CA') }
+      )
+
+      if (res.data?.success || res.data?.data) {
+        const empData = res.data.data
+        setSuccessData(empData)
+        toast.success(`✓ Attendance marked for ${empData?.name || 'Employee'}`)
+        if (onAttendanceMarked) onAttendanceMarked(empData)
+        setTimeout(() => {
+          setScannedCode('')
+          setSuccessData(null)
+          inputRef.current?.focus()
+        }, 2000)
+      } else {
+        toast.error(res.data?.message || 'Failed to mark attendance')
+      }
+    } catch (err) {
+      console.error('Attendance marking error:', err)
+      let errorMsg = 'Failed to mark attendance'
+      if (err.response?.data?.message) errorMsg = err.response.data.message
+      else if (err.message) errorMsg = err.message
+      toast.error(errorMsg)
+      setTimeout(() => {
+        setScannedCode('')
+        setSuccessData(null)
+        inputRef.current?.focus()
+      }, 1500)
+    } finally {
+      setIsMarking(false)
+      setScanning(false)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -111,6 +220,30 @@ const BarcodeScanner = ({ isOpen, onClose, onAttendanceMarked }) => {
             {(successData.totalHoursDisplay || successData.totalHours || successData.attendance?.totalHoursDisplay || successData.attendance?.totalHours) && (
               <p className="text-green-600 text-xs mt-1">Total Hours: {successData.totalHoursDisplay || successData.totalHours || successData.attendance?.totalHoursDisplay || successData.attendance?.totalHours} </p>
             )}
+          </div>
+        )}
+
+        {/* Video preview (camera) */}
+        {cameraActive ? (
+          <div className="mb-4">
+            <video ref={videoRef} autoPlay muted playsInline className="w-full h-48 object-cover rounded-md bg-black" />
+          </div>
+        ) : (
+          <div className="mb-4">
+            <div className="w-full h-48 rounded-md bg-gray-100 flex items-center justify-center text-sm text-gray-500">
+              <div>
+                <div>Camera not active</div>
+                <div className="text-xs mt-1">Allow camera permission or try the button below</div>
+                <div className="mt-2">
+                  <button
+                    onClick={() => startCamera()}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                  >
+                    Try Camera
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

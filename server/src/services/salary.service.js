@@ -258,25 +258,40 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     cursor.setHours(0, 0, 0, 0)
     const end = new Date(to)
     end.setHours(0, 0, 0, 0)
+    // Determine weekends per rule (5 => Sat+Sun off, 6 => Sun off)
+    const workingDaysPerWeek = rule?.workingDaysPerWeek || 6
 
     while (cursor <= end) {
       const dow = cursor.getDay()
       if (dow === 0) { // Sunday (autopay candidate)
-        let workingCount = 0
+        let checkedWorkingDays = 0
         let allWorkingPresent = true
 
         const back = new Date(cursor)
 
-        // Rule: use the last N consecutive calendar days
-        // immediately before this Sunday. Each of those
-        // days must have attendance status present or
-        // halfday.
         const minDate = extraAttendances.length > 0 && fromLookback
           ? fromLookback
           : null
 
-        for (let i = 0; i < requiredLastWorking; i++) {
+        // Walk backwards until we've inspected requiredLastWorking working days
+        while (checkedWorkingDays < requiredLastWorking) {
           back.setDate(back.getDate() - 1)
+
+          // Skip weekend days according to workingDaysPerWeek
+          const backDow = back.getDay()
+          let backIsWeekend = (backDow === 0 || backDow === 6)
+          if (workingDaysPerWeek === 6) backIsWeekend = backDow === 0
+          if (workingDaysPerWeek === 5) backIsWeekend = backDow === 0 || backDow === 6
+          if (backIsWeekend) {
+            // don't count this day towards the required working-days window
+            // but still move further back
+            // however, if minDate is set and we've moved before it, break
+            if (minDate && back < minDate) {
+              allWorkingPresent = false
+              break
+            }
+            continue
+          }
 
           if (minDate && back < minDate) {
             allWorkingPresent = false
@@ -292,10 +307,10 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
             break
           }
 
-          workingCount++
+          checkedWorkingDays++
         }
 
-        if (workingCount >= requiredLastWorking && allWorkingPresent) {
+        if (checkedWorkingDays >= requiredLastWorking && allWorkingPresent) {
           sundayAutopayDays++
         }
       }
@@ -353,16 +368,33 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
       const fest = new Date(h.date)
       fest.setHours(0, 0, 0, 0)
 
+      // Walk back and ensure the previous `requiredFestivalPrev` working days
+      // (skipping weekends based on workingDaysPerWeek) are present/halfday.
       let allPrevPresent = true
-      let count = 0
+      let checkedWorkingDays = 0
       const back = new Date(fest)
 
       const minDate = extraAttendances.length > 0 && fromLookback
         ? fromLookback
         : null
 
-      for (let i = 0; i < requiredFestivalPrev; i++) {
+      const workingDaysPerWeek = rule?.workingDaysPerWeek || 6
+
+      while (checkedWorkingDays < requiredFestivalPrev) {
         back.setDate(back.getDate() - 1)
+
+        // Skip weekend days according to workingDaysPerWeek
+        const backDow = back.getDay()
+        let backIsWeekend = (backDow === 0 || backDow === 6)
+        if (workingDaysPerWeek === 6) backIsWeekend = backDow === 0
+        if (workingDaysPerWeek === 5) backIsWeekend = backDow === 0 || backDow === 6
+        if (backIsWeekend) {
+          if (minDate && back < minDate) {
+            allPrevPresent = false
+            break
+          }
+          continue
+        }
 
         if (minDate && back < minDate) {
           allPrevPresent = false
@@ -379,10 +411,10 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
           break
         }
 
-        count++
+        checkedWorkingDays++
       }
 
-      if (count >= requiredFestivalPrev && allPrevPresent) {
+      if (checkedWorkingDays >= requiredFestivalPrev && allPrevPresent) {
         festivalAutopayDays++
       }
     }

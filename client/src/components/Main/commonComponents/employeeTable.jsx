@@ -280,7 +280,7 @@ const EmployeeTable = ({
     return (
         <div>
             {showFilters && (
-                <div className="card-hover bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
+                <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
                     <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
                         {/* Search Input */}
                         <div className="relative col-span-2">
@@ -384,7 +384,7 @@ const EmployeeTable = ({
                         <button
                             title='Clear Filters'
                             onClick={clearFilters}
-                            className="flex items-center justify-center gap-2 w-full md:w-auto px-5 py-2.5 
+                            className="flex items-center justify-center gap-2 w-full md:w-auto px-5 py-2 
                      bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 
                      text-gray-700 rounded-lg font-medium transition-all duration-200
                      border border-gray-200 shadow-sm hover:shadow
@@ -404,7 +404,7 @@ const EmployeeTable = ({
                         <p className="text-center py-6 text-gray-500">Loading employees...</p>
                     </div>
                 ) : (
-                    <table className="card-hover w-full min-w-7xl table-auto">
+                    <table className="w-full min-w-7xl table-auto">
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
                                 <th className="px-4 py-3">#</th>
@@ -435,8 +435,8 @@ const EmployeeTable = ({
                                         <tr key={emp.id || emp._id} className={`border-b transition ${statusClass}`}>
                                             <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
                                             <td
-                                                onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
-                                                className="px-4 py-3 cursor-pointer"
+                                                // onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                className="px-4 py-3"
                                             >
                                                 {emp.empId}
                                             </td>
@@ -503,7 +503,7 @@ const EmployeeTable = ({
                                                         )
                                                     })()
                                                 )
-                                                }                                            
+                                                }
                                             </td>
 
                                             {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}
