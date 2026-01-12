@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Calendar, ListRestart } from 'lucide-react';
 import SalaryTableRow from './SalaryTableRow';
+import { MdKeyboardBackspace, MdOutlineRefresh } from "react-icons/md"
 
 const SalaryTable = memo(({
   salaryData,
@@ -13,7 +14,8 @@ const SalaryTable = memo(({
   onPay,
   onDownloadPDF,
   onLoanDeductChange,
-  onRecalculate
+  onRecalculate,
+  isRecalculating
 }) => {
 
   if (loading) {
@@ -33,12 +35,38 @@ const SalaryTable = memo(({
   if (!dataExists) {
     return (
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="px-4 py-4 border-b bg-gray-50">
+        <div className="flex items-center justify-between px-4 py-4 border-b bg-gray-50">
           <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
+          <button
+            type="button"
+            title='Recalculate Monthly Salary'
+            className={`button-hover ${isRecalculating ? 'opacity-60 cursor-not-allowed' : ''}`}
+            onClick={onRecalculate}
+            disabled={isRecalculating}
+          >
+            <ListRestart className={`inline-block ${isRecalculating ? 'animate-spin' : ''}`} size={26} />
+          </button>
         </div>
         <div className="py-12 text-center">
           <p className="text-gray-600 text-lg">No salary data available for the selected month.</p>
           <p className="text-gray-500 text-sm mt-2">Please select a different month or click "Apply Filters" to check.</p>
+          <div className="mt-6 flex justify-center items-center gap-4">
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2 text-gray-600 shadow-xl hover:text-black hover:border-gray-900 cursor-pointer border-1 border-gray-300 px-4 py-2 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            >
+              <MdKeyboardBackspace size={24} />
+              <span>Back</span>
+            </button>
+            <button
+              onClick={onRecalculate}
+              disabled={isRecalculating}
+              className={`flex items-center px-4 py-2 bg-gray-800 shadow-xl border border-gray-300 rounded-md font-semibold text-white ${isRecalculating ? 'opacity-60 cursor-not-allowed' : 'hover:bg-gray-900'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              <MdOutlineRefresh className={`mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -51,10 +79,11 @@ const SalaryTable = memo(({
         <button
           type="button"
           title='Recalculate Monthly Salary'
-          className='button-hover'
+          className={`button-hover ${isRecalculating ? 'opacity-60 cursor-not-allowed' : ''}`}
           onClick={onRecalculate}
+          disabled={isRecalculating}
         >
-          <ListRestart className="inline-block " size={26} />
+          <ListRestart className={`inline-block ${isRecalculating ? 'animate-spin' : ''}`} size={26} />
         </button>
       </div>
 

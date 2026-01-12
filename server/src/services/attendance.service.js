@@ -1,5 +1,7 @@
 import Attendance from '../models/attendance.model.js'
 import BreakTime from '../models/setting.model/workingHours.model.js'
+import Employee from '../models/employee.model.js'
+import SalaryRule from '../models/setting.model/salaryRule.model.js'
 import createHttpError from 'http-errors'
 
 // Configurable business rules
@@ -318,10 +320,30 @@ export async function autoMarkAbsentsForMonth(employeeId, year, month, { skipWee
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d))
 
   const created = []
+  // Determine workingDaysPerWeek for this employee (default 6)
+  let workingDaysPerWeek = 6
+  try {
+    if (employeeId) {
+      const emp = await Employee.findById(employeeId).lean()
+      const subDeptId = emp?.subDepartment?._id || emp?.subDepartment || null
+      if (subDeptId) {
+        const rule = await SalaryRule.findOne({ subDepartment: subDeptId }).lean()
+        if (rule && typeof rule.workingDaysPerWeek === 'number') workingDaysPerWeek = rule.workingDaysPerWeek
+      }
+    }
+  } catch (err) {
+    // ignore and fallback to default
+    workingDaysPerWeek = 6
+  }
   for (const day of days) {
     const iso = day.toISOString().slice(0, 10)
     const dayOfWeek = day.getDay()
-    if (skipWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) continue
+    if (skipWeekends) {
+      let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6)
+      if (workingDaysPerWeek === 6) isWeekend = dayOfWeek === 0
+      if (workingDaysPerWeek === 5) isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+      if (isWeekend) continue
+    }
     if (minDate && day < new Date(minDate)) continue
 
     const existing = await Attendance.findOne({ employee: employeeId, date: { $gte: new Date(`${iso}T00:00:00Z`), $lte: new Date(`${iso}T23:59:59Z`) } })
@@ -436,7 +458,22 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
       const nextDayIso = attendanceIso;
       const nextDayDateObj = new Date(`${nextDayIso}T00:00:00Z`);
       const nextDayOfWeek = nextDayDateObj.getDay();
-      const nextDayIsWeekend = nextDayOfWeek === 0 || nextDayOfWeek === 6;
+      // determine weekend for this employee based on SalaryRule.workingDaysPerWeek
+      let nextDayIsWeekend = (nextDayOfWeek === 0 || nextDayOfWeek === 6)
+      try {
+        if (employeeId) {
+          const emp = await Employee.findById(employeeId).lean()
+          const subDeptId = emp?.subDepartment?._id || emp?.subDepartment || null
+          if (subDeptId) {
+            const rule = await SalaryRule.findOne({ subDepartment: subDeptId }).lean()
+            const workingDaysPerWeek = rule?.workingDaysPerWeek || 6
+            if (workingDaysPerWeek === 6) nextDayIsWeekend = nextDayOfWeek === 0
+            if (workingDaysPerWeek === 5) nextDayIsWeekend = nextDayOfWeek === 0 || nextDayOfWeek === 6
+          }
+        }
+      } catch (err) {
+        nextDayIsWeekend = (nextDayOfWeek === 0 || nextDayOfWeek === 6)
+      }
 
       let nextDayAtt = await Attendance.findOne({
         employee: employeeId,

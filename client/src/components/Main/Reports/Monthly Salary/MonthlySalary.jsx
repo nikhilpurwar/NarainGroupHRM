@@ -108,6 +108,7 @@ const MonthlySalary = () => {
   // Initialize hooks
   const { filters, handleFilterChange, clearFilters } = useSalaryFilters();
   const { months, years, getSelectedMonthYearLabel } = useDateHelper(filters.month, filters.year);
+  const [recalculating, setRecalculating] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, summary, checkDataExists, fetchSalaryData } = useSalaryData(filters, currentPage, pageSize);
@@ -215,6 +216,7 @@ const MonthlySalary = () => {
       toast.error('Please select month and year before recalculating');
       return;
     }
+    setRecalculating(true);
     try {
       const payload = { month: `${filters.year}-${filters.month}` };
       const res = await axios.post(`${API_URL}/api/salary/monthly/calculate`, payload);
@@ -233,6 +235,8 @@ const MonthlySalary = () => {
     } catch (error) {
       console.error('Error recalculating monthly salary:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to recalculate salary');
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -286,6 +290,7 @@ const MonthlySalary = () => {
         salaryData={salaryData}
         loading={loading}
         dataExists={dataExists}
+        isRecalculating={recalculating}
         monthYear={getSelectedMonthYearLabel()}
         currentPage={currentPage}
         pageSize={pageSize}

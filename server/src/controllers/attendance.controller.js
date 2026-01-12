@@ -5,6 +5,7 @@ import * as attendanceService from "../services/attendance.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import { getIO } from "../utils/socket.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
+import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
 
 const monthDays = (year, month) => {
   // month: 1-12
@@ -140,12 +141,23 @@ export const attendanceReport = async (req, res) => {
       const otRow = [];
       const noteRow = [];
 
+      // Fetch salary rule once for this employee to determine weekends
+      const rule = await getSalaryRuleForSubDepartment(emp.subDepartment?._id || emp.subDepartment);
+      const workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+
       for (const d of days) {
         const rec = attMap[d.iso];
         const dayDate = new Date(d.iso);
         dayDate.setHours(0, 0, 0, 0);
         const dayOfWeek = dayDate.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        let isWeekend;
+        if (workingDaysPerWeek === 6) {
+          isWeekend = dayOfWeek === 0; // Sunday only
+        } else if (workingDaysPerWeek === 5) {
+          isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sat + Sun
+        } else {
+          isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        }
         const isPastDate = dayDate < today;
         const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
 
@@ -297,12 +309,23 @@ export const attendanceReport = async (req, res) => {
     const otRow = [];
     const noteRow = [];
 
+    // Fetch salary rule once for this employee to determine weekends
+    const rule = await getSalaryRuleForSubDepartment(emp.subDepartment?._id || emp.subDepartment);
+    const workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+
     for (const d of days) {
       const rec = attMap[d.iso];
       const dayDate = new Date(d.iso);
       dayDate.setHours(0, 0, 0, 0);
       const dayOfWeek = dayDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      let isWeekend;
+      if (workingDaysPerWeek === 6) {
+        isWeekend = dayOfWeek === 0; // Sunday only
+      } else if (workingDaysPerWeek === 5) {
+        isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sat + Sun
+      } else {
+        isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      }
       const isPastDate = dayDate < today;
       const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
 
@@ -539,7 +562,16 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     const dateIso = attendanceIso || new Date().toISOString().slice(0,10);
     const dateObj = new Date(`${dateIso}T00:00:00Z`);
     const dayOfWeek = dateObj.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    // determine weekend based on salary rule for this employee
+    let isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    try {
+      const rule = await getSalaryRuleForSubDepartment(emp.subDepartment?._id || emp.subDepartment);
+      const workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+      if (workingDaysPerWeek === 6) isWeekend = dayOfWeek === 0;
+      if (workingDaysPerWeek === 5) isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    } catch (e) {
+      isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    }
 
     const newAttendanceDoc = await Attendance.create({
       employee: emp._id,
@@ -720,12 +752,29 @@ async function updateMonthlySummary(employeeId, year, month, attendances, days, 
       if (aDate) attMap[aDate] = a;
     }
 
+    // Determine workingDaysPerWeek for this employee to decide weekends
+    let workingDaysPerWeek = 6;
+    try {
+      const emp = await Employee.findById(employeeId).lean();
+      const rule = emp?.subDepartment ? await getSalaryRuleForSubDepartment(emp.subDepartment._id || emp.subDepartment) : null;
+      workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+    } catch (e) {
+      workingDaysPerWeek = 6;
+    }
+
     // Count status for each day
     for (const d of days) {
       const dayDate = new Date(d.iso);
       dayDate.setHours(0, 0, 0, 0);
       const dayOfWeek = dayDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      let isWeekend;
+      if (workingDaysPerWeek === 6) {
+        isWeekend = dayOfWeek === 0; // Sunday only
+      } else if (workingDaysPerWeek === 5) {
+        isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sat + Sun
+      } else {
+        isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      }
       const isPastDate = dayDate < today;
       const isAfterJoining = !empJoiningDate || dayDate >= empJoiningDate;
 
