@@ -96,11 +96,40 @@ const EmployeeTable = ({
     useEffect(() => {
         let mounted = true
         if (!renderActions || currentData.length === 0) return
+
         const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
         const fetchForPage = async () => {
             try {
                 const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
                 const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+                // Try bulk monthly summary lookup first (fast)
+                const ids = currentData.map(e => e._id || e.id).filter(Boolean)
+                if (ids.length) {
+                    const monthKey = `${currentYear}-${currentMonth}`
+                    const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
+                        params: { month: monthKey, employeeIds: ids.join(',') },
+                        headers
+                    })
+                    if (res.data?.success) {
+                        const map = {}
+                        const bodyMap = res.data.data?.map || {}
+                        // bodyMap keyed by employee _id
+                        for (const id of ids) {
+                            const v = bodyMap[id]
+                            if (v) {
+                                map[id] = { present: v.totalPresent || 0, absent: v.totalAbsent || 0 }
+                            } else {
+                                map[id] = { present: 0, absent: 0 }
+                            }
+                        }
+                        if (!mounted) return
+                        setSummaryMap(map)
+                        return
+                    }
+                }
+
+                // Fallback: per-employee attendance-report (slower)
                 const promises = currentData.map(e => {
                     const id = e._id || e.id
                     return axios.get(`${apiUrl}/api/attendance-report`, {

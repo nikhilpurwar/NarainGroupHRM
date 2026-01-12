@@ -41,6 +41,7 @@ const Attendance = () => {
   const [punchModalOpen, setPunchModalOpen] = useState(false)
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
+  const [optimisticMarked, setOptimisticMarked] = useState(new Set())
   const [manualModalOpen, setManualModalOpen] = useState(false)
   const [holidays, setHolidays] = useState([])
   const fetchInProgressRef = useRef(false)
@@ -69,9 +70,14 @@ const Attendance = () => {
       }
     }
 
-    // initial load
-    loadEmployees()
-    loadHolidays()
+    // initial load (wrapped to allow awaiting dispatch)
+    const init = async () => {
+      await loadEmployees()
+      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      await loadHolidays()
+    }
+
+    init()
 
     // expose loaders to refs for later use
     loadEmployeesRef.current = loadEmployees
@@ -135,6 +141,13 @@ const Attendance = () => {
   const handlePunch = async emp => {
     if (isProcessingPunch) return
 
+    // optimistic UI: mark as attended immediately
+    setOptimisticMarked(prev => {
+      const s = new Set(prev)
+      s.add(emp._id)
+      return s
+    })
+
     try {
       setIsProcessingPunch(true)
 
@@ -159,6 +172,13 @@ const Attendance = () => {
 
       // Refresh employees list so badges/counts update across UI
       try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }
+
+      // clear optimistic mark after successful server refresh
+      setOptimisticMarked(prev => {
+        const s = new Set(prev)
+        s.delete(emp._id)
+        return s
+      })
 
       // If the currently viewed report belongs to this employee, force refresh it
       if (report?.employee?._id === emp._id) {
@@ -227,6 +247,19 @@ const Attendance = () => {
   }
 
   /* ================= RENDER ================= */
+  // Build displayEmployees by merging attendance map and optimistic marks so state persists after refresh
+  const displayEmployees = employees.map(e => {
+    const id = e._id || e.id
+    // optimistic override
+    if (optimisticMarked.has(id)) return { ...e, attendanceMarked: true, attendanceStatus: 'present' }
+    // if attendance map has entry for today, mark accordingly
+    const att = attendanceMap && (attendanceMap[id] || attendanceMap[id.toString()])
+    if (att) {
+      const status = att.status || (att.present ? 'present' : 'absent')
+      return { ...e, attendanceMarked: status !== 'absent', attendanceStatus: status }
+    }
+    return e
+  })
   return (
     <div className="w-full min-h-screen flex flex-col">
 
@@ -316,7 +349,7 @@ const Attendance = () => {
       <div className="mb-6 flex-1 px-4 sm:px-6">
         {viewMode === "list" ? (
           <EmployeeTable
-            employees={employees}
+            employees={displayEmployees}
             loading={empsLoading}
             rowsPerPage={isMobile ? 4 : 6}
             onNameClick={emp =>

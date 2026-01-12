@@ -23,32 +23,38 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     // Role-based styling
     const getRoleStyle = (role) => {
         const roleStyles = {
-            'Admin': {
-                bg: 'bg-red-600',
+            'admin': {
+                bg: 'bg-gradient-to-r from-red-700 to-indigo-900',
                 text: 'text-white',
                 badge: 'bg-red-700',
                 border: 'border-red-600'
             },
-            'Account': {
-                bg: 'bg-blue-600',
+            'account': {
+                bg: 'bg-gradient-to-r from-blue-700 to-indigo-900',
                 text: 'text-white',
                 badge: 'bg-blue-700',
                 border: 'border-blue-600'
             },
             'gate': {
-                bg: 'bg-green-600',
+                bg: 'bg-gradient-to-r from-green-700 to-indigo-900',
                 text: 'text-white',
                 badge: 'bg-green-700',
                 border: 'border-green-600'
             },
-            'HR': {
-                bg: 'bg-purple-600',
+            'hr': {
+                bg: 'bg-gradient-to-r from-purple-700 to-indigo-900',
                 text: 'text-white',
                 badge: 'bg-purple-700',
                 border: 'border-purple-600'
             }
         }
-        return roleStyles[role] || { bg: 'bg-gray-600', text: 'text-white', badge: 'bg-gray-700', border: 'border-gray-600' }
+
+        return roleStyles[role] || {
+            bg: 'bg-gradient-to-r from-gray-700 to-indigo-900',
+            text: 'text-white',
+            badge: 'bg-gray-700',
+            border: 'border-gray-600'
+        }
     }
 
     useEffect(() => {

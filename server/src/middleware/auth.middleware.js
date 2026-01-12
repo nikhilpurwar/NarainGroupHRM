@@ -19,6 +19,9 @@ export const authorize = (roles = []) => (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' })
   if (typeof roles === 'string') roles = [roles]
   if (roles.length === 0) return next()
-  if (!roles.includes(req.user.role)) return res.status(403).json({ success: false, message: 'Forbidden' })
+  // Normalize roles and compare case-insensitively
+  const normalizedReq = roles.map(r => (r || '').toString().toLowerCase())
+  const userRole = (req.user.role || '').toString().toLowerCase()
+  if (!normalizedReq.includes(userRole)) return res.status(403).json({ success: false, message: 'Forbidden' })
   next()
 }

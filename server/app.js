@@ -55,6 +55,7 @@ import permissionRoutes from "./src/routes/settings/permission.route.js";
 import attendanceRoutes from "./src/routes/attendance.route.js";
 import advanceRoutes from "./src/routes/advance.route.js";
 import salaryRoutes from "./src/routes/salary.route.js";
+import monthlySummaryRoutes from "./src/routes/monthlySummary.route.js";
 
 // Security
 app.use(helmet());
@@ -74,6 +75,8 @@ app.use("/api/permissions", permissionRoutes);
 app.use("/api/attendance-report", attendanceRoutes);
 // Barcode attendance - also available at direct /api/store-emp-attend path
 app.use("/api", attendanceRoutes);
+// Monthly summary endpoint (fast lookup for present/absent counts)
+app.use('/api/monthly-summary', monthlySummaryRoutes);
 // Advances (loans/advances)
 app.use("/api/advance", advanceRoutes);
 // Salary endpoints

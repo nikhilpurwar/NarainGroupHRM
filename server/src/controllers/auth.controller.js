@@ -30,7 +30,7 @@ export const login = async (req, res) => {
     if (!ok) return res.status(401).json({ success: false, message: 'Invalid password' })
     // If this user maps to an employee record, ensure employee is active
     try {
-      if (user && user.role && user.role.toString().toLowerCase() !== 'Admin') {
+      if (user && user.role && user.role.toString().toLowerCase() !== 'admin') {
         const emp = await Employee.findOne({ $or: [{ empId: user.email }, { email: user.email }] }).lean()
         if (emp && emp.status && emp.status.toString().toLowerCase() !== 'active') {
           return res.status(403).json({ success: false, message: 'Employee is inactive' })

@@ -10,9 +10,9 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/users`
 
 const badgeStyles = {
-  Admin: "bg-green-100 text-green-700",
-  Gate: "bg-yellow-100 text-yellow-700",
-  Account: "bg-blue-100 text-blue-700",
+  admin: "bg-green-100 text-green-700",
+  gate: "bg-yellow-100 text-yellow-700",
+  account: "bg-blue-100 text-blue-700",
 }
 
 const ManageUsers = () => {
