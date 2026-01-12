@@ -387,7 +387,7 @@ export default {
 }
 
 // Utility: parse a date (YYYY-MM-DD) and time string into a Date object.
-export function parseDateTime(dateIso, timeStr) {
+export function parseDateTime(dateIso, timeStr, tzOffsetMinutes = null) {
   if (!dateIso) return null
   // Treat date/time as LOCAL time (server timezone), not UTC.
   // This keeps night-OT detection (based on local hours) consistent
@@ -414,8 +414,25 @@ export function parseDateTime(dateIso, timeStr) {
       if (parts.length === 2) t = `${parts[0].padStart(2,'0')}:${parts[1].padStart(2,'0')}:00`
       if (parts.length === 1) t = `${parts[0].padStart(2,'0')}:00:00`
     }
-    const iso = `${dateIso}T${t}`
-    const dt = new Date(iso)
+    // If tzOffsetMinutes provided, attach explicit offset so Date parses to the correct instant
+    let dt = null
+    if (tzOffsetMinutes !== null && typeof tzOffsetMinutes !== 'undefined' && !Number.isNaN(Number(tzOffsetMinutes))) {
+      const tzMin = Number(tzOffsetMinutes)
+      const sign = tzMin <= 0 ? '+' : '-'
+      const absMin = Math.abs(tzMin)
+      const offH = String(Math.floor(absMin / 60)).padStart(2, '0')
+      const offM = String(absMin % 60).padStart(2, '0')
+      const isoWithOffset = `${dateIso}T${t}${sign}${offH}:${offM}`
+      dt = new Date(isoWithOffset)
+      if (Number.isNaN(dt.getTime())) {
+        // fallback to naive parse
+        const iso = `${dateIso}T${t}`
+        dt = new Date(iso)
+      }
+    } else {
+      const iso = `${dateIso}T${t}`
+      dt = new Date(iso)
+    }
     if (Number.isNaN(dt.getTime())) return null
     return dt
   } catch (err) {

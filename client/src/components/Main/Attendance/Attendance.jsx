@@ -153,7 +153,10 @@ const Attendance = () => {
 
       const res = await axios.post(
         `${API_URL}/api/employees/${emp._id}/attendance`,
-        {}
+        {
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset()
+        }
       )
 
       if (res.data?.type === "in") {
