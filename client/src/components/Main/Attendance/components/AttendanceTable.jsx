@@ -123,6 +123,48 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     );
   };
 
+  // Display In/Out times using punchLogs (preferred) so browser local TZ is used.
+  const getInOutDisplay = (isoDate, row, fallbackCell) => {
+    if (!isoDate || !Array.isArray(attendanceRaw)) return fallbackCell || '--'
+    const rec = attendanceRaw.find(a => a?.date && String(a.date).startsWith(isoDate));
+    if (!rec) return fallbackCell || '--'
+
+    // prefer punchLogs timestamps
+    const logs = Array.isArray(rec.punchLogs) ? rec.punchLogs : []
+    if (logs.length > 0) {
+      if (row === 'In') {
+        const firstIn = logs.find(l => (l.punchType || '').toUpperCase() === 'IN')
+        if (firstIn && firstIn.punchTime) {
+          const dt = new Date(firstIn.punchTime)
+          if (!Number.isNaN(dt.getTime())) return dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        }
+      }
+      if (row === 'Out') {
+        const rev = logs.slice().reverse()
+        const lastOut = rev.find(l => (l.punchType || '').toUpperCase() === 'OUT')
+        if (lastOut && lastOut.punchTime) {
+          const dt = new Date(lastOut.punchTime)
+          if (!Number.isNaN(dt.getTime())) return dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        }
+      }
+    }
+
+    // Fallback to stored inTime/outTime strings (may be server-local formatted)
+    if (row === 'In' && rec.inTime) {
+      // try parse if it's parseable ISO/time
+      const dt = new Date(rec.inTime)
+      if (!Number.isNaN(dt.getTime())) return dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      return rec.inTime
+    }
+    if (row === 'Out' && rec.outTime) {
+      const dt = new Date(rec.outTime)
+      if (!Number.isNaN(dt.getTime())) return dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      return rec.outTime
+    }
+
+    return fallbackCell || '--'
+  }
+
   if (isMobile) {
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -170,9 +212,9 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
                             }
                           }}
                         >
-                          {isStatus
-                            ? getStatusBadge(cell, isoDate)
-                            : (row === 'OT (Hours)' ? renderOtCell(isoDate) : (cell || '--'))}
+                              {isStatus
+                                ? getStatusBadge(cell, isoDate)
+                                : (row === 'OT (Hours)' ? renderOtCell(isoDate) : ((row === 'In' || row === 'Out') ? getInOutDisplay(isoDate, row, cell) : (cell || '--')))}
                         </td>
                       );
                     })}
@@ -304,7 +346,11 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
                   >
                     {isStatus
                       ? getStatusBadge(cell, isoDate)
-                      : (row === 'OT (Hours)' ? renderOtCell(isoDate) : (cell || '--'))}
+                      : (row === 'OT (Hours)'
+                        ? renderOtCell(isoDate)
+                        : ((row === 'In' || row === 'Out')
+                          ? getInOutDisplay(isoDate, row, cell)
+                          : (cell || '--')))}
                   </td>
                 );
               })}
