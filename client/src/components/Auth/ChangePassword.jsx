@@ -80,7 +80,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
             <label className="block text-sm font-medium text-gray-200 mb-1">Employee ID/Email</label>
             <input
               type="text"
-              className={`w-full rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+              className={`text-gray-900 w-full rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
@@ -92,7 +92,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
             <div className="relative">
               <input
                 type={showOld ? 'text' : 'password'}
-                className={`w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.oldPassword ? 'border-red-500' : 'border-gray-300'}`}
+                className={`text-gray-900 w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.oldPassword ? 'border-red-500' : 'border-gray-300'}`}
                 value={form.oldPassword}
                 onChange={(e) => setForm({ ...form, oldPassword: e.target.value })}
               />
@@ -111,7 +111,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
             <div className="relative">
               <input
                 type={showNew ? 'text' : 'password'}
-                className={`w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.newPassword ? 'border-red-500' : 'border-gray-300'}`}
+                className={`text-gray-900 w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.newPassword ? 'border-red-500' : 'border-gray-300'}`}
                 value={form.newPassword}
                 onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
               />
@@ -130,7 +130,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
             <div className="relative">
               <input
                 type={showConfirm ? 'text' : 'password'}
-                className={`w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
+                className={`text-gray-900 w-full rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
               />

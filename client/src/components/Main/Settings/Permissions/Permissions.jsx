@@ -40,8 +40,8 @@ const knownRoutes = [
 ]
 
 const DEFAULT_ROLES = [
-    { id: 'Account', name: 'Account', icon: FaRupeeSign, color: 'bg-green-500 text-white' },
-    { id: 'Gate', name: 'Gate', icon: GiOpenGate, color: 'bg-purple-500 text-white' }
+    { id: 'account', name: 'account', icon: FaRupeeSign, color: 'bg-green-500 text-white' },
+    { id: 'gate', name: 'gate', icon: GiOpenGate, color: 'bg-purple-500 text-white' }
 ]
 
 const Permissions = () => {
@@ -62,14 +62,14 @@ const Permissions = () => {
                 const roles = Array.from(new Set(users.map(u => u.role).filter(Boolean)))
 
                 const roleIconMap = {
-                    Admin: FiCheckCircle,
-                    Account: FaRupeeSign,
-                    Gate: GiOpenGate
+                    admin: FiCheckCircle,
+                    account: FaRupeeSign,
+                    gate: GiOpenGate
                 }
                 const roleColorMap = {
-                    Admin: 'bg-blue-500 text-white',
-                    Account: 'bg-green-500 text-white',
-                    Gate: 'bg-purple-500 text-white'
+                    admin: 'bg-blue-500 text-white',
+                    account: 'bg-green-500 text-white',
+                    gate: 'bg-purple-500 text-white'
                 }
 
                 const roleObjs = roles.map(r => ({
@@ -91,6 +91,7 @@ const Permissions = () => {
 
     const storedUser = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || 'null') : null
     const role = storedUser?.role
+    const roleNormalized = (role || '').toString().toLowerCase()
 
     // Authorization check with better UI
     // if (role !== 'Admin') {
@@ -260,7 +261,7 @@ const Permissions = () => {
                                 <div>
                                     <p className="text-sm text-gray-600">Admin Access</p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {knownRoutes.filter(r => getAllowed(r.path).includes('Admin')).length}
+                                                                {knownRoutes.filter(r => getAllowed(r.path).map(x => (x||'').toString().toLowerCase()).includes('admin')).length}
                                     </p>
                                 </div>
                                 <FiUsers className="w-8 h-8 text-purple-500" />
@@ -272,7 +273,7 @@ const Permissions = () => {
                                 <div>
                                     <p className="text-sm text-gray-600">Account Access</p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {knownRoutes.filter(r => getAllowed(r.path).includes('Account')).length}
+                                        {knownRoutes.filter(r => getAllowed(r.path).map(x => (x||'').toString().toLowerCase()).includes('account')).length}
                                     </p>
                                 </div>
                                 <FaRupeeSign  className="w-8 h-8 text-green-500" />
@@ -284,7 +285,7 @@ const Permissions = () => {
                                 <div>
                                     <p className="text-sm text-gray-600">Gate Access</p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {knownRoutes.filter(r => getAllowed(r.path).includes('Gate')).length}
+                                        {knownRoutes.filter(r => getAllowed(r.path).map(x => (x||'').toString().toLowerCase()).includes('gate')).length}
                                     </p>
                                 </div>
                                 <GiOpenGate className="w-8 h-8 text-orange-500" />
@@ -382,8 +383,7 @@ const Permissions = () => {
                                     <div className="col-span-8 md:col-span-9">
                                         <div className="grid grid-cols-3 gap-4">
                                             {allRoles.map(roleItem => {
-                                                const isAllowed = allowedRoles.includes(roleItem.id)
-
+                                                const isAllowed = (allowedRoles || []).map(a => (a||'').toString().toLowerCase()).includes((roleItem.id||'').toString().toLowerCase())
                                                 return (
                                                     <div key={roleItem.id} className="text-center">
                                                         <button

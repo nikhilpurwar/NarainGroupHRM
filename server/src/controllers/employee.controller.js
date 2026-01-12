@@ -124,8 +124,8 @@ export const getEmployeeById = async (req, res) => {
     // If requester is not Admin, allow access only to their own employee profile
     try {
       const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
-      const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
-      if (role !== 'Admin') {
+          const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
+          if (role !== 'admin') {
         const requesterEmail = requester?.email
         // Allow if user's email matches employee.empId or employee.email
         if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
@@ -134,7 +134,7 @@ export const getEmployeeById = async (req, res) => {
       }
     } catch (e) {
       // if user lookup fails, deny access for non-admins
-      if (!(req.user && req.user.role === 'Admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+          if (!(req.user && (req.user.role || '').toString().toLowerCase() === 'admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
     }
 
     res.json({ success: true, data: emp });
@@ -505,14 +505,14 @@ export const getEmployeeProfile = async (req, res) => {
     try {
       const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
       const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
-      if (role !== 'Admin') {
+      if (role !== 'admin') {
         const requesterEmail = requester?.email
         if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
           return res.status(403).json({ success: false, message: 'Forbidden' })
         }
       }
     } catch (e) {
-      if (!(req.user && req.user.role === 'Admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+      if (!(req.user && (req.user.role || '').toString().toLowerCase() === 'admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
     }
     res.json({ success: true, data: emp });
   } catch (err) {
@@ -527,7 +527,7 @@ export const updateEmployee = async (req, res) => {
     // Block modifications for inactive employees by non-admins
     try {
       const requesterRole = req.user && req.user.role ? req.user.role.toString().toLowerCase() : null
-      if (emp.status && emp.status.toString().toLowerCase() !== 'active' && requesterRole !== 'Admin') {
+          if (emp.status && emp.status.toString().toLowerCase() !== 'active' && requesterRole !== 'admin') {
         return res.status(403).json({ success: false, message: 'Employee is inactive' })
       }
     } catch (e) {

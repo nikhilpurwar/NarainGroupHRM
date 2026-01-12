@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
-import Main from '../Main/Main'
+import { Outlet } from 'react-router-dom'
 
 const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
@@ -57,7 +57,7 @@ const Layout = () => {
           sessionStorage.removeItem('expiresAt')
           localStorage.removeItem('token')
           localStorage.removeItem('user')
-          try { delete axios.defaults.headers.common['Authorization'] } catch {}
+          try { delete axios.defaults.headers.common['Authorization'] } catch { }
           navigate('/login')
         }
       } catch (e) {
@@ -89,9 +89,11 @@ const Layout = () => {
         />
 
         {/* Page Content */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-auto main-scroll">
-          <Main />
-        </div>
+        <main className="flex flex-col flex-1 min-w-0 overflow-auto main-scroll">
+          <div className="flex-1 w-full">
+            <Outlet />
+          </div>
+        </main>
 
       </div>
     </div>

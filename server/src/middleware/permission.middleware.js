@@ -4,9 +4,10 @@ export const checkPermission = async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ success: false, message: 'Not authenticated' })
     
-    const userRole = req.user.role
-    // Admin bypass: Admin users can access everything
-    if (userRole === 'Admin') return next()
+    // normalize user role to lowercase for case-insensitive checks
+    const userRole = (req.user.role || '').toString().toLowerCase()
+    // Admin bypass: admin users can access everything
+    if (userRole === 'admin') return next()
     const requestPath = req.path
     const base = req.baseUrl || ''
     const original = req.originalUrl || ''
@@ -40,8 +41,11 @@ export const checkPermission = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied. This route is not allowed for any role.' })
     }
 
-    // Check if user's role is in allowed roles
-    if (Array.isArray(perm.allowedRoles) && perm.allowedRoles.includes(userRole)) return next()
+    // Check if user's role is in allowed roles (case-insensitive)
+    if (Array.isArray(perm.allowedRoles)) {
+      const allowedLower = perm.allowedRoles.map(r => (r || '').toString().toLowerCase())
+      if (allowedLower.includes(userRole)) return next()
+    }
     // If request came from an allowed frontend page (referer), allow based on that page's permission
     try {
       const referer = req.get('Referer') || req.get('Origin')
@@ -55,7 +59,10 @@ export const checkPermission = async (req, res, next) => {
             refCandidates.push(refererPath.replace(/^\/settings/, ''))
             const refNorm = Array.from(new Set(refCandidates.map(c => c.replace(/\/+$/g, '')))).filter(Boolean)
             const refPerm = findPermissionByCandidates(refNorm)
-            if (refPerm && Array.isArray(refPerm.allowedRoles) && refPerm.allowedRoles.includes(userRole)) return next()
+            if (refPerm && Array.isArray(refPerm.allowedRoles)) {
+              const refAllowedLower = refPerm.allowedRoles.map(r => (r || '').toString().toLowerCase())
+              if (refAllowedLower.includes(userRole)) return next()
+            }
           }
         } catch (e) {
           // ignore malformed referer

@@ -28,12 +28,13 @@ const Sidebar = ({ isCollapsed }) => {
       : null
 
   const role = storedUser?.role
+  const roleNormalized = (role || '').toString().toLowerCase()
   // permissions read from Redux store (with window fallback)
 
   /* ---------------- MENU CONFIG ---------------- */
 
   const mainMenu = useMemo(() => {
-    if (role === "Gate") {
+    if (roleNormalized === "gate") {
       return [
         { path: "/attReport", icon: "fa-file-lines", label: "Attendance" },
         { path: "/liveattend", icon: "fa-chart-line", label: "Live Attendance" },
@@ -53,16 +54,20 @@ const Sidebar = ({ isCollapsed }) => {
     // if permissions not loaded yet, show items optimistically so navigation is instant.
     // Actual access will be enforced by `ProtectedRoute` after permissions load.
     if (!permissions) return items
-    // Admin sees everything
-    if (role === 'Admin') return items
+    // Admin sees everything (case-insensitive)
+    if (roleNormalized === 'admin') return items
     return items.filter(item => {
       const allowed = permissions[item.path]
       // If no restriction defined for this route, hide it for non-admins
       if (allowed === undefined) return false
       // If allowedRoles is empty array, hide it
       if (Array.isArray(allowed) && allowed.length === 0) return false
-      // Otherwise check if user's role is in allowedRoles
-      return allowed.includes(role)
+      // Otherwise check if user's role is in allowedRoles (case-insensitive)
+      if (Array.isArray(allowed)) {
+        const allowedLower = allowed.map(a => (a || '').toString().toLowerCase())
+        return allowedLower.includes(roleNormalized)
+      }
+      return false
     })
   }
 

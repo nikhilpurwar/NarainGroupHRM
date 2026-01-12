@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Printer, 
-  Download, 
+import {
+  Search,
+  Filter,
+  Printer,
+  Download,
   Calendar,
   User,
   Clock,
-  IndianRupee ,
+  IndianRupee,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -29,11 +29,11 @@ const DailySalary = () => {
     toDate: new Date().toISOString().split('T')[0],   // Today
     employeeId: ''
   });
-  
+
   // State for employees dropdown
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  
+
   // State for salary data
   const [dailySalaryData, setDailySalaryData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,18 +43,18 @@ const DailySalary = () => {
     totalEmployees: 0,
     totalWorkingHours: 0
   });
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [totalRecords, setTotalRecords] = useState(0);
-  
+
   // Fetch employees for dropdown
   const fetchEmployees = useCallback(async () => {
     try {
       setLoadingEmployees(true);
       const response = await axios.get(`${API_URL}/api/employees`);
-      
+
       if (response.data.success) {
         setEmployees(response.data.data || []);
       } else {
@@ -68,9 +68,9 @@ const DailySalary = () => {
       setLoadingEmployees(false);
     }
   }, []);
-  
+
   // No client-side dummy data generation — fetch from backend API instead
-  
+
   // Fetch daily salary data
   const fetchDailySalaryData = useCallback(async () => {
     setLoading(true);
@@ -82,7 +82,7 @@ const DailySalary = () => {
         page: currentPage,
         pageSize
       };
-      
+
       const response = await axios.get(`${API_URL}/api/salary/daily`, { params });
 
       if (response.data && response.data.success) {
@@ -106,7 +106,7 @@ const DailySalary = () => {
       setLoading(false);
     }
   }, [filters, currentPage, pageSize]);
-  
+
   // Handle filter change
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -115,14 +115,14 @@ const DailySalary = () => {
       [name]: value
     }));
   };
-  
+
   // Apply filters
   const applyFilters = (e) => {
     e?.preventDefault();
     setCurrentPage(1); // Reset to first page
     fetchDailySalaryData();
   };
-  
+
   // Clear filters
   const clearFilters = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -133,12 +133,12 @@ const DailySalary = () => {
     });
     setCurrentPage(1);
   };
-  
+
   // Export to CSV/Excel
   const exportToExcel = () => {
     const fromDate = filters.fromDate || 'All';
     const toDate = filters.toDate || 'All';
-    
+
     // Prepare data
     const ws_data = [
       [`Daily Salary Report - ${fromDate} to ${toDate}`],
@@ -167,40 +167,40 @@ const DailySalary = () => {
         item.date
       ])
     ];
-    
+
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Salary Report');
-    
+
     // Merge header cells
     if (!ws['!merges']) ws['!merges'] = [];
     ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } });
-    
+
     XLSX.writeFile(wb, `Daily_Salary_${fromDate}_to_${toDate}.xlsx`);
     toast.success('Excel exported successfully');
   };
-  
+
   // Export to PDF
   const exportToPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     const fromDate = filters.fromDate || 'All';
     const toDate = filters.toDate || 'All';
-    
+
     // Title
     doc.setFontSize(16);
     doc.text(`Daily Salary Report - ${fromDate} to ${toDate}`, 14, 15);
-    
+
     // Date and filters
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
     doc.text(`Total Employees: ${summary.totalEmployees}`, 14, 29);
     doc.text(`Total Payable: ₹${summary.totalPayable.toLocaleString()}`, 14, 36);
-    
+
     // Table headers
     const headers = [
       ['Emp ID', 'Emp Name', 'Dept', 'Group', 'Present', 'OT Hrs', 'Total Hrs', 'Payable']
     ];
-    
+
     // Table data
     const data = dailySalaryData.map(item => [
       item.empId,
@@ -212,7 +212,7 @@ const DailySalary = () => {
       item.totalWorkingHrs,
       `₹${item.payableAmount?.toLocaleString() || '0'}`
     ]);
-    
+
     // Generate table
     doc.autoTable({
       head: headers,
@@ -223,24 +223,24 @@ const DailySalary = () => {
       headStyles: { fillColor: [51, 51, 51], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] }
     });
-    
+
     // Summary
     const finalY = doc.lastAutoTable.finalY || 45;
     doc.setFontSize(10);
     doc.text('Summary:', 14, finalY + 10);
     doc.text(`Total Payable: ₹${summary.totalPayable.toLocaleString()}`, 14, finalY + 16);
     doc.text(`Total Overtime: ₹${summary.totalOvertime.toLocaleString()}`, 14, finalY + 22);
-    
+
     doc.save(`Daily_Salary_${fromDate}_to_${toDate}.pdf`);
     toast.success('PDF exported successfully');
   };
-  
+
   // Print report
   const printReport = () => {
     const printWindow = window.open('', '_blank');
     const fromDate = filters.fromDate || 'All';
     const toDate = filters.toDate || 'All';
-    
+
     const content = `
       <!DOCTYPE html>
       <html>
@@ -313,40 +313,40 @@ const DailySalary = () => {
       </body>
       </html>
     `;
-    
+
     printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
   };
-  
+
   // View time details
   const viewTimeDetails = (employee) => {
     toast.info(`Viewing time details for ${employee.empName}`);
     // Implement modal for time details
     console.log('Time details:', employee);
   };
-  
+
   // Handle pagination
   const totalPages = Math.ceil(totalRecords / pageSize);
-  
+
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-  
+
   const goPrev = () => goToPage(currentPage - 1);
   const goNext = () => goToPage(currentPage + 1);
-  
+
   // Initialize
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
-  
+
   useEffect(() => {
     fetchDailySalaryData();
   }, [fetchDailySalaryData]);
-  
+
   return (
     <div className="container-fluid px-4 py-6">
       {/* Page Header */}
@@ -375,11 +375,11 @@ const DailySalary = () => {
               </p>
             </div>
             <div className="p-3 bg-white rounded-lg shadow-sm">
-              <IndianRupee  className="text-blue-600" size={24} />
+              <IndianRupee className="text-blue-600" size={24} />
             </div>
           </div>
         </div>
-        
+
         <div className="card-hover bg-gradient-to-r from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -393,7 +393,7 @@ const DailySalary = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="card-hover bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl shadow-sm border border-purple-200 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -407,13 +407,13 @@ const DailySalary = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="card-hover bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl shadow-sm border border-yellow-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-yellow-600 font-medium">Total Working Hours</p>
               <p className="text-2xl font-bold text-gray-900">
-                {summary.totalWorkingHours}
+                {summary.totalWorkingHours.toFixed(2)}
               </p>
             </div>
             <div className="p-3 bg-white rounded-lg shadow-sm">
@@ -422,7 +422,7 @@ const DailySalary = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Filter Row */}
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 mb-6">
         <form onSubmit={applyFilters}>
@@ -443,7 +443,7 @@ const DailySalary = () => {
                 />
               </div>
             </div>
-            
+
             {/* To Date */}
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -461,7 +461,7 @@ const DailySalary = () => {
                 />
               </div>
             </div>
-            
+
             {/* Employee Select */}
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -485,7 +485,7 @@ const DailySalary = () => {
                 <p className="text-xs text-gray-500 mt-1">Loading employees...</p>
               )}
             </div>
-            
+
             {/* Filter Button */}
             <div className="md:col-span-1">
               <button
@@ -497,7 +497,7 @@ const DailySalary = () => {
                 {/* <span className="hidden sm:inline">Filter</span> */}
               </button>
             </div>
-            
+
             {/* Clear Button */}
             <div className="md:col-span-1">
               <button
@@ -510,7 +510,7 @@ const DailySalary = () => {
                 {/* <span className="hidden sm:inline">Clear</span> */}
               </button>
             </div>
-            
+
             {/* Export Buttons */}
             <div className="md:col-span-1">
               <button
@@ -523,7 +523,7 @@ const DailySalary = () => {
                 {/* <span className="hidden sm:inline">Excel</span> */}
               </button>
             </div>
-            
+
             <div className="md:col-span-1">
               <button
                 type="button"
@@ -538,7 +538,7 @@ const DailySalary = () => {
           </div>
         </form>
       </div>
-      
+
       {/* Daily Salary Report Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         {loading ? (
@@ -552,48 +552,45 @@ const DailySalary = () => {
               <table className="w-full" id="dailySalaryTable">
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Emp. ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Emp. Name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Department
-                    </th>                  
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900 border whitespace-nowrap">
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-blue-50 text-blue-900 border whitespace-wrap">
                       Sub Department
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Salary Type
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
+                      Salary/ Day
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Salary/Hr
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
+                      Salary/ Hour
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Present
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Working Hrs
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-red-50 text-red-900 border whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-red-50 text-red-900 border whitespace-wrap">
                       Over Time (OT)
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border whitespace-wrap">
                       OT (Payable)
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Total Hrs
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
+                      Total Hours
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      In-Out Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-green-50 text-green-900 border whitespace-wrap">
                       Payable Amt (INR)
                     </th>
                   </tr>
                 </thead>
-                
+
                 <tbody className="divide-y divide-gray-200">
                   {dailySalaryData.length > 0 ? (
                     dailySalaryData.map((item, index) => (
@@ -625,48 +622,149 @@ const DailySalary = () => {
                             {typeof item.subDepartment === 'object' ? item.subDepartment?.name : item.subDepartment}
                           </span>
                         </td>
+                        {/* Salary per day: support multiple backend field names and sensible fallbacks */}
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
-                            item.salaryType === 'Hourly' ? 'bg-yellow-100 text-yellow-800' :
-                            item.salaryType === 'Daily' ? 'bg-green-100 text-green-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
-                            {item.salaryType}
-                          </span>
+                          {(() => {
+                            const salaryTypeRaw = String(item.salaryType || item.empType || '').toLowerCase();
+                            const isMonthly = salaryTypeRaw.includes('month') || salaryTypeRaw.includes('monthly');
+
+                            const monthlySalaryCandidates = [
+                              item.salary,
+                              item.monthlySalary,
+                              item.monthSalary,
+                              item.monthlySalaryAmount,
+                              item.monthly?.amount,
+                              item.monthlyAmount
+                            ];
+                            const monthlySalary = monthlySalaryCandidates.find(v => v !== undefined && v !== null) ?? 0;
+
+                            const salaryPerDayBackend = item.salaryPerDay ?? item.salary_per_day ?? item.salaryDay;
+                            const workingDaysCandidates = [item.workingDaysInMonth, item.daysInMonth, item.workingDays, item.workingDaysCount];
+                            const workingDays = workingDaysCandidates.find(v => Number(v) > 0) ?? 26;
+
+                            const salaryPerDayComputed = salaryPerDayBackend ?? (isMonthly && monthlySalary ? Number((monthlySalary / workingDays).toFixed(2)) : undefined);
+
+                            const directDaily = item.salary ?? item.dailySalary ?? item.dailyRate ?? item.daily?.salary;
+                            const displayValue = !isMonthly ? (directDaily ?? 0) : (salaryPerDayComputed ?? 0);
+
+                            return (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${!isMonthly ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                                ₹{Number(displayValue).toLocaleString()}
+                              </span>
+                            );
+                          })()}
                         </td>
+
+                        {/* Salary per hour: prefer explicit fields, else derive from per-day and shiftHours */}
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          ₹{item.salaryPerHr?.toLocaleString() || '0'}
+                          {(() => {
+                            const explicitPerHour = item.salaryPerHour ?? item.salaryPerHr ?? item.hourlyRate ?? item.hourly?.rate;
+                            if (explicitPerHour !== undefined && explicitPerHour !== null) {
+                              return <>₹{Number(explicitPerHour).toLocaleString()}</>;
+                            }
+
+                            // derive from per-day
+                            const shiftHours = item.shiftHours ?? item.shiftHoursFromRule ?? item.shiftHoursRule ?? 8;
+                            const salaryPerDay = item.salaryPerDay ?? item.salary_per_day ?? item.salaryDay ?? (item.salary ?? item.dailySalary ?? 0);
+                            const perHour = salaryPerDay ? Number((Number(salaryPerDay) / shiftHours).toFixed(2)) : 0;
+                            return <>₹{Number(perHour).toLocaleString()}</>;
+                          })()}
                         </td>
+
+                        {/* Present: only show a green presence badge (no count) when present > 0 */}
                         <td className="px-4 py-3 text-sm text-center">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                            item.present > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {item.present}
-                          </span>
+                          <div className="flex items-center justify-center gap-2">
+                            {item.present > 0 ? (
+                              <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-green-600" title="Present"></span>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                            {/* Today badge when this row is for today and present */}
+                            {(() => {
+                              const today = new Date().toISOString().slice(0, 10);
+                              if (String(item.date).slice(0, 10) === today && item.present > 0) {
+                                return <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-semibold">Today</span>;
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-center">
                           {item.workingHrs}
                         </td>
-                        <td className="px-4 py-3 text-sm text-center font-medium bg-red-50 border">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {item.overtimeHrs} hrs
-                          </span>
+
+                        {/* OT Breakdown (D/N/S/F) */}
+                        <td className="p-2 text-sm text-center font-medium bg-red-50 border">
+                          <div className="inline-flex flex-col min-w-[110px]">
+                            <div className="flex items-center justify-between text-sm font-semibold text-gray-500 border-b border-gray-300 pb-1 mb-1">
+                              <span className="flex-1 text-center">D</span>
+                              <span className="flex-1 text-center">N</span>
+                              <span className="flex-1 text-center">S</span>
+                              <span className="flex-1 text-center">F</span>
+                            </div>
+                            {(() => {
+                              const dayOt = Number(item.dayOtHours || 0);
+                              const nightOt = Number(item.nightOtHours || 0);
+                              const sundayOt = Number(item.sundayOtHours || 0);
+                              const festivalOt = Number(item.festivalOtHours || 0);
+
+                              const allowDayOT = item.allowDayOT !== false;
+                              const allowNightOT = item.allowNightOT !== false;
+                              const allowSundayOT = item.allowSundayOT !== false;
+                              const allowFestivalOT = item.allowFestivalOT !== false;
+
+                              const totalOt = (dayOt + nightOt + sundayOt + festivalOt).toFixed(2);
+                              const payableOt = Number(item.overtimeHrs || 0).toFixed(2);
+
+                              return (
+                                <>
+                                  <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-800 divide-x divide-gray-300">
+                                    <span
+                                      className={`px-1 flex-1 text-center ${(!allowDayOT && dayOt > 0) ? 'line-through text-gray-400' : ''}`}
+                                      title={!allowDayOT && dayOt > 0 ? 'Not paid due to salary rule' : undefined}
+                                    >
+                                      {dayOt.toFixed(2)}
+                                    </span>
+                                    <span
+                                      className={`px-1 flex-1 text-center text-indigo-600 ${(!allowNightOT && nightOt > 0) ? 'line-through text-gray-400' : ''}`}
+                                      title={!allowNightOT && nightOt > 0 ? 'Not paid due to salary rule' : undefined}
+                                    >
+                                      {nightOt.toFixed(2)}
+                                    </span>
+                                    <span
+                                      className={`px-1 flex-1 text-center text-emerald-600 ${(!allowSundayOT && sundayOt > 0) ? 'line-through text-gray-400' : ''}`}
+                                      title={!allowSundayOT && sundayOt > 0 ? 'Not paid due to salary rule' : undefined}
+                                    >
+                                      {sundayOt.toFixed(2)}
+                                    </span>
+                                    <span
+                                      className={`px-1 flex-1 text-center text-orange-600 ${(!allowFestivalOT && festivalOt > 0) ? 'line-through text-gray-400' : ''}`}
+                                      title={!allowFestivalOT && festivalOt > 0 ? 'Not paid due to salary rule' : undefined}
+                                    >
+                                      {festivalOt.toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-300 pt-1">
+                                    <span className="font-semibold">Total</span>
+                                    <span className="ml-auto font-semibold text-gray-800">{totalOt}h</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[10px] text-gray-500 pt-0.5">
+                                    <span className="font-semibold">Payable</span>
+                                    <span className="ml-auto font-semibold text-gray-800">{payableOt}h</span>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </td>
+
                         <td className="px-4 py-3 text-sm font-bold text-green-700 bg-green-50 border">
                           ₹{item.overtimePayable?.toLocaleString() || '0'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-center">
                           {item.totalWorkingHrs}
                         </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => viewTimeDetails(item)}
-                            className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition"
-                            title="View Time Details"
-                          >
-                            {item.inOutTime}
-                          </button>
-                        </td>
+                        
                         <td className="px-4 py-3 text-sm font-bold text-green-700 bg-green-50 border">
                           <div className="flex items-center justify-between">
                             <span>₹{item.payableAmount?.toLocaleString() || '0'}</span>
@@ -695,7 +793,7 @@ const DailySalary = () => {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination */}
             {dailySalaryData.length > 0 && (
               <div className="border-t px-4 py-4">
@@ -704,7 +802,7 @@ const DailySalary = () => {
                     <div className="text-sm text-gray-600">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords}
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">Rows:</span>
                       <select
@@ -722,7 +820,7 @@ const DailySalary = () => {
                       </select>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       disabled={currentPage === 1}
@@ -731,7 +829,7 @@ const DailySalary = () => {
                     >
                       <ChevronLeft size={20} />
                     </button>
-                    
+
                     <div className="flex items-center gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
@@ -744,22 +842,21 @@ const DailySalary = () => {
                         } else {
                           pageNum = currentPage - 2 + i;
                         }
-                        
+
                         return (
                           <button
                             key={pageNum}
                             onClick={() => goToPage(pageNum)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
-                            }`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium ${currentPage === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
+                              }`}
                           >
                             {pageNum}
                           </button>
                         );
                       })}
-                      
+
                       {totalPages > 5 && currentPage < totalPages - 2 && (
                         <>
                           <span className="px-2 text-gray-500">...</span>
@@ -772,7 +869,7 @@ const DailySalary = () => {
                         </>
                       )}
                     </div>
-                    
+
                     <button
                       disabled={currentPage === totalPages || totalPages === 0}
                       onClick={goNext}
@@ -787,7 +884,7 @@ const DailySalary = () => {
           </>
         )}
       </div>
-      
+
       {/* Date Range Information */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
         <div className="flex items-center justify-between">
