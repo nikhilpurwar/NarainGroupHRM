@@ -373,8 +373,47 @@ export const addAttendance = async (req, res) => {
 
     // Create Attendance document (use model static helper)
     // build punch log timestamps using service helper
-    const inPunch = capturedInTime ? attendanceService.parseDateTime(dateIso, capturedInTime) : null
-    let outPunch = outTime ? attendanceService.parseDateTime(dateIso, outTime) : null
+    // If client provided a timezone offset, parse times using that offset so stored instants match user's local time
+    const tzOffsetMinutes = (typeof req.body?.tzOffsetMinutes !== 'undefined') ? Number(req.body.tzOffsetMinutes) : null;
+
+    const normalizeTimeToDateWithOffset = (dateIsoStr, timeStr, tzOffsetMin) => {
+      if (!dateIsoStr || !timeStr) return null;
+      // reuse parsing logic to normalize HH:MM:SS (handle AM/PM)
+      let t = String(timeStr).trim()
+      const ampm = /\s?(AM|PM)$/i.exec(t)
+      if (ampm) {
+        const parts = t.replace(/\s?(AM|PM)$/i, '').split(':').map(p => p.trim())
+        let hh = parseInt(parts[0])
+        const mm = parts[1] ? parts[1].padStart(2, '0') : '00'
+        const ss = parts[2] ? parts[2].padStart(2, '0') : '00'
+        const isPm = /PM/i.test(ampm[0])
+        if (isPm && hh < 12) hh += 12
+        if (!isPm && hh === 12) hh = 0
+        t = `${String(hh).padStart(2,'0')}:${mm}:${ss}`
+      } else {
+        const parts = t.split(':')
+        if (parts.length === 2) t = `${parts[0].padStart(2,'0')}:${parts[1].padStart(2,'0')}:00`
+        if (parts.length === 1) t = `${parts[0].padStart(2,'0')}:00:00`
+      }
+
+      if (tzOffsetMin === null || typeof tzOffsetMin === 'undefined' || Number.isNaN(tzOffsetMin)) {
+        // fallback to existing service parsing (server-local interpretation)
+        return attendanceService.parseDateTime(dateIsoStr, t)
+      }
+
+      // Build ISO with explicit timezone offset (e.g. 2026-01-12T14:54:00+05:30)
+      const sign = tzOffsetMin <= 0 ? '+' : '-'
+      const absMin = Math.abs(tzOffsetMin)
+      const offH = String(Math.floor(absMin / 60)).padStart(2, '0')
+      const offM = String(absMin % 60).padStart(2, '0')
+      const isoWithOffset = `${dateIsoStr}T${t}${sign}${offH}:${offM}`
+      const dt = new Date(isoWithOffset)
+      if (Number.isNaN(dt.getTime())) return attendanceService.parseDateTime(dateIsoStr, t)
+      return dt
+    }
+
+    const inPunch = capturedInTime ? normalizeTimeToDateWithOffset(dateIso, capturedInTime, tzOffsetMinutes) : null
+    let outPunch = outTime ? normalizeTimeToDateWithOffset(dateIso, outTime, tzOffsetMinutes) : null
 
     let totalHours = 0;
     let regularHours = 0;

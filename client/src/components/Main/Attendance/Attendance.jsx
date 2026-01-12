@@ -208,6 +208,8 @@ const Attendance = () => {
           date,
           inTime,
           outTime,
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset()
         }
       )
 
