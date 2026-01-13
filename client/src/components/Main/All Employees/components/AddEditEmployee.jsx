@@ -4,6 +4,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { MdKeyboardBackspace } from "react-icons/md"
 import { useHierarchy } from '../../../../context/HierarchyContext'
+import { Loader } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -70,6 +71,8 @@ const defaultForm = {
 }
 
 const AddEditEmployee = () => {
+
+    const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
     const { id } = useParams()
     const isEdit = Boolean(id)
@@ -240,6 +243,7 @@ const AddEditEmployee = () => {
         if (!form.firstName.trim()) err.firstName = 'First name is required'
         if (!form.lastName.trim()) err.lastName = 'Last name is required'
         if (!form.salary || Number(form.salary) <= 0) err.salary = 'Salary must be a positive number'
+        if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email || '')) err.email = 'Enter a valid email address'
         if (!/^[0-9]{10}$/.test(form.mobile || '')) err.mobile = 'Enter a valid 10-digit mobile number'
         if (!form.headDepartment) err.headDepartment = 'Select head department'
         return err
@@ -254,10 +258,11 @@ const AddEditEmployee = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        const err = validate()
+          const err = validate()
         if (Object.keys(err).length) {
             setErrors(err)
             // scroll to first error field
+            setLoading(true)
             const firstKey = Object.keys(err)[0]
             setTimeout(() => {
                 const el = document.querySelector(`[name="${firstKey}"]`)
@@ -266,6 +271,7 @@ const AddEditEmployee = () => {
                     el.focus && el.focus()
                 }
             }, 50)
+             setLoading(false)
             return
         }
 
@@ -409,7 +415,7 @@ const AddEditEmployee = () => {
                         <Input label="First Name*" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} />
                         <Input label="Last Name*" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} />
                         <Input label="Mobile*" name="mobile" value={form.mobile} onChange={handleChange} error={errors.mobile} />
-                        <Input label="Email" name="email" value={form.email} onChange={handleChange} error={errors.email} />
+                        <Input label="Email*" name="email" value={form.email} onChange={handleChange} error={errors.email} />
                         <Input label="Father Name" name="fatherName" value={form.fatherName} onChange={handleChange} />
                         <Input label="Mother Name" name="motherName" value={form.motherName} onChange={handleChange} />
 
@@ -462,7 +468,8 @@ const AddEditEmployee = () => {
                                     setForm(f => ({ ...f, designation: '' }))
                                 }}
                                 disabled={!form.headDepartment}
-                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"
+                                className={`w-full border p-3 rounded-lg ${errors.subDepartment ? 'border-red-500' : ''}`}
+                                required
                             >
                                 <option value="">Select Sub Department</option>
                                 {filteredSubDepts.map(s => (
@@ -473,13 +480,13 @@ const AddEditEmployee = () => {
 
                         {/* Designation - Cascaded */}
                         <div>
-                            <label className="block font-medium mb-1">Designation</label>
+                            <label className="block font-medium mb-1">Designation*</label>
                             <select
                                 name="designation"
                                 value={form.designation}
                                 onChange={handleChange}
                                 disabled={!form.subDepartment}
-                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"
+                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"required
                             >
                                 <option value="">Select Designation</option>
                                 {filteredDesignations.map(d => (
@@ -561,12 +568,21 @@ const AddEditEmployee = () => {
                             
                         </button>
                     )}
-                    <button
-                        type="submit"
-                        className="px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-700"
-                    >
-                        {isEdit ? "Update Employee" : "Add Employee"}
-                    </button>
+                   <button
+                   type="submit"
+                   disabled={loading}
+                   className="px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center"
+>
+  {loading ? (
+    <>
+      <Loader className="mr-2" size={16} />
+      Saving...
+    </>
+  ) : (
+    isEdit ? "Update Employee" : "Add Employee"
+  )}
+</button>
+
                 </div>
             </form>
 

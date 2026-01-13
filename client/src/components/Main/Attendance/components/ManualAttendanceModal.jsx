@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { IoCloseSharp } from 'react-icons/io5'
+import { Loader } from 'lucide-react'
 
 const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
+  const [loading, setLoading] = useState(false)
   const todayIso = new Date().toLocaleDateString('en-CA')
 
   const [employeeId, setEmployeeId] = useState('')
@@ -51,8 +53,9 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
     setError('')
-
+    
     if (!employeeId) {
       setError('Please select an employee')
       return
@@ -67,12 +70,16 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     }
     if (!inMinute) {
       setError('Please enter Punch-In minute')
+       setLoading(true)
       return
     }
     if (!inMeridiem) {
       setError('Please select Punch-In AM/PM')
+     
+      setLoading(false)
       return
     }
+    
 
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
 
@@ -255,10 +262,16 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
             </button>
             <button
               type="submit"
+               disabled={loading}
               className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60"
-              disabled={submitting}
             >
-              {submitting ? 'Submitting...' : 'Submit'}
+             {loading ? (
+    <>
+      <Loader className="mr-2" size={16} />
+      Saving...
+    </>
+  ) : (submitting ? 'Submitting...' : 'Submit')
+}
             </button>
           </div>
         </form>
@@ -266,5 +279,6 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     </div>
   )
 }
+
 
 export default ManualAttendanceModal
