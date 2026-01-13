@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { 
-  MdKeyboardBackspace, 
-  MdPhone, 
-  MdEmail, 
+import {
+  MdKeyboardBackspace,
+  MdPhone,
+  MdEmail,
   MdLocationOn,
   MdWork,
   MdAttachMoney,
@@ -20,16 +20,16 @@ import {
   MdShare,
   MdEdit
 } from "react-icons/md"
-import { 
-  FiUser, 
-  FiBriefcase, 
-  FiUsers, 
+import {
+  FiUser,
+  FiBriefcase,
+  FiUsers,
   FiDollarSign,
   FiCalendar,
   FiTag,
   FiFileText
 } from "react-icons/fi"
-import { 
+import {
   TbGenderMale,
   TbGenderFemale,
   TbHeartHandshake
@@ -93,7 +93,6 @@ const Profile = () => {
     )
   }
 
-  // 格式化日期
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
@@ -104,14 +103,13 @@ const Profile = () => {
     })
   }
 
-  // 计算在职时长
   const calculateTenure = () => {
     if (!emp.createdAt) return 'N/A'
     const startDate = new Date(emp.createdAt)
     const now = new Date()
-    const diffInMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + 
-                        (now.getMonth() - startDate.getMonth())
-    
+    const diffInMonths = (now.getFullYear() - startDate.getFullYear()) * 12 +
+      (now.getMonth() - startDate.getMonth())
+
     if (diffInMonths < 1) {
       return '< 1 month'
     } else if (diffInMonths < 12) {
@@ -245,7 +243,7 @@ const Profile = () => {
 
           {/* Left Column - Personal Info */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* Tabs Navigation */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="flex border-b border-gray-200">
@@ -253,11 +251,10 @@ const Profile = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                      activeTab === tab
-                        ? 'text-indigo-600 border-b-2 border-indigo-600'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === tab
+                      ? 'text-indigo-600 border-b-2 border-indigo-600'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     {tab === 'personal' && 'Personal Information'}
                     {tab === 'work' && 'Work Details'}
@@ -279,15 +276,15 @@ const Profile = () => {
                         <div className="space-y-3">
                           <InfoRow icon={<MdPerson />} label="Full Name" value={emp.name} />
                           <InfoRow icon={<MdCreditCard />} label="Employee ID" value={emp.empId} />
-                          <InfoRow 
-                            icon={emp.gender === 'Male' ? <TbGenderMale /> : <TbGenderFemale />} 
-                            label="Gender" 
-                            value={emp.gender} 
+                          <InfoRow
+                            icon={emp.gender === 'Male' ? <TbGenderMale /> : <TbGenderFemale />}
+                            label="Gender"
+                            value={emp.gender}
                           />
-                          <InfoRow 
-                            icon={<MdFamilyRestroom />} 
-                            label="Marital Status" 
-                            value={emp.maritalStatus} 
+                          <InfoRow
+                            icon={<MdFamilyRestroom />}
+                            label="Marital Status"
+                            value={emp.maritalStatus}
                           />
                           <InfoRow icon={<MdCake />} label="Date of Birth" value="Not specified" />
                         </div>
@@ -443,20 +440,20 @@ const Profile = () => {
                 Attendance Summary
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <StatCard 
-                  title="Total Records" 
+                <StatCard
+                  title="Total Records"
                   value={emp.attendance?.length || 0}
                   color="bg-blue-50 text-blue-600"
                   icon={<FiCalendar />}
                 />
-                <StatCard 
-                  title="Last Attendance" 
+                <StatCard
+                  title="Last Attendance"
                   value={emp.attendance?.length ? new Date(emp.attendance.at(-1).date).toLocaleDateString() : 'N/A'}
                   color="bg-green-50 text-green-600"
                   icon={<MdVerified />}
                 />
-                <StatCard 
-                  title="Tenure" 
+                <StatCard
+                  title="Tenure"
                   value={calculateTenure()}
                   color="bg-purple-50 text-purple-600"
                   icon={<FiCalendar />}
@@ -467,25 +464,24 @@ const Profile = () => {
 
           {/* Right Column - Quick Info & Actions */}
           <div className="space-y-6">
-            
+
             {/* Status Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            {/* <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4">
                 <MdVerified className="text-indigo-500" />
                 Employment Status
               </h3>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
-                emp.status === 'active' 
-                  ? 'bg-green-100 text-green-800' 
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${emp.status === 'active'
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-red-100 text-red-800'
-              }`}>
+                }`}>
                 <div className={`w-2 h-2 rounded-full ${emp.status === 'active' ? 'bg-green-600' : 'bg-red-600'}`}></div>
                 <span className="font-medium">{emp.status?.toUpperCase()}</span>
               </div>
               <p className="text-sm text-gray-600 mt-2">
                 Employee is currently {emp.status === 'active' ? 'active and working' : 'inactive'}
               </p>
-            </div>
+            </div> */}
 
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -516,13 +512,23 @@ const Profile = () => {
             {/* Employee ID Card Preview */}
             <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-xl p-6 text-white">
               <div className="text-center mb-4">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <FiUser size={24} />
+
+                <div className="w-18 h-18 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                  {emp.avatar ? (
+                    <img
+                      src={emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=6366f1&color=fff&size=256`}
+                      alt={emp.name}
+                      className="rounded-full border-4 border-white/30 shadow-2xl object-cover"
+                    />
+                  ) : (
+                    <FiUser size={24} />
+                  )
+                  }
                 </div>
                 <h4 className="text-lg font-bold mb-1">{emp.name}</h4>
                 <p className="text-white/80 text-sm">{emp.designation?.name || 'Employee'}</p>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-white/20 pb-2">
                   <span className="text-white/70 text-sm">ID:</span>
@@ -538,9 +544,9 @@ const Profile = () => {
                 </div>
               </div>
 
-              {emp.qrCode && (
-                <div className="mt-4 pt-4 border-t border-white/20 flex justify-center">
-                  <img src={emp.qrCode} alt="ID QR" className="w-24 h-24" />
+              {emp.barcode && (
+                <div className="mt-4 py-4 bg-gray-400 rounded flex justify-center">
+                  <img src={emp.barcode} alt="ID QR" className="w-60" />
                 </div>
               )}
             </div>
