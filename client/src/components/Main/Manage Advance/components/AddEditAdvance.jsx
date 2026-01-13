@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import axios from "axios"
 import { toast } from "react-toastify"
 import { IoCloseSharp, IoCloudUploadOutline } from "react-icons/io5"
+import { Loader } from "lucide-react"
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 
@@ -15,7 +16,7 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
   const [form, setForm] = useState({
     employee: "",
     date: "",
-    type: "",
+    type: "advance",
     amount: "",
     instalment: "",
     reason: "",
@@ -330,11 +331,17 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
             disabled={loading}
             className="bg-gray-900 text-white py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50"
           >
-            {loading
-              ? "Saving..."
-              : isEdit
+            {loading ? (
+                <>
+                  <Loader className="mr-2" size={16} />
+                  Saving...
+                </>
+              ) : (
+                isEdit
                 ? "Update Advance"
-                : "Add Advance"}
+                : "Add Advance"
+              )}
+               
           </button>
         </form>
       </div>
