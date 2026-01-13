@@ -114,8 +114,8 @@ const SalaryTableRow = memo(({
       </td> */}
 
       {/* OT breakdown (D/N/S/F) */}
-      <td className="bg-gray-50 text-sm px-2 ">
-        <div className="inline-flex flex-col min-w-[110px]">
+      <td className="bg-gray-50 text-sm px-2 py-4 border-b">
+        <div className="inline-flex flex-col w-full">
           <div className="flex items-center justify-between text-sm font-semibold text-gray-500 border-b border-gray-300 pb-1 mb-1">
             <span className="flex-1 text-center">D</span>
             <span className="flex-1 text-center">N</span>
