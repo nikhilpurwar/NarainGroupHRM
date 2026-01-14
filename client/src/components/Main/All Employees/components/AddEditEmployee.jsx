@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { MdKeyboardBackspace } from "react-icons/md"
 import { useHierarchy } from '../../../../context/HierarchyContext'
+import { useDispatch } from 'react-redux'
+import { fetchEmployees } from '../../../../store/employeesSlice'
 import { Loader } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
@@ -77,6 +79,7 @@ const AddEditEmployee = () => {
     const { id } = useParams()
     const isEdit = Boolean(id)
     const { headDepartments, getSubDepartmentsByHead, getDesignationsBySubDepartment } = useHierarchy()
+    const dispatch = useDispatch()
 
     const [form, setForm] = useState(defaultForm)
     const [employees, setEmployees] = useState([])
@@ -85,6 +88,7 @@ const AddEditEmployee = () => {
     const [errors, setErrors] = useState({})
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
+    const submittingRef = useRef(false)
 
     const DRAFT_KEY = 'addEmployeeFormDraft'
     const [hasLoadedDraft, setHasLoadedDraft] = useState(false)
@@ -258,11 +262,13 @@ const AddEditEmployee = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-          const err = validate()
+        // prevent multiple concurrent submissions
+        if (submittingRef.current) return
+
+        const err = validate()
         if (Object.keys(err).length) {
             setErrors(err)
             // scroll to first error field
-            setLoading(true)
             const firstKey = Object.keys(err)[0]
             setTimeout(() => {
                 const el = document.querySelector(`[name="${firstKey}"]`)
@@ -271,9 +277,12 @@ const AddEditEmployee = () => {
                     el.focus && el.focus()
                 }
             }, 50)
-             setLoading(false)
             return
         }
+
+        // mark submitting immediately to avoid race on rapid clicks
+        submittingRef.current = true
+        setLoading(true)
 
         try {
             const payload = {
@@ -324,6 +333,8 @@ const AddEditEmployee = () => {
                 await axios.post(API, payload)
                 toast.success('Employee added')
             }
+            // Refresh global employee list so tables update immediately
+            try { dispatch(fetchEmployees()) } catch (e) { /* ignore */ }
             // clear draft on successful save
             try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
             setFormError('')
@@ -343,6 +354,9 @@ const AddEditEmployee = () => {
                 setFormError(msg)
             }
             toast.error(msg)
+        } finally {
+            submittingRef.current = false
+            setLoading(false)
         }
     }
 
