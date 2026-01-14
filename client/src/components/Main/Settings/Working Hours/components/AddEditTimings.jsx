@@ -99,38 +99,38 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
           <div className="grid grid-cols-2 gap-3">
           {/* Shift Name */}
             <div>
-            <label className="block mb-1 font-medium">Shift Name *</label>
+            <label className="block mb-1 font-medium">Shift Name*</label>
             <input
               type="text"
               name="shiftName"
               value={form.shiftName}
               onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
+              className="w-full border px-3 py-2 rounded" required
             />
             </div>
           {/* Shift Hours */}
             <div>
-            <label className="block mb-1 font-medium">Shift Hours *</label>
+            <label className="block mb-1 font-medium">Shift Hours*</label>
             <input
               type="number"
               name="shiftHour"
               value={form.shiftHour}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
+              onChange={handleChange} 
+              className="w-full border px-3 py-2 rounded" required
             />
             </div>
           </div>
 
           {/* Working Hours */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Shift Start Time" name="shiftStart" value={form.shiftStart} onChange={handleChange} />
-            <Input label="Shift End Time" name="shiftEnd" value={form.shiftEnd} onChange={handleChange} />
+            <Input label="Shift Start Time" name="shiftStart" value={form.shiftStart} onChange={handleChange} required/>
+            <Input label="Shift End Time" name="shiftEnd" value={form.shiftEnd} onChange={handleChange} required />
           </div>
 
           {/* Break */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Break Start Time" name="breakInTime" value={form.breakInTime} onChange={handleChange} />
-            <Input label="Break End Time" name="breakOutTime" value={form.breakOutTime} onChange={handleChange} />
+            <Input label="Break Start Time" name="breakInTime" value={form.breakInTime} onChange={handleChange} required/>
+            <Input label="Break End Time" name="breakOutTime" value={form.breakOutTime} onChange={handleChange} required/>
           </div>
 
           {/* Night */}

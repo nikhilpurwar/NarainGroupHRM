@@ -160,7 +160,7 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Employee ID/Email</label>
+            <label className="block text-sm font-medium">Employee ID/Email*</label>
             <input
               type=""
               name="email"
@@ -173,7 +173,7 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
 
           {!isEdit && (
             <div>
-              <label className="block text-sm font-medium">Password</label>
+              <label className="block text-sm font-medium">Password*</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
