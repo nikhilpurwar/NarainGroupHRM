@@ -76,6 +76,14 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     };
   };
 
+  const formatHours = (val) => {
+    const n = Number(val) || 0;
+    if (!n) return '0h 0m';
+    const hrs = Math.floor(n);
+    const mins = Math.round((n - hrs) * 60);
+    return `${hrs}h ${mins}m`;
+  };
+
   // Helpers to split a day's OT into D/N/S/F buckets using backend OT fields
   const getOtBucketsForDate = (isoDate) => {
     if (!isoDate || !Array.isArray(attendanceRaw)) {
@@ -110,14 +118,14 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
           <span className="flex-1 text-center">F</span>
         </div>
         <div className="flex items-center justify-between w-full font-medium text-gray-800">
-          <span className="flex-1 text-center">{dayOt.toFixed(2)}</span>
-          <span className="flex-1 text-center text-indigo-600">{nightOt.toFixed(2)}</span>
-          <span className="flex-1 text-center text-emerald-600">{sundayOt.toFixed(2)}</span>
-          <span className="flex-1 text-center text-orange-600">{festivalOt.toFixed(2)}</span>
+          <span className="flex-1 text-center">{formatHours(dayOt)}</span>
+          <span className="flex-1 text-center text-indigo-600">{formatHours(nightOt)}</span>
+          <span className="flex-1 text-center text-emerald-600">{formatHours(sundayOt)}</span>
+          <span className="flex-1 text-center text-orange-600">{formatHours(festivalOt)}</span>
         </div>
         <div className="flex items-center justify-between w-full text-[10px] text-gray-500 border-t border-gray-200 pt-0.5 mt-0.5">
           <span className="font-semibold">Total</span>
-          <span className="ml-auto font-semibold text-gray-800">{totalOt.toFixed(2)}h</span>
+          <span className="ml-auto font-semibold text-gray-800">{formatHours(totalOt)}</span>
         </div>
       </div>
     );

@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { MdKeyboardBackspace } from 'react-icons/md'
 import { FiDownload, FiSearch, FiPrinter } from 'react-icons/fi'
-import '../../../.././print.css'
+import '../../../utility/print.css'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`

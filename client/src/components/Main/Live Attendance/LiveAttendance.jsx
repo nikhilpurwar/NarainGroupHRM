@@ -6,6 +6,7 @@ import { io as clientIO } from "socket.io-client";
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees } from '../../../store/employeesSlice'
 import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice'
+import Spinner from "../../utility/Spinner";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 const API = `${API_URL}/api/employees`;
@@ -92,10 +93,7 @@ const LiveAttendance = () => {
   return (
     <div className="h-full bg-white p-6 overflow-x-auto">
       {loading ? (
-        <div className="flex justify-center items-center p-10 gap-4">
-          <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
-          <p className="text-center py-6 text-gray-500">Loading live attendance...</p>
-        </div>
+        <Spinner />
       ) : (
         <div>
           <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">

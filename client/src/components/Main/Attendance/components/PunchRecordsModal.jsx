@@ -9,6 +9,14 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
     return timeStr
   }
 
+  const formatHours = (val) => {
+    const n = Number(val) || 0
+    if (!n) return '0h 0m'
+    const hrs = Math.floor(n)
+    const mins = Math.round((n - hrs) * 60)
+    return `${hrs}h ${mins}m`
+  }
+
   const getTimeStringFromDate = (dt) => {
     if (!dt) return '--'
     return dt.toLocaleTimeString('en-IN', {
@@ -53,15 +61,15 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
           </div>
           <div>
             <p className="text-xs text-gray-600">Worked Hours</p>
-            <p className="text-lg font-semibold text-blue-600">{attendance.totalHoursDisplay || (attendance.totalHours ? `${attendance.totalHours}h` : '0h 0m')}</p>
+            <p className="text-lg font-semibold text-blue-600">{attendance.totalHoursDisplay || formatHours(attendance.totalHours)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Regular Hours</p>
-            <p className="text-lg font-semibold text-green-600">{attendance.regularHoursDisplay || (attendance.regularHours ? `${attendance.regularHours}h` : '0h 0m')}</p>
+            <p className="text-lg font-semibold text-green-600">{attendance.regularHoursDisplay || formatHours(attendance.regularHours)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Overtime Hours</p>
-            <p className="text-lg font-semibold text-orange-600">{attendance.overtimeHoursDisplay || (attendance.overtimeHours ? `${attendance.overtimeHours}h` : '0h 0m')}</p>
+            <p className="text-lg font-semibold text-orange-600">{attendance.overtimeHoursDisplay || formatHours(attendance.overtimeHours)}</p>
           </div>
         </div>
 

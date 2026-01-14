@@ -31,7 +31,7 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
         {/* Modal Header */}
         <div className="sticky top-0 bg-gradient-to-r from-gray-900 to-blue-800 text-white px-6 py-4 flex justify-between items-center rounded-t-xl">
           <div>
-            <h2 className="text-2xl font-bold">Salary Report Details</h2>
+            <h2 className="text-2xl font-bold">Salary Slip</h2>
             <p className="text-blue-100 text-sm mt-1">{monthYear}</p>
           </div>
           <button

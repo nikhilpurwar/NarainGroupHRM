@@ -3,59 +3,96 @@ import { IoCloseSharp } from "react-icons/io5"
 import axios from "axios"
 import { toast } from "react-toastify"
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/break-times`
 
-const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
-  const [form, setForm] = useState({
-    shiftName: "",
-    shiftHour: "",
-    shiftStart: "",
-    shiftEnd: "",
-    breakInTime: "",
-    breakOutTime: "",
-    // nightIn: "",
-    // nightOut: "",
-  })
+const emptyForm = {
+  shiftName: "",
+  shiftHour: "",
+  shiftStart: "",
+  shiftEnd: "",
+  breakInTime: "",
+  breakOutTime: "",
+}
 
+const AddEditTimings = ({
+  isOpen,
+  onClose,
+  isEdit,
+  timing,
+  refreshList
+}) => {
+  const [form, setForm] = useState(emptyForm)
+  const [initialForm, setInitialForm] = useState(null)
+  const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
 
-  /* ================= LOAD EDIT ================= */
+  /* ================= LOAD DATA ================= */
   useEffect(() => {
     if (isEdit && timing) {
-      setForm({
+      const data = {
         shiftName: timing.shiftName || "",
         shiftHour: timing.shiftHour || "",
         shiftStart: timing.shiftStart || "",
         shiftEnd: timing.shiftEnd || "",
         breakInTime: timing.breakInTime || "",
         breakOutTime: timing.breakOutTime || "",
-        // nightIn: timing.nightIn || "",
-        // nightOut: timing.nightOut || "",
-      })
+      }
+      setForm(data)
+      setInitialForm(data)
     } else {
-      setForm({
-        shiftName: "",
-        shiftHour: "",
-        shiftStart: "",
-        shiftEnd: "",
-        breakInTime: "",
-        breakOutTime: "",
-        // nightIn: "",
-        // nightOut: "",
-      })
+      setForm(emptyForm)
+      setInitialForm(null)
     }
+    setErrors({})
   }, [isEdit, timing, isOpen])
 
+  /* ================= HANDLERS ================= */
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+    setErrors((prev) => ({ ...prev, [name]: "" }))
+  }
+
+  /* ================= VALIDATION ================= */
+  const validate = () => {
+    const newErrors = {}
+
+    if (!form.shiftName.trim())
+      newErrors.shiftName = "Shift name is required"
+
+    if (!form.shiftHour)
+      newErrors.shiftHour = "Shift hours are required"
+
+    if (!form.shiftStart)
+      newErrors.shiftStart = "Shift start time is required"
+
+    if (!form.shiftEnd)
+      newErrors.shiftEnd = "Shift end time is required"
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  /* ================= CHANGE DETECTION ================= */
+  const isFormUnchanged = () => {
+    return JSON.stringify(form) === JSON.stringify(initialForm)
   }
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!validate()) return
+
+    if (isEdit && isFormUnchanged()) {
+      toast.error("Nothing updated")
+      return
+    }
+
     try {
       setLoading(true)
+
       if (isEdit) {
         const id = timing?._id || timing?.id
         await axios.put(`${API}/${id}`, form)
@@ -64,11 +101,14 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
         await axios.post(API, form)
         toast.success("Break added successfully")
       }
+
       refreshList()
       onClose()
     } catch (err) {
-      console.error('Break save error', err)
-      const msg = err?.response?.data?.message || err?.message || 'Something went wrong'
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong"
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -79,7 +119,7 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-lg p-4">
+      <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-lg p-4">
 
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-3">
@@ -94,57 +134,74 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
 
-
-
+          {/* Shift Name & Hours */}
           <div className="grid grid-cols-2 gap-3">
-          {/* Shift Name */}
-            <div>
-            <label className="block mb-1 font-medium">Shift Name*</label>
-            <input
-              type="text"
+            <InputText
+              label="Shift Name"
               name="shiftName"
               value={form.shiftName}
               onChange={handleChange}
-              className="w-full border px-3 py-2 rounded" required
+              error={errors.shiftName}
             />
-            </div>
-          {/* Shift Hours */}
-            <div>
-            <label className="block mb-1 font-medium">Shift Hours*</label>
-            <input
-              type="number"
+
+            <InputText
+              label="Shift Hours"
               name="shiftHour"
+              type="number"
               value={form.shiftHour}
-              onChange={handleChange} 
-              className="w-full border px-3 py-2 rounded" required
+              onChange={handleChange}
+              error={errors.shiftHour}
             />
-            </div>
           </div>
 
           {/* Working Hours */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Shift Start Time" name="shiftStart" value={form.shiftStart} onChange={handleChange} required/>
-            <Input label="Shift End Time" name="shiftEnd" value={form.shiftEnd} onChange={handleChange} required />
+            <InputTime
+              label="Shift Start Time"
+              name="shiftStart"
+              value={form.shiftStart}
+              onChange={handleChange}
+              error={errors.shiftStart}
+            />
+            <InputTime
+              label="Shift End Time"
+              name="shiftEnd"
+              value={form.shiftEnd}
+              onChange={handleChange}
+              error={errors.shiftEnd}
+            />
           </div>
 
-          {/* Break */}
+          {/* Break Time */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Break Start Time" name="breakInTime" value={form.breakInTime} onChange={handleChange} required/>
-            <Input label="Break End Time" name="breakOutTime" value={form.breakOutTime} onChange={handleChange} required/>
+            <InputTime
+              label="Break Start Time"
+              name="breakInTime"
+              value={form.breakInTime}
+              onChange={handleChange}
+              required={false}
+            />
+            <InputTime
+              label="Break End Time"
+              name="breakOutTime"
+              value={form.breakOutTime}
+              onChange={handleChange}
+              required={false}
+            />
           </div>
 
-          {/* Night */}
-          {/* <div className="grid grid-cols-2 gap-3">
-            <Input label="Night Start Time" name="nightIn" value={form.nightIn} onChange={handleChange} />
-            <Input label="Night End Time" name="nightOut" value={form.nightOut} onChange={handleChange} />
-          </div> */}
-
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-900 text-white py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            className="w-full bg-gray-900 text-white py-2 rounded-lg
+                       hover:bg-gray-800 disabled:opacity-50"
           >
-            {loading ? "Saving..." : isEdit ? "Update Break" : "Add Break"}
+            {loading
+              ? "Saving..."
+              : isEdit
+              ? "Update Break"
+              : "Add Break"}
           </button>
         </form>
       </div>
@@ -152,14 +209,30 @@ const AddEditTimings = ({ isOpen, onClose, isEdit, timing, refreshList }) => {
   )
 }
 
-const Input = ({ label, ...props }) => (
+/* ================= INPUT COMPONENTS ================= */
+
+const InputText = ({ label, error, ...props }) => (
   <div>
     <label className="block mb-1 font-medium">{label} *</label>
     <input
-      type="time"
-      className="w-full border px-3 py-2 rounded"
+      className={`w-full border px-3 py-2 rounded
+        ${error ? "border-red-500" : ""}`}
       {...props}
     />
+    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+  </div>
+)
+
+const InputTime = ({ label, error, required = true, ...props }) => (
+  <div>
+    <label className="block mb-1 font-medium">{label}{required ? ' *' : ''}</label>
+    <input
+      type="time"
+      className={`w-full border px-3 py-2 rounded
+        ${error ? "border-red-500" : ""}`}
+      {...props}
+    />
+    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
   </div>
 )
 
