@@ -82,6 +82,7 @@ const AllEmployees = () => {
           onEdit={(emp) => navigate(`/employee/${emp._id}/edit`)}
           onDelete={(id) => handleDelete(id)}
           onToggleStatus={(id, status) => handleToggleStatus(id, status)}
+          onView={(emp) => navigate(`/profile/${emp._id}`)}
           onNameClick={(emp) => navigate(`/profile/${emp._id}`)}
           filtersOptions={{
             departments: ["OFFICE STAFF", "PLANT"],

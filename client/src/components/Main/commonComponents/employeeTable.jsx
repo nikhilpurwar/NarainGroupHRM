@@ -4,6 +4,7 @@ import axios from 'axios'
 // import { Link, useNavigate } from 'react-router-dom'
 import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
+import Spinner from '../../utility/Spinner';
 
 const DEFAULT_AVATAR = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'
 
@@ -13,6 +14,7 @@ const EmployeeTable = ({
     onEdit = () => { },
     onToggleStatus = () => { },
     onNameClick = () => { },
+    onView = () => { },
     renderActions, // optional custom action renderer (emp) => JSX
     showFilters = true,
     filtersOptions = {}, // { departments:[], subDepartments:[], groups:[] }
@@ -450,12 +452,7 @@ const handleConfirmDelete = async () => {
             )}
 
             <div className="bg-white py-4 rounded-xl shadow-md overflow-x-auto">
-                {loading ? (
-                    <div className="flex justify-center items-center p-10 gap-4">
-                        <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
-                        <p className="text-center py-6 text-gray-500">Loading employees...</p>
-                    </div>
-                ) : (
+                {loading ? (<Spinner />) : (
                     <table className="w-full min-w-7xl table-auto">
                         <thead>
                             <tr className="bg-gray-100 text-gray-800 text-left">
@@ -589,7 +586,7 @@ const handleConfirmDelete = async () => {
                                                 ) : (
                                                     <div className='flex justify-center items-center gap-2 mr-2'>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                                                            onClick={(e) => { e.stopPropagation(); if (typeof onView === 'function') onView(emp); else onNameClick(emp) }}
                                                             className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
                                                             title="View Details"
                                                         >

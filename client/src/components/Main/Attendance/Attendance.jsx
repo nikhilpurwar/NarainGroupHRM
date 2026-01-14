@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react"
+import { useNavigate } from "react-router-dom"
 import axios from "axios"
 import AttendanceFilter from "./components/AttendanceFilter"
 import EmployeeSummary from "./components/EmployeeSummary"
@@ -32,7 +33,8 @@ const Attendance = () => {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
   const [empsLoading, setEmpsLoading] = useState(false)
-  const dispatch = useDispatch()
+    const dispatch = useDispatch()
+    const navigate = useNavigate()
   const employees = useSelector(s => s.employees.data || [])
   const attendanceMap = useSelector(s => s.attendance.map || {})
   const [viewMode, setViewMode] = useState("list")
@@ -218,17 +220,68 @@ const Attendance = () => {
 
       toast.success(res.data?.message || 'Attendance marked successfully')
 
-      // Refresh employees list so badges/counts update across UI
+
+      // Refresh employees and today's attendance so UI updates instantly
+      try { await dispatch(ensureEmployees()) } catch (e) { }
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
       try { await loadEmployeesRef.current?.() } catch (e) { }
 
-      // If currently viewing this employee's report, refresh it
-      if (report?.employee?._id === employeeId) {
-        lastRequestedRef.current = null
-        await fetchReport({
-          employeeId,
-          month: filters.month,
-          year: filters.year,
-        })
+      // Force report refetch (clearing lastRequestedRef) so computed OT/fields are retrieved
+      lastRequestedRef.current = null
+
+      // Merge returned attendance record into current report to show OT immediately
+      const returnedAtt = res.data?.data?.attendanceRecord || res.data?.attendance || res.data?.data?.attendance
+      if (report?.employee?._id === employeeId && returnedAtt) {
+        try {
+          const attDateIso = returnedAtt.date
+            ? (typeof returnedAtt.date === 'string' ? returnedAtt.date.slice(0, 10) : new Date(returnedAtt.date).toISOString().slice(0, 10))
+            : null
+
+          const newReport = JSON.parse(JSON.stringify(report))
+          // ensure employee.attendance exists
+          newReport.employee = newReport.employee || {}
+          newReport.employee.attendance = Array.isArray(newReport.employee.attendance) ? newReport.employee.attendance : []
+
+          if (attDateIso) {
+            // replace existing attendance for that date or append
+            const idx = newReport.employee.attendance.findIndex(a => a.date && String(a.date).startsWith(attDateIso))
+            if (idx >= 0) {
+              newReport.employee.attendance[idx] = returnedAtt
+            } else {
+              newReport.employee.attendance.push(returnedAtt)
+            }
+
+            // update table rows for that date if days exist
+            const dayIndex = (newReport.days || []).findIndex(d => d.iso === attDateIso)
+            if (dayIndex >= 0 && newReport.table) {
+              const tbl = newReport.table
+              // defensive init
+              const ensureRow = (key) => { if (!Array.isArray(tbl[key])) tbl[key] = (new Array(newReport.days.length)).fill(null) }
+              ensureRow('Status'); ensureRow('In'); ensureRow('Out'); ensureRow('Worked Hours'); ensureRow('Regular Hours'); ensureRow('OT (Hours)'); ensureRow('Note')
+
+              tbl['Status'][dayIndex] = returnedAtt.status || 'present'
+              tbl['In'][dayIndex] = returnedAtt.inTime || ''
+              tbl['Out'][dayIndex] = returnedAtt.outTime || ''
+              tbl['Worked Hours'][dayIndex] = returnedAtt.totalHoursDisplay || (typeof returnedAtt.totalHours !== 'undefined' ? String(returnedAtt.totalHours) : '')
+              tbl['Regular Hours'][dayIndex] = returnedAtt.regularHoursDisplay || (typeof returnedAtt.regularHours !== 'undefined' ? String(returnedAtt.regularHours) : '')
+              tbl['OT (Hours)'][dayIndex] = returnedAtt.overtimeHoursDisplay || (typeof returnedAtt.overtimeHours !== 'undefined' ? String(returnedAtt.overtimeHours) : '')
+              tbl['Note'][dayIndex] = returnedAtt.note || ''
+            }
+
+            // update local report state
+            setReport(newReport)
+          } else {
+            // fallback: refetch full report
+            await fetchReport({ employeeId, month: filters.month, year: filters.year })
+          }
+        } catch (e) {
+          // if anything fails, fallback to refetch
+          lastRequestedRef.current = null
+          await fetchReport({ employeeId, month: filters.month, year: filters.year })
+        }
+      } else {
+        // if report not open for this employee, ensure caches updated for other UI
+        try { await fetchReport({ employeeId, month: filters.month, year: filters.year }) } catch (e) { }
       }
 
       setManualModalOpen(false)
@@ -357,13 +410,8 @@ const Attendance = () => {
             employees={displayEmployees}
             loading={empsLoading}
             rowsPerPage={isMobile ? 4 : 6}
-            onNameClick={emp =>
-              fetchReport({
-                employeeId: emp._id,
-                month: filters.month,
-                year: filters.year,
-              })
-            }
+            onNameClick={emp => navigate(`/attendence-report?employeeId=${emp._id}&month=${filters.month}&year=${filters.year}`)}
+            onView={emp => navigate(`/employee/${emp._id}`)}
             renderActions={emp =>
               emp.attendanceMarked ? (
                 <button
