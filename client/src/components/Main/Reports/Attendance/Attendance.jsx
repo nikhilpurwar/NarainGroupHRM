@@ -42,6 +42,7 @@ const ReportsAttendance = () => {
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
   const [manualModalOpen, setManualModalOpen] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const fetchInProgressRef = useRef(false)
   const lastRequestedRef = useRef(null)
@@ -216,12 +217,39 @@ const ReportsAttendance = () => {
           placeholder="Search by name or emp id..."
           value={filters.search}
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
           className="w-100 bg-white rounded-xl px-4 py-2 focus:outline-none"
         />
         {/* <button
           onClick={() => { const first = filteredEmployees[0]; if (first) fetchReport({ employeeId: first._id, month: filters.month, year: filters.year }) }}
           className="px-8 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
         >Search</button> */}
+
+        {/* Show live matches list when focused */}
+        {searchFocused && (
+          <div ref={searchWrapRef} className='absolute top-16 left-3.5 z-50'>
+            <div className="w-100 max-h-[50vh] bg-white/90 rounded-xl shadow-sm border border-gray-200 p-1 overflow-auto main-scroll">
+              {filteredEmployees.length ? (
+                filteredEmployees.map(emp => (
+                  <div key={emp._id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 rounded" onClick={() => { fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year }); setFilters(f => ({ ...f, search: '' })) }}>
+                    {emp.avatar ? (
+                      <img src={emp.avatar} alt={emp.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">{((emp.name || '').split(/\s+/).slice(0, 2).map(n => n.charAt(0)).join('') || '').toUpperCase()}</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-800 truncate">{emp.name}</div>
+                      <div className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-sm text-gray-400 py-6">No matches found</div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2">
           {(() => {
@@ -247,7 +275,7 @@ const ReportsAttendance = () => {
                   onClick={() => handlePunch(emp)}
                   className="flex items-center gap-2 bg-red-200 text-red-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-red-700"
                 >
-                  Punch Out <IoMdLogOut size={26} /> 
+                  Punch Out <IoMdLogOut size={26} />
                 </button>
               )
             }
@@ -258,37 +286,12 @@ const ReportsAttendance = () => {
                 onClick={() => handlePunch(emp)}
                 className="flex items-center gap-2 bg-green-200 text-green-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-green-700"
               >
-                Punch In <IoMdLogOut size={26} /> 
+                Punch In <IoMdLogOut size={26} />
               </button>
             )
           })()}
         </div>
       </div>
-
-      {/* Show live matches list while searching */}
-      {filters.search && filters.search.trim() !== '' && (
-        <div ref={searchWrapRef} className='absolute top-22 left-9.5 z-50'>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 overflow-auto">
-            {filteredEmployees.length ? (
-              filteredEmployees.map(emp => (
-                <div key={emp._id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 rounded" onClick={() => { fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year }); setFilters(f => ({ ...f, search: '' })) }}>
-                  {emp.avatar ? (
-                    <img src={emp.avatar} alt={emp.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">{((emp.name || '').split(/\s+/).slice(0, 2).map(n => n.charAt(0)).join('') || '').toUpperCase()}</div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-800 truncate">{emp.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-sm text-gray-400 py-6">No matches found</div>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="md:col-span-5">
