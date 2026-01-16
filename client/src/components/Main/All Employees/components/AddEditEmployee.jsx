@@ -527,11 +527,13 @@ const AddEditEmployee = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         <Select
-                            label="Salary Type"
+                            label="Salary Type*"
                             name="empType"
                             value={form.empType}
                             onChange={handleChange}
                             options={["Monthly Salary", "Daily Salary"]}
+                            required
+
                         />
                         <Input label="Salary*" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} />
                     </div>
