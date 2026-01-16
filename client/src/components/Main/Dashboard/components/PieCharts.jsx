@@ -47,7 +47,7 @@ export const PieCharts = ({ data }) => {
     ],
   };
  return (
-  <div className="bg-white w-full max-w-xl p-6 rounded-2xl shadow-md border border-gray-100 flex flex-col items-center">
+  <div className="bg-white w-full max-w-xl p-6 rounded-xl shadow-md border border-gray-100 flex flex-col items-center">
     <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">
       Sub-Department Attendance
     </h2>

@@ -51,52 +51,76 @@ const outEmployees = outSet.size;
 
 
     // ================= DEPARTMENTS =================
-    const headDepartments = await HeadDepartment.find().select("name").lean();
-    const departmentCards = [];
+const headDepartments = await HeadDepartment.find()
+  .select("name")
+  .lean();
 
-    for (const dept of headDepartments) {
-      const subDepts = await SubDepartment.find({ headDepartment: dept._id }).lean();
+const departmentCards = [];
 
-      let headPresent = 0;
-      let headAbsent = 0;
-      let headTotalEmployees = 0;
+for (const dept of headDepartments) {
+  const subDepts = await SubDepartment.find({
+    headDepartment: dept._id,
+  }).lean();
 
-      const subDeptCards = [];
+  let headPresent = 0;
+  let headAbsent = 0;
+  let headTotalEmployees = 0;
 
-      for (const sub of subDepts) {
-        const employees = await Employee.find({ subDepartment: sub._id }).select("_id");
-        headTotalEmployees += employees.length;
+  const subDeptCards = [];
 
-        const employeeIds = employees.map(e => e._id);
+  for (const sub of subDepts) {
+    // ✅ ONLY ACTIVE EMPLOYEES
+    const employees = await Employee.find({
+      subDepartment: sub._id,
+      status: "active",
+    }).select("_id");
 
-        const attendance = await Attendance.find({
-          employee: { $in: employeeIds },
-          date: { $gte: today, $lt: tomorrow },
-        });
+    const employeeIds = employees.map(e => e._id);
 
-        const presentCount = attendance.filter(a => a.status === "present").length;
-        const absentCount = attendance.filter(a => a.status === "absent").length;
+    const totalEmployees = employeeIds.length;
+    headTotalEmployees += totalEmployees;
 
-        headPresent += presentCount;
-        headAbsent += absentCount;
-
-        subDeptCards.push({
-          _id: sub._id,
-          name: sub.name,
-          present: presentCount,
-          absent: absentCount,
-        });
-      }
-
-      departmentCards.push({
-        _id: dept._id,
-        name: dept.name,
-        totalEmployees: headTotalEmployees,
-        present: headPresent,
-        absent: headAbsent,
-        subDepartments: subDeptCards,
+    if (employeeIds.length === 0) {
+      subDeptCards.push({
+        _id: sub._id,
+        name: sub.name,
+        totalEmployees: 0,
+        present: 0,
+        absent: 0,
       });
+      continue;
     }
+
+    // ✅ Attendance ONLY for active employees
+    const attendance = await Attendance.find({
+      employee: { $in: employeeIds },
+      date: { $gte: today, $lt: tomorrow },
+    }).lean();
+
+    const presentCount = attendance.filter(a => a.status === "present").length;
+    const absentCount = attendance.filter(a => a.status === "absent").length;
+
+    headPresent += presentCount;
+    headAbsent += absentCount;
+
+    subDeptCards.push({
+      _id: sub._id,
+      name: sub.name,
+      totalEmployees,
+      present: presentCount,
+      absent: absentCount,
+    });
+  }
+
+  departmentCards.push({
+    _id: dept._id,
+    name: dept.name,
+    totalEmployees: headTotalEmployees, // ✅ active only
+    present: headPresent,               // ✅ active only
+    absent: headAbsent,
+    subDepartments: subDeptCards,
+  });
+}
     
     // Last 7 days attendance trend
     const last7Days = [];
@@ -139,7 +163,7 @@ const outEmployees = outSet.size;
     }));
 
     // ================= RECENT EMPLOYEES =================
-   const recentEmployeesRaw = await Employee.find()
+   const recentEmployeesRaw = await Employee.find({ status: "active" })
   .sort({ createdAt: -1 })
   .limit(5)
   .populate("subDepartment", "name");
@@ -156,6 +180,7 @@ const recentEmployees = recentEmployeesRaw.map(emp => {
     status: todayAttendance?.status === "present" ? "present" : "absent",
   };
 });
+
 
 // month
 
