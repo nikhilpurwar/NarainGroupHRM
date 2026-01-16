@@ -5,7 +5,7 @@ import axios from 'axios'
 import { FaUserAlt, FaCaretDown, FaCaretUp } from "react-icons/fa";
 import ChangePassword from "../../Auth/ChangePassword";
 
-const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
+const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleSidebar, scrollRef }) => {
     const [open, setOpen] = useState(false);
     const [userName, setUserName] = useState("");
     const [userEmail, setUserEmail] = useState("");
@@ -14,11 +14,45 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
     const [employeeId, setEmployeeId] = useState("");
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [greeting, setGreeting] = useState("");
+    const [isVisible, setIsVisible] = useState(true);
+    const lastScrollY = useRef(0);
     const dropdownRef = useRef(null);
 
     const navigate = useNavigate()
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
+
+    useEffect(() => {
+    const el = scrollRef?.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+        const currentScrollY = el.scrollTop;
+
+        // Always visible at top
+        if (currentScrollY < 20) {
+            setIsVisible(true);
+            lastScrollY.current = currentScrollY;
+            return;
+        }
+
+        // Scroll down → hide
+        if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+            setIsVisible(false);
+        }
+        // Scroll up → show
+        else if (currentScrollY < lastScrollY.current) {
+            setIsVisible(true);
+        }
+        console.log(el.scrollTop);
+
+        lastScrollY.current = currentScrollY;
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+}, [scrollRef]);
+
 
     // Role-based styling
     const getRoleStyle = (role) => {
@@ -155,11 +189,9 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, toggleSidebar }) => {
         return () => clearTimeout(timer);
     }, [userName]);
 
-
-
     return (
-        <div className="w-full bg-gray-900 text-white border-b shadow-sm">
-            <div className="w-full min-h-20 flex justify-between items-center pr-6 py-3">
+        <div style={{ width: window.innerWidth < 768 ? '100vw' : (isSidebarHovered ? 'calc(100vw - 256px)' : isSidebarCollapsed ? 'calc(100vw - 84px)' : 'calc(100vw - 256px)'), left: window.innerWidth < 768 ? '0' : (isSidebarHovered ? '256px' : isSidebarCollapsed ? '84px' : '256px') }} className={`bg-gray-900 text-white border-b shadow-sm transition-all duration-300 fixed top-0 z-50 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+            <div className="w-full min-h-20 flex justify-between items-center pr-6 py-2.5">
                 {/* Left side with title and toggle */}
                 <div className="flex items-center gap-8">
                     <button

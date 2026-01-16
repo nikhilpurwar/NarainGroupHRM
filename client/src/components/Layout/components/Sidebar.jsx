@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom"
 import axios from "axios"
 import usePermissions from '../../../hooks/usePermissions'
 
-const Sidebar = ({ isCollapsed, toggleSidebar }) => {
+const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
   const { permissionsMap: permissions } = usePermissions()
   const [open, setOpen] = useState({
@@ -12,6 +12,10 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
     settings: false,
   })
   const [isHovered, setHovered] = useState(false)
+
+  useEffect(() => {
+    onHoverChange?.(isHovered)
+  }, [isHovered, onHoverChange])
 
   const effectiveCollapsed = Boolean(isCollapsed) && !isHovered
   const [isMobile, setIsMobile] = useState(false)

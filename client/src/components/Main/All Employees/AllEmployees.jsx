@@ -7,6 +7,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import EmployeeTable from "../commonComponents/employeeTable"
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees, fetchEmployees } from '../../../store/employeesSlice'
+import { FaBarcode } from "react-icons/fa";
 
 const AllEmployees = () => {
   const dispatch = useDispatch()
@@ -57,10 +58,10 @@ const AllEmployees = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/barcodes")}
-            className="bg-gray-700 p-2 text-white rounded-full hover:bg-gray-400 transition cursor-pointer"
+            className="bg-gray-700 p-3 text-white rounded-full hover:bg-gray-400 transition cursor-pointer"
             title="Barcodes"
           >
-            <i className="fas fa-barcode"></i>
+            <FaBarcode size={22} className="hover:text-gray-900"/>
           </button>
 
           <button

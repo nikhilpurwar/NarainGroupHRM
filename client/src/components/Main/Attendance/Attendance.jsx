@@ -12,7 +12,7 @@ import ManualAttendanceModal from "./components/ManualAttendanceModal"
 import { toast } from "react-toastify"
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees } from '../../../store/employeesSlice'
-import { ensureTodayAttendance } from '../../../store/attendanceSlice'
+import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice'
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
@@ -139,9 +139,55 @@ const Attendance = () => {
     return lastPunch === "IN" ? "IN" : "OUT"
   }
 
+  /* ---------------- Punch Out All Employees ---------------- */
+  const handlePunchOutAll = async () => {
+    const inEmployees = employees.filter(emp => {
+      if (emp.status !== 'active') return false
+      const todayAtt = attendanceMap[emp._id] || attendanceMap[emp._id?.toString()]
+      const punchLogs = todayAtt?.punchLogs || []
+      return punchLogs.length > 0 && punchLogs[punchLogs.length - 1]?.punchType?.toUpperCase() === 'IN'
+    })
+
+    if (inEmployees.length === 0) {
+      toast.info('No employees to punch out')
+      return
+    }
+
+    try {
+      setIsProcessingPunch(true)
+      const results = await Promise.all(inEmployees.map(emp =>
+        axios.post(`${API_URL}/api/employees/${emp._id}/attendance`, {
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset()
+        })
+      ))
+      
+      results.forEach((res, idx) => {
+        const emp = inEmployees[idx]
+        const returnedAtt = res.data?.attendance
+        if (returnedAtt) {
+          dispatch(updateAttendanceEntry({ employeeId: emp._id, attendance: returnedAtt }))
+        }
+      })
+      
+      toast.success(`Punched out ${inEmployees.length} employee(s)`)
+      try { await dispatch(ensureEmployees()) } catch (e) {}
+      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+    } catch (err) {
+      toast.error('Failed to punch out all employees')
+    } finally {
+      setIsProcessingPunch(false)
+    }
+  }
+
   /* ---------------- Unified Punch Handler ---------------- */
   const handlePunch = async emp => {
     if (isProcessingPunch) return
+
+    if (emp.status !== 'active') {
+      toast.error('Employee is inactive')
+      return
+    }
 
     // optimistic UI: mark as attended immediately
     setOptimisticMarked(prev => {
@@ -167,6 +213,12 @@ const Attendance = () => {
         toast.success(
           `Punch OUT successful for ${emp.name} (${res.data.total_hours || 0}h)`
         )
+      }
+
+      // Update the attendance map immediately with the returned attendance
+      const returnedAtt = res.data?.attendance
+      if (returnedAtt) {
+        dispatch(updateAttendanceEntry({ employeeId: emp._id, attendance: returnedAtt }))
       }
 
       // Update employee list using response type
@@ -392,6 +444,15 @@ const Attendance = () => {
               <MdOutlineQrCodeScanner size={24} />
             </button>
             <button
+              onClick={handlePunchOutAll}
+              disabled={isProcessingPunch}
+              title="Punch Out All"
+              className="button-hover flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50"
+            >
+              Punch Out All
+              <IoMdLogOut size={24} />
+            </button>
+            <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
               className="button-hover flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
@@ -412,28 +473,76 @@ const Attendance = () => {
             rowsPerPage={isMobile ? 4 : 6}
             onNameClick={emp => navigate(`/attendence-report?employeeId=${emp._id}&month=${filters.month}&year=${filters.year}`)}
             onView={emp => navigate(`/employee/${emp._id}`)}
-            renderActions={emp =>
-              emp.attendanceMarked ? (
+            renderActions={emp => {
+              if (emp.status !== 'active') {
+                return (
+                  <button
+                    disabled
+                    title="Employee Inactive"
+                    className="text-center text-gray-400 px-3 py-1 rounded-full"
+                  >
+                    <FaUserCheck size={22} />
+                  </button>
+                )
+              }
+              const todayAtt = attendanceMap[emp._id] || attendanceMap[emp._id?.toString()]
+              if (!todayAtt) {
+                return (
+                  <button
+                    title="Mark Attendance"
+                    onClick={e => {
+                      e.stopPropagation()
+                      handlePunch(emp)
+                    }}
+                    className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  >
+                    <FaUserCheck size={18} />
+                  </button>
+                )
+              }
+              const punchLogs = todayAtt.punchLogs || []
+              if (!punchLogs.length) {
+                return (
+                  <button
+                    title="Mark Attendance"
+                    onClick={e => {
+                      e.stopPropagation()
+                      handlePunch(emp)
+                    }}
+                    className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  >
+                    <FaUserCheck size={14} />
+                  </button>
+                )
+              }
+              const lastPunch = punchLogs[punchLogs.length - 1]?.punchType?.toUpperCase()
+              if (lastPunch === 'IN') {
+                return (
+                  <button
+                    title="Punch Out"
+                    onClick={e => {
+                      e.stopPropagation()
+                      handlePunch(emp)
+                    }}
+                    className="text-center bg-red-600 text-white px-4 py-1 rounded-full hover:bg-red-700 cursor-pointer"
+                  >
+                    <IoMdLogOut size={20} />
+                  </button>
+                )
+              }
+              return (
                 <button
-                  disabled
-                  title="Attendance Marked"
-                  className="text-center text-green-600 px-3 py-1 rounded-full"
-                >
-                  <FaUserCheck size={20} />
-                </button>
-              ) : (
-                <button
-                  title="Mark Attendance"
+                  title="Punch In"
                   onClick={e => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 cursor-pointer"
                 >
-                  <FaUserCheck size={14} />
+                  <IoMdLogOut size={20} className="rotate-180" />
                 </button>
               )
-            }
+            }}
           />
         ) : (
           <>

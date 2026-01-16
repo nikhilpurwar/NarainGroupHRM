@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import axios from 'axios'
 import AttendanceFilter from '../../Attendance/components/AttendanceFilter'
@@ -16,6 +16,7 @@ import { toast } from 'react-toastify'
 import { FaUserCheck } from 'react-icons/fa'
 import { IoMdLogOut } from 'react-icons/io'
 import Spinner from '../../../utility/Spinner'
+import { MdKeyboardBackspace } from 'react-icons/md'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/attendance-report`
@@ -26,6 +27,7 @@ const ReportsAttendance = () => {
   const dispatch = useDispatch()
   const employees = useSelector(s => s.employees.data || [])
   const attendanceMap = useSelector(s => s.attendance.map || {})
+  const navigate = useNavigate()
 
   const [filters, setFilters] = useState({
     search: '',
@@ -211,6 +213,15 @@ const ReportsAttendance = () => {
 
   return (
     <div className="relative bg-white p-6 min-h-screen">
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 group flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-gray-100 transition-colors">
+          <MdKeyboardBackspace size={20} />
+        </div>
+        <span className="text-sm font-medium">Back to Employees</span>
+      </button>
       <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
         <input
           type="text"
@@ -286,7 +297,7 @@ const ReportsAttendance = () => {
                 onClick={() => handlePunch(emp)}
                 className="flex items-center gap-2 bg-green-200 text-green-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-green-700"
               >
-                Punch In <IoMdLogOut size={26} />
+                Punch In <IoMdLogOut size={26} className="rotate-180" />
               </button>
             )
           })()}
