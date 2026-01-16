@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Topbar from './components/Topbar'
@@ -7,6 +7,8 @@ import { Outlet } from 'react-router-dom'
 
 const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false)
+  const scrollRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -75,26 +77,28 @@ const Layout = () => {
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onHoverChange={setIsSidebarHovered}
       />
 
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 min-w-0">
-
         {/* Topbar */}
         <Topbar
           title={currentTopbar.title}
           subtitle={currentTopbar.subtitle}
           isSidebarCollapsed={isSidebarCollapsed}
+          isSidebarHovered={isSidebarHovered}
           toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          scrollRef={scrollRef}
         />
 
         {/* Page Content */}
-        <main className="flex flex-col flex-1 min-w-0 overflow-auto main-scroll">
-          <div className="flex-1 w-full">
-            <Outlet />
-          </div>
+        <main
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto main-scroll pt-20 transition-padding duration-300"
+        >
+          <Outlet />
         </main>
-
       </div>
     </div>
   )

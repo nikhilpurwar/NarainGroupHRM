@@ -102,7 +102,7 @@ function App() {
   return (
     <HierarchyProvider>
       <Router>
-        <ToastContainer position="top-right" autoClose={3000} />
+        <ToastContainer position="top-center" autoClose={3000} />
         <Routes>
           <Route path="/login" element={<RequireGuest><Login /></RequireGuest>}></Route>
           <Route path="/signup" element={<RequireGuest><SignUp /></RequireGuest>}></Route>
