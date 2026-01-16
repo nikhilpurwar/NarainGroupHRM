@@ -439,26 +439,28 @@ const Attendance = () => {
             <button
               onClick={() => setScannerOpen(true)}
               title="Open Scanner"
-              className="p-2 rounded-full bg-white text-gray-800 hover:bg-gray-100 cursor-pointer"
+              className="p-2 rounded-full bg-gray-700 text-gray-800  cursor-pointer"
             >
-              <MdOutlineQrCodeScanner size={24} />
+              <MdOutlineQrCodeScanner size={30} className="text-white hover:scale-120 transition duration-300" />
             </button>
+            
+            <button
+              onClick={() => setManualModalOpen(true)}
+              title="Add Past Attendance"
+              className="flex items-center gap-1 text-center text-lg p-0.5 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
+            >
+              <IoMdAddCircle size={43} className="hover:scale-150 transition duration-300" />
+              {/* Add Attendance */}
+            </button>
+
             <button
               onClick={handlePunchOutAll}
               disabled={isProcessingPunch}
               title="Punch Out All"
-              className="button-hover flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 text-center text-lg p-2 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50"
             >
-              Punch Out All
-              <IoMdLogOut size={24} />
-            </button>
-            <button
-              onClick={() => setManualModalOpen(true)}
-              title="Add Past Attendance"
-              className="button-hover flex items-center gap-1 text-center text-lg px-3 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
-            >
-              <IoMdAddCircle size={30} className="inline mr-1" />
-              Add Attendance
+              {/* Punch Out All */}
+              <IoMdLogOut size={30} className="hover:scale-130 transition duration-300"/>
             </button>
           </div>
         )}
@@ -494,7 +496,7 @@ const Attendance = () => {
                       e.stopPropagation()
                       handlePunch(emp)
                     }}
-                    className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                    className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 transition duration-300 cursor-pointer"
                   >
                     <FaUserCheck size={18} />
                   </button>
@@ -537,7 +539,7 @@ const Attendance = () => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                  className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 hover:scale-110 transition duration-300 cursor-pointer"
                 >
                   <IoMdLogOut size={20} className="rotate-180" />
                 </button>

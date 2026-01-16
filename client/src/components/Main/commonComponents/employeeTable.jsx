@@ -35,59 +35,54 @@ const EmployeeTable = ({
     // Local optimistic status overrides and pending toggles per employee id
     const [localStatusMap, setLocalStatusMap] = useState({})
     const [pendingToggles, setPendingToggles] = useState({})
-    
+
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [employeeToDelete, setEmployeeToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false); // optional, for spinner
 
 
-    
+
     // When user clicks delete button
-const handleDeleteClick = (emp) => {
-    setEmployeeToDelete(emp);
-    setShowDeleteConfirm(true);
-};
+    const handleDeleteClick = (emp) => {
+        setEmployeeToDelete(emp);
+        setShowDeleteConfirm(true);
+    };
 
-// Close modal without deleting
-const handleCloseDeleteConfirm = () => {
-    setShowDeleteConfirm(false);
-    setEmployeeToDelete(null);
-};
-
-// Confirm deletion
-const handleConfirmDelete = async () => {
-    if (!employeeToDelete) return;
-    setDeleting(true);
-
-    try {
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100';
-        const token = typeof window !== 'undefined'
-            ? sessionStorage.getItem('token') || localStorage.getItem('token')
-            : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-        // Call API to delete
-        await axios.delete(`${apiUrl}/api/employees/${employeeToDelete._id}`, { headers });
-
-        // Optionally remove from local state to update table immediately
-        setEmployees(prev => prev.filter(e => e._id !== employeeToDelete._id));
-        setFiltered(prev => prev.filter(e => e._id !== employeeToDelete._id));
-
-        // Close modal
+    // Close modal without deleting
+    const handleCloseDeleteConfirm = () => {
         setShowDeleteConfirm(false);
         setEmployeeToDelete(null);
-    } catch (err) {
-        console.error('Failed to delete employee', err);
-    } finally {
-        setDeleting(false);
-    }
-};
+    };
 
+    // Confirm deletion
+    const handleConfirmDelete = async () => {
+        if (!employeeToDelete) return;
+        setDeleting(true);
 
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5100';
+            const token = typeof window !== 'undefined'
+                ? sessionStorage.getItem('token') || localStorage.getItem('token')
+                : null;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+            // Call API to delete
+            await axios.delete(`${apiUrl}/api/employees/${employeeToDelete._id}`, { headers });
 
+            // Optionally remove from local state to update table immediately
+            setEmployees(prev => prev.filter(e => e._id !== employeeToDelete._id));
+            setFiltered(prev => prev.filter(e => e._id !== employeeToDelete._id));
 
+            // Close modal
+            setShowDeleteConfirm(false);
+            setEmployeeToDelete(null);
+        } catch (err) {
+            console.error('Failed to delete employee', err);
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     // Fetch all schema options from backend
     useEffect(() => {
@@ -329,7 +324,7 @@ const handleConfirmDelete = async () => {
             setPendingToggles(p => { const np = { ...p }; delete np[empId]; return np })
         }
     }
-    
+
 
     return (
         <div>
@@ -558,20 +553,20 @@ const handleConfirmDelete = async () => {
                                             {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}
                                             {renderActions && (
                                                 <>
-                                                    <td title='Total Present this Month' className="px-4 py-3">{(() => {
+                                                    <td title='Total Present this Month' className="px-8 text-center text-green-700 font-bold">{(() => {
                                                         const key = emp._id || emp.id
                                                         const v = countsMap[key]
-                                                        return (v && typeof v.present === 'number') ? v.present :
+                                                        return (v && typeof v.present === 'number') ? <div className='border-b-2 bg-green-200 rounded-full shadow-2xl'>{v.present}</div> :
                                                             <div className="flex space-x-0.5">
                                                                 <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
                                                                 <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                                                 <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
                                                             </div>
                                                     })()}</td>
-                                                    <td title='Total Absent this Month' className="px-4 py-3">{(() => {
+                                                    <td title='Total Absent this Month' className="px-8 text-center text-red-600 font-bold">{(() => {
                                                         const key = emp._id || emp.id
                                                         const v = countsMap[key]
-                                                        return (v && typeof v.absent === 'number') ? v.absent :
+                                                        return (v && typeof v.absent === 'number') ? <div className='border-b-2 bg-red-200 rounded-full shadow-2xl'>{v.absent}</div> :
                                                             <div className="flex space-x-0.5">
                                                                 <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
                                                                 <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
@@ -602,7 +597,7 @@ const handleConfirmDelete = async () => {
                                                         <button
                                                             onClick={() => handleDeleteClick(emp)}
                                                             title="Delete Employee"
-                                                        
+
                                                             className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
                                                         >
                                                             <MdDeleteOutline size={22} />
@@ -627,28 +622,28 @@ const handleConfirmDelete = async () => {
                 )}
 
                 {showDeleteConfirm && (
-          <div className="modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="modal bg-white rounded-lg p-6 w-96">
-          <h3 className="text-lg font-semibold mb-2">Confirm Delete</h3>
-          <p>Are you sure you want to delete <strong>{employeeToDelete?.name}</strong>?</p>
-          <div className="flex justify-center gap-4 mt-4">
-            <button
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-              onClick={handleConfirmDelete}
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting...' : 'Yes, Delete'}
-            </button>
-            <button
-                className='bg-gray-50 px-4 py-2 rounded hover:bg-gray-100'
-                onClick={handleCloseDeleteConfirm}
-                disabled={deleting}
-                >
-                    Cancel
-                </button>
-            </div>
-        </div>
-       </div>
+                    <div className="modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                        <div className="modal bg-white rounded-lg p-6 w-96">
+                            <h3 className="text-lg font-semibold mb-2">Confirm Delete</h3>
+                            <p>Are you sure you want to delete <strong>{employeeToDelete?.name}</strong>?</p>
+                            <div className="flex justify-center gap-4 mt-4">
+                                <button
+                                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                                    onClick={handleConfirmDelete}
+                                    disabled={deleting}
+                                >
+                                    {deleting ? 'Deleting...' : 'Yes, Delete'}
+                                </button>
+                                <button
+                                    className='bg-gray-50 px-4 py-2 rounded hover:bg-gray-100'
+                                    onClick={handleCloseDeleteConfirm}
+                                    disabled={deleting}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
 
