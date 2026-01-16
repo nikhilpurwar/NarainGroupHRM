@@ -50,6 +50,7 @@ import chargeRoutes from "./src/routes/settings/charge.route.js";
 import workingHours from "./src/routes/settings/workingHours.route.js";
 import userRoutes from "./src/routes/settings/user.route.js";
 import permissionRoutes from "./src/routes/settings/permission.route.js";
+import dashboardRoutes from "./src/routes/dashboard.route.js";
 
 // attendance imports
 import attendanceRoutes from "./src/routes/attendance.route.js";
@@ -81,6 +82,7 @@ app.use('/api/monthly-summary', monthlySummaryRoutes);
 app.use("/api/advance", advanceRoutes);
 // Salary endpoints
 app.use('/api/salary', salaryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Serve client in production if built
 if (process.env.NODE_ENV === 'production') {
