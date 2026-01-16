@@ -103,7 +103,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow col-span-2">
+          <div className="bg-white p-6 rounded-xl shadow col-span-2">
             <h2 className="text-xl font-bold mb-4">
               Attendance Trend (Last 7 Days)
             </h2>

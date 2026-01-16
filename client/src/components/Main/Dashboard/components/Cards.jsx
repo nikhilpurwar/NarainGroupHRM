@@ -8,16 +8,17 @@ import {
   FaSignOutAlt,
 
 } from "react-icons/fa"; 
+import { GiOpenGate } from "react-icons/gi";
 import { IoMdLogIn,IoMdLogOut } from "react-icons/io";
 
 const Cards = ({ data }) => {
   return (
     <>
       {/* ================= TOP KPI CARDS ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
 
         {/* EMPLOYEES */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-5 shadow-sm card-hover">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-indigo-700">
@@ -49,6 +50,7 @@ const Cards = ({ data }) => {
           value={data.monthly?.present}
           icon={<FaUserCheck size={20} />}
           gradient="from-green-50 to-green-100"
+          border="green-200"
           text="text-green-700"
         />
 
@@ -58,35 +60,51 @@ const Cards = ({ data }) => {
           value={data.monthly?.absent}
           icon={<FaUserTimes size={20} />}
           gradient="from-red-50 to-red-100"
+          border="red-200"
           text="text-red-700"
         />
 
         {/* TODAY MOVEMENT */}
-     <KpiCard
-      title="Today Movement"
-     value={
-    <div className="p-4 mt-1 flex gap-20 text-sm font-semibold">
+<KpiCard
+  title="Today Movement"
+  value={
+    <div className="mt-2 grid grid-cols-2 gap-x-10 gap-y-5 text-sm font-semibold text-gray-700">
+
+      <span>
+        Present: <span className="font-bold">{data.presentToday}</span>
+      </span>
+
+      <span>
+        Absent: <span className="font-bold">{data.absentToday}</span>
+      </span>
+
       <span className="flex items-center gap-1 text-green-700">
-        <IoMdLogOut className="rotate-180" size={25} /> {data.inEmployees}
+        <IoMdLogOut className="rotate-180" size={20} />
+        <span className="font-bold">{data.inEmployees}</span>
       </span>
+
       <span className="flex items-center gap-1 text-red-600">
-        <IoMdLogOut size={25}/> {data.outEmployees}
+        <IoMdLogOut size={20} />
+        <span className="font-bold">{data.outEmployees}</span>
       </span>
+
     </div>
-             }
-        gradient="from-sky-50 to-sky-100"
+
+  }
+  icon={<GiOpenGate size={20} />}
+  gradient="from-sky-50 to-sky-100"
   text="text-sky-700"
 />
 
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-6">
         {data.departments?.map((dept) => (
           <div
             key={dept._id}
-            className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+            className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 shadow-sm card-hover"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className=" flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm font-semibold text-slate-600">
                   Department
@@ -124,20 +142,19 @@ const Cards = ({ data }) => {
 };
 
 /* ================= REUSABLE KPI CARD ================= */
-const KpiCard = ({ title, value, icon, gradient, text }) => {
+const KpiCard = ({ title, value, icon, gradient, text,border }) => {
   return (
-    <div className={`bg-gradient-to-br ${gradient} border rounded-xl p-5 shadow-sm card-hovers`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className={`text-sm font-semibold ${text}`}>
+    <div className={`bg-gradient-to-br ${gradient} border${border} rounded-xl p-5 shadow-sm card-hover `}>
+      <div className="h-full flex items-center justify-between ">
+        <div className="flex flex-col justify-start items-start">
+          <p className={`text-sm font-semibold ${text} `}>
             {title}
           </p>
-          <div className="text-3xl font-bold text-gray-900 mt-1">
+          <div className="text-3xl font-bold text-gray-900 mt-1 ">
             {value}
           </div>
         </div>
-
-        <div className="bg-white p-3 rounded-lg shadow">
+        <div className="bg-white p-3 rounded-lg shadow align-middle">
           <span className={text}>{icon}</span>
         </div>
       </div>
