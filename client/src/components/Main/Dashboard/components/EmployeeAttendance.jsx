@@ -31,6 +31,7 @@ const EmployeeAttendance = ({ employees = [] }) => {
         <thead className="bg-gray-100 text-gray-700">
           <tr>
             <th className="px-4 py-3 text-left">S.No</th>
+            <th className="px-4 py-3 text-left">Emp.ID</th>
             <th className="px-4 py-3 text-left">Name</th>
             <th className="px-4 py-3 text-left">Department</th>
             <th className="px-4 py-3 text-left">Status</th>
@@ -41,22 +42,26 @@ const EmployeeAttendance = ({ employees = [] }) => {
           {filteredEmployees.length > 0 ? (
             filteredEmployees.map((emp, index) => {
               const status = emp.status;
-              const statusColor =
-                status === "present"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700";
+              // const statusColor =
+              //   status === "present"
+              //     ? "bg-green-100 text-green-700"
+              //     : "bg-red-100 text-red-700";
 
-              const dotColor =
-                status === "present"
-                  ? "bg-green-500"
-                  : "bg-red-500";
+              // const dotColor =
+              //   status === "present"
+              //     ? "bg-green-500"
+              //     : "bg-red-500";
 
               return (
                 <tr
-                  key={emp._id}
+                  key={emp._id || emp.id}
                   className="border-b hover:bg-green-50 transition cursor-pointer"
                 >
                   <td className="px-4 py-3">{index + 1}</td>
+                  <td className="px-4 px-3">
+                    {emp.empId}
+                    </td>
+          
 
                   <td className="px-4 py-3 font-semibold text-gray-900">
                     {emp.name}
@@ -110,3 +115,4 @@ const EmployeeAttendance = ({ employees = [] }) => {
 };
 
 export default EmployeeAttendance;
+
