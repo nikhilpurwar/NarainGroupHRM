@@ -4,17 +4,14 @@ import {
   FaUserCheck,
   FaUserTimes,
   FaBuilding,
-  FaSignInAlt,
-  FaSignOutAlt,
 
 } from "react-icons/fa"; 
 import { GiOpenGate } from "react-icons/gi";
-import { IoMdLogIn,IoMdLogOut } from "react-icons/io";
+import {IoMdLogOut } from "react-icons/io";
 
 const Cards = ({ data }) => {
   return (
     <>
-      {/* ================= TOP KPI CARDS ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
 
         {/* EMPLOYEES */}
@@ -47,7 +44,7 @@ const Cards = ({ data }) => {
         {/* MONTHLY PRESENT */}
         <KpiCard
           title="Monthly Present"
-          value={data.monthly?.present}
+          value={data.monthlyPresent}
           icon={<FaUserCheck size={20} />}
           gradient="from-green-50 to-green-100"
           border="green-200"
@@ -57,7 +54,7 @@ const Cards = ({ data }) => {
         {/* MONTHLY ABSENT */}
         <KpiCard
           title="Monthly Absent"
-          value={data.monthly?.absent}
+          value={data.monthlyAbsent}
           icon={<FaUserTimes size={20} />}
           gradient="from-red-50 to-red-100"
           border="red-200"
@@ -87,17 +84,13 @@ const Cards = ({ data }) => {
         <IoMdLogOut size={20} />
         <span className="font-bold">{data.outEmployees}</span>
       </span>
-
     </div>
-
   }
   icon={<GiOpenGate size={20} />}
   gradient="from-sky-50 to-sky-100"
   text="text-sky-700"
 />
-
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-6">
         {data.departments?.map((dept) => (
           <div
@@ -161,5 +154,4 @@ const KpiCard = ({ title, value, icon, gradient, text,border }) => {
     </div>
   );
 };
-
 export default Cards;

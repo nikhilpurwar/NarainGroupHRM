@@ -2,6 +2,7 @@ import Employee from "../models/employee.model.js";
 import Attendance from "../models/attendance.model.js";
 import { HeadDepartment, SubDepartment } from "../models/department.model.js";
 import Holiday from "../models/setting.model/holidays.model.js";
+import MonthlySummary from "../models/monthlySummary.model.js";
 
 export const dashboardSummary = async (req, res) => {
   try {
@@ -9,235 +10,209 @@ export const dashboardSummary = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setDate(today.getDate() + 1);
 
-    // ================= EMPLOYEES =================
-    const totalEmployees = await Employee.countDocuments();
-    const activeEmployees = await Employee.countDocuments({ status: "active" });
-    const inactiveEmployees = await Employee.countDocuments({ status: "inactive" });
-
-    // ================= ATTENDANCE TODAY =================
-    const attendanceToday = await Attendance.find({
-      date: { $gte: today, $lt: tomorrow },
-    });
-
-   let present = 0, absent = 0, onLeave = 0;
-
-const inSet = new Set();
-const outSet = new Set();
-
-attendanceToday.forEach(a => {
-  if (a.status === "present") present++;
-  else if (a.status === "absent") absent++;
-  else if (a.status === "leave") onLeave++;
-
-  a.punchLogs?.forEach(p => {
-    const empId = a.employee.toString();
-
-    if (p.punchType === "IN") {
-      inSet.add(empId);
-      outSet.delete(empId);
-    }
-
-    if (p.punchType === "OUT") {
-      outSet.add(empId);
-      inSet.delete(empId);
-    }
-  });
-});
-
-const inEmployees = inSet.size;
-const outEmployees = outSet.size;
-
-
-    // ================= DEPARTMENTS =================
-const headDepartments = await HeadDepartment.find()
-  .select("name")
-  .lean();
-
-const departmentCards = [];
-
-for (const dept of headDepartments) {
-  const subDepts = await SubDepartment.find({
-    headDepartment: dept._id,
-  }).lean();
-
-  let headPresent = 0;
-  let headAbsent = 0;
-  let headTotalEmployees = 0;
-
-  const subDeptCards = [];
-
-  for (const sub of subDepts) {
-    // ✅ ONLY ACTIVE EMPLOYEES
-    const employees = await Employee.find({
-      subDepartment: sub._id,
-      status: "active",
-    }).select("_id");
-
-    const employeeIds = employees.map(e => e._id);
-
-    const totalEmployees = employeeIds.length;
-    headTotalEmployees += totalEmployees;
-
-    if (employeeIds.length === 0) {
-      subDeptCards.push({
-        _id: sub._id,
-        name: sub.name,
-        totalEmployees: 0,
-        present: 0,
-        absent: 0,
-      });
-      continue;
-    }
-
-    // ✅ Attendance ONLY for active employees
-    const attendance = await Attendance.find({
-      employee: { $in: employeeIds },
-      date: { $gte: today, $lt: tomorrow },
-    }).lean();
-
-    const presentCount = attendance.filter(a => a.status === "present").length;
-    const absentCount = attendance.filter(a => a.status === "absent").length;
-
-    headPresent += presentCount;
-    headAbsent += absentCount;
-
-    subDeptCards.push({
-      _id: sub._id,
-      name: sub.name,
+    /* ================= RUN PARALLEL QUERIES ================= */
+    const [
       totalEmployees,
-      present: presentCount,
-      absent: absentCount,
-    });
-  }
+      activeEmployees,
+      inactiveEmployees,
+      attendanceToday,
+      headDepartments,
+      subDepartments,
+      activeEmployeesList,
+      recentEmployeesRaw,
+      monthlySummaries,
+      upcomingHolidaysRaw,
+    ] = await Promise.all([
+      Employee.countDocuments(),
+      Employee.countDocuments({ status: "active" }),
+      Employee.countDocuments({ status: "inactive" }),
 
-  departmentCards.push({
-    _id: dept._id,
-    name: dept.name,
-    totalEmployees: headTotalEmployees, // ✅ active only
-    present: headPresent,               // ✅ active only
-    absent: headAbsent,
-    subDepartments: subDeptCards,
-  });
-}
-    
-    // Last 7 days attendance trend
-    const last7Days = [];
-    const attendanceTrend = [];
+      Attendance.find({ date: { $gte: today, $lt: tomorrow } }).lean(),
 
-    for (let i = 6; i >= 0; i--) {
-      const day = new Date();
-      day.setDate(today.getDate() - i);
-      day.setHours(0, 0, 0, 0);
+      HeadDepartment.find().select("name").lean(),
+      SubDepartment.find().select("name headDepartment").lean(),
 
-      const nextDay = new Date(day);
-      nextDay.setDate(day.getDate() + 1);
+      Employee.find({ status: "active" })
+        .select("_id subDepartment")
+        .lean(),
 
-      const dayAttendance = await Attendance.find({
-        date: { $gte: day, $lt: nextDay },
-      });
-
-      const presentCount = dayAttendance.filter(a => a.status === "present").length;
-      const absentCount = dayAttendance.filter(a => a.status === "absent").length;
-
-      last7Days.push(day.toLocaleDateString("en-US", { weekday: "short" }));
-      attendanceTrend.push({ present: presentCount, absent: absentCount });
-    }
-    
-    // 6 Upcoming holidays (next 30 days)
-    const next30 = new Date();
-    next30.setDate(today.getDate() + 30);
-    next30.setHours(23, 59, 59, 999);
-
-    const upcomingHolidaysRaw = await Holiday.find({
-      date: { $gte: today, $lte: next30 },
-    }).sort({ date: 1 }).lean();
-
-    const upcomingHolidays = upcomingHolidaysRaw.map(h => ({
-      _id: h._id,
-      name: h.name,
-      date: h.date,
-      description: h.description,
-      createdAt: h.createdAt,
-    }));
-
-    // ================= RECENT EMPLOYEES =================
-   const recentEmployeesRaw = await Employee.find({ status: "active" })
+      Employee.find({ status: "active" })
+  .select("_id name empId subDepartment") // ✅ ADD empId
   .sort({ createdAt: -1 })
   .limit(5)
-  .populate("subDepartment", "name");
+  .populate("subDepartment", "name")
+  .lean(),
 
-const recentEmployees = recentEmployeesRaw.map(emp => {
-  const todayAttendance = attendanceToday.find(
-    a => a.employee._id.toString() === emp._id.toString()
-  );
+      MonthlySummary.find({
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
+      }).lean(),
 
-  return {
-    _id: emp._id,
-    name: emp.name,
-    subDepartmentName: emp.subDepartment?.name || "N/A",
-    status: todayAttendance?.status === "present" ? "present" : "absent",
-  };
-});
+      Holiday.find({
+        date: {
+          $gte: today,
+          $lte: new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000),
+        },
+      })
+        .sort({ date: 1 })
+        .lean(),
+    ]);
 
+    /* ================= ATTENDANCE TODAY ================= */
+    let present = 0, absent = 0, onLeave = 0;
+    const inSet = new Set();
+    const outSet = new Set();
 
-// month
+    attendanceToday.forEach(a => {
+      if (a.status === "present") present++;
+      else if (a.status === "absent") absent++;
+      else if (a.status === "leave") onLeave++;
 
+      a.punchLogs?.forEach(p => {
+        const empId = String(a.employee);
+        if (p.punchType === "IN") {
+          inSet.add(empId);
+          outSet.delete(empId);
+        }
+        if (p.punchType === "OUT") {
+          outSet.add(empId);
+          inSet.delete(empId);
+        }
+      });
+    });
 
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    /* ================= FAST LOOKUP MAPS ================= */
+    const attendanceMap = new Map();
+    attendanceToday.forEach(a => {
+      attendanceMap.set(String(a.employee), a.status);
+    });
 
-const monthlyAttendance = await Attendance.find({
-  date: { $gte: monthStart, $lt: monthEnd },
-});
+    const employeesBySubDept = new Map();
+    activeEmployeesList.forEach(e => {
+      const key = String(e.subDepartment);
+      if (!employeesBySubDept.has(key)) {
+        employeesBySubDept.set(key, []);
+      }
+      employeesBySubDept.get(key).push(String(e._id));
+    });
 
-let monthlyPresent = 0;
-let monthlyAbsent = 0;
+    const todayAttendanceByEmp = new Map();
+    attendanceToday.forEach(a => {
+      todayAttendanceByEmp.set(String(a.employee), a.status);
+    });
 
-const monthlyInSet = new Set();
-const monthlyOutSet = new Set();
+    /* ================= DEPARTMENTS ================= */
+    const departmentCards = headDepartments.map(dept => {
+      const subs = subDepartments.filter(
+        s => String(s.headDepartment) === String(dept._id)
+      );
 
-monthlyAttendance.forEach(a => {
-  if (a.status === "present") monthlyPresent++;
-  if (a.status === "absent") monthlyAbsent++;
+      let headPresent = 0;
+      let headAbsent = 0;
+      let headTotalEmployees = 0;
 
-  a.punchLogs?.forEach(p => {
-    if (p.punchType === "IN") monthlyInSet.add(a.employee.toString());
-    if (p.punchType === "OUT") monthlyOutSet.add(a.employee.toString());
-  });
-});
+      const subDeptCards = subs.map(sub => {
+        const empIds = employeesBySubDept.get(String(sub._id)) || [];
+        const totalEmployees = empIds.length;
+        headTotalEmployees += totalEmployees;
 
-const monthlyIn = monthlyInSet.size;
-const monthlyOut = monthlyOutSet.size;
+        let presentCount = 0;
+        let absentCount = 0;
 
+        empIds.forEach(id => {
+          const st = todayAttendanceByEmp.get(id);
+          if (st === "present") presentCount++;
+          else if (st === "absent") absentCount++;
+        });
 
-res.json({
-  totalEmployees,
-  activeEmployees,
-  inactiveEmployees,
+        headPresent += presentCount;
+        headAbsent += absentCount;
 
-  presentToday: present,
-  absentToday: absent,
-  onLeaveToday: onLeave,
-  inEmployees,
-  outEmployees,
-  recentEmployees,
+        return {
+          _id: sub._id,
+          name: sub.name,
+          totalEmployees,
+          present: presentCount,
+          absent: absentCount,
+        };
+      });
 
-  monthly: {
-    present: monthlyPresent,
-    absent: monthlyAbsent,
-    inEmployees: monthlyIn,
-    outEmployees: monthlyOut,
-  },
-    attendanceTrend: {
-        labels: last7Days,
+      return {
+        _id: dept._id,
+        name: dept.name,
+        totalEmployees: headTotalEmployees,
+        present: headPresent,
+        absent: headAbsent,
+        subDepartments: subDeptCards,
+      };
+    });
+
+    /* ================= LAST 7 DAYS TREND ================= */
+    const attendanceTrend = [];
+    const labels = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date(today);
+      day.setDate(today.getDate() - i);
+
+      const next = new Date(day);
+      next.setDate(day.getDate() + 1);
+
+      const list = await Attendance.find({
+        date: { $gte: day, $lt: next },
+      }).select("status").lean();
+
+      attendanceTrend.push({
+        present: list.filter(a => a.status === "present").length,
+        absent: list.filter(a => a.status === "absent").length,
+      });
+
+      labels.push(day.toLocaleDateString("en-US", { weekday: "short" }));
+    }
+
+    /* ================= RECENT EMPLOYEES ================= */
+    const recentEmployees = recentEmployeesRaw.map(emp => ({
+      _id: emp._id,
+      empId:emp.empId,
+      name: emp.name,
+      subDepartmentName: emp.subDepartment?.name || "N/A",
+      status:
+        attendanceMap.get(String(emp._id)) === "present"
+          ? "present"
+          : "absent",
+    }));
+
+    /* ================= MONTHLY ================= */
+    const monthly = monthlySummaries.reduce(
+      (acc, s) => {
+        acc.present += s.totalPresent || 0;
+        acc.absent += s.totalAbsent || 0;
+        return acc;
+      },
+      { present: 0, absent: 0 }
+    );
+
+    /* ================= RESPONSE ================= */
+    res.json({
+      totalEmployees,
+      activeEmployees,
+      inactiveEmployees,
+      presentToday: present,
+      absentToday: absent,
+      onLeaveToday: onLeave,
+      inEmployees: inSet.size,
+      outEmployees: outSet.size,
+      recentEmployees,
+      monthly,
+      attendanceTrend: {
+        labels,
         datasets: attendanceTrend,
       },
-      upcomingHolidays,
-  departments: departmentCards,
-});
-
+      upcomingHolidays: upcomingHolidaysRaw,
+      departments: departmentCards,
+    });
 
   } catch (err) {
     console.error("Dashboard Error:", err);

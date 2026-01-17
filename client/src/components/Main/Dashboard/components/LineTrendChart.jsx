@@ -98,4 +98,4 @@ const LineTrendChart = ({ data = [], height = 120, stroke = '#2563eb' }) => {
   );
 };
 
-export default LineTrendChart;
+export default React.memo(LineTrendChart);

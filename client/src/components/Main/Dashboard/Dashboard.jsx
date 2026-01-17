@@ -15,6 +15,7 @@ import Cards from "./components/Cards";
 import FestivalList from "./components/FestivalList";
 import { PieCharts } from "./components/PieCharts";
 import EmployeeAttendance from "./components/EmployeeAttendance";
+import Spinner from "../../utility/Spinner";
 
 ChartJS.register(
   CategoryScale,
@@ -22,7 +23,7 @@ ChartJS.register(
   BarElement,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
 );
 
 const Dashboard = () => {
@@ -45,59 +46,59 @@ const Dashboard = () => {
       });
   }, []);
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading)
+    return (
+      <div className="p-6 text-center">
+        <Spinner />
+      </div>
+    );
   if (error) return <div className="p-6 text-red-500">{error}</div>;
- 
+
   const cardData = {
-  totalEmployees: data.totalEmployees,
-  activeEmployees: data.activeEmployees,
-  inactiveEmployees: data.inactiveEmployees,
-  presentToday: data.presentToday,
-  absentToday: data.absentToday,
-  inEmployees: data.inEmployees,
-  outEmployees: data.outEmployees,
-  monthly: data.monthly, 
-  departments: data.departments,
-};
-
-  // Attendance Trend
-  const attendanceTrend = {
-    labels: data?.attendanceTrend?.labels || [],
-    datasets: [
-      {
-        label: "Present",
-        data: data?.attendanceTrend?.datasets?.map((d) => d.present) || [],
-        backgroundColor: "#16a34a",
-      },
-      {
-        label: "Absent",
-        data: data?.attendanceTrend?.datasets?.map((d) => d.absent) || [],
-        backgroundColor: "#dc2626",
-      },
-    ],
-  };
-  // Today's attendance donut
-  const attendanceDonut = {
-    labels: ["Present", "Absent", "On Leave"],
-    datasets: [
-      {
-        data: [
-          data?.attendance?.present || 0,
-          data?.attendance?.absent || 0,
-          data?.attendance?.onLeave || 0,
-        ],
-        backgroundColor: ["#16a34a", "#dc2626", "#f59e0b"],
-      },
-    ],
+    totalEmployees: data.totalEmployees,
+    activeEmployees: data.activeEmployees,
+    inactiveEmployees: data.inactiveEmployees,
+    presentToday: data.presentToday,
+    absentToday: data.absentToday,
+    inEmployees: data.inEmployees,
+    outEmployees: data.outEmployees,
+    monthlyPresent: data.monthly?.present || 0,
+    monthlyAbsent: data.monthly?.absent || 0,
+    departments: data.departments,
   };
 
-  // // Filter recent employees
-  // const filteredEmployees = data?.recentEmployees?.filter(emp =>
-  //   employeeFilter === "all" ? true : emp.status === employeeFilter
-  // );
-
+  // // Attendance Trend
+  // const attendanceTrend = {
+  //   labels: data?.attendanceTrend?.labels || [],
+  //   datasets: [
+  //     {
+  //       label: "Present",
+  //       data: data?.attendanceTrend?.datasets?.map((d) => d.present) || [],
+  //       backgroundColor: "#16a34a",
+  //     },
+  //     {
+  //       label: "Absent",
+  //       data: data?.attendanceTrend?.datasets?.map((d) => d.absent) || [],
+  //       backgroundColor: "#dc2626",
+  //     },
+  //   ],
+  // };
+  // // Today's attendance donut
+  // const attendanceDonut = {
+  //   labels: ["Present", "Absent", "On Leave"],
+  //   datasets: [
+  //     {
+  //       data: [
+  //         data?.attendance?.present || 0,
+  //         data?.attendance?.absent || 0,
+  //         data?.attendance?.onLeave || 0,
+  //       ],
+  //       backgroundColor: ["#16a34a", "#dc2626", "#f59e0b"],
+  //     },
+  //   ],
+  // };
   return (
-    <div className="p-6 bg-gray-100 min-h-screen space-y-8">
+   <div className="p-6 bg-gray-100 min-h-screen space-y-8">
   <Cards data={cardData} />
 
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
@@ -130,10 +131,11 @@ const Dashboard = () => {
            </div> 
       {/* Recent Employees & Holidays */}
       
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-        {/* Recent Employees */} 
+      <div className="grid grid-row-1 lg:grid-cols-3 gap-6">
+        {/* Recent Employees */}
+        <span className="col-span-2">
           <EmployeeAttendance employees={data.recentEmployees} />
-
+        </span>
         {/* Upcoming Holidays */}
         <FestivalList holidays={data?.upcomingHolidays || []} />
       </div>
