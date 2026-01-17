@@ -40,7 +40,7 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
-      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-2xl p-6 relative max-h-[80vh] overflow-y-auto">
+      <div className="card-hover bg-white rounded-xl shadow-xl w-[90%] max-w-3xl p-6 relative">
         
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4 mb-4">
@@ -56,7 +56,7 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
         {/* Summary Info */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
           <div>
-            <p className="text-xs text-gray-600">Shift Hours</p>
+            <p className="text-xs text-gray-600">Shift</p>
             <p className="text-sm font-semibold">{shiftHours}</p>
           </div>
           <div>
@@ -76,7 +76,7 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
         {/* Punch Records Table */}
         <div className="mb-6">
           <h3 className="font-semibold mb-3 text-gray-700">Punch Records</h3>
-          <div className="overflow-x-auto">
+          <div className="max-h-[40vh] overflow-auto main-scroll">
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-200">
