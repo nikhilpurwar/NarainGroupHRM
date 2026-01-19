@@ -110,20 +110,20 @@ const AttendanceTable = ({ days, data, isMobile, attendanceRaw, onCellClick, hol
     if (!totalOt) return '--';
 
     return (
-      <div className="flex flex-col items-center gap-0.5 text-[10px] leading-tight">
-        <div className="flex items-center justify-between w-full font-semibold text-gray-500">
+      <div className="flex flex-col items-center text-[10px] leading-tight ">
+        <div className="flex items-center justify-between w-full font-semibold text-gray-500 border-b border-gray-300 pb-1 ">
           <span className="flex-1 text-center">D</span>
           <span className="flex-1 text-center">N</span>
           <span className="flex-1 text-center">S</span>
           <span className="flex-1 text-center">F</span>
         </div>
-        <div className="flex items-center justify-between w-full font-medium text-gray-800">
-          <span className="flex-1 text-center">{formatHours(dayOt)}</span>
-          <span className="flex-1 text-center text-indigo-600">{formatHours(nightOt)}</span>
-          <span className="flex-1 text-center text-emerald-600">{formatHours(sundayOt)}</span>
-          <span className="flex-1 text-center text-orange-600">{formatHours(festivalOt)}</span>
+        <div className=" flex items-center justify-between text-xs font-medium text-gray-800 divide-x  divide-gray-300">
+          <span className="flex-1 px-1 text-center ">{formatHours(dayOt)}</span>
+          <span className="flex-1 px-1 text-center text-indigo-600">{formatHours(nightOt)}</span>
+          <span className="flex-1 px-1 text-center text-emerald-600">{formatHours(sundayOt)}</span>
+          <span className="flex-1 px-1 text-center text-orange-600">{formatHours(festivalOt)}</span>
         </div>
-        <div className="flex items-center justify-between w-full text-[10px] text-gray-500 border-t border-gray-200 pt-0.5 mt-0.5">
+        <div className="flex items-center justify-between w-full text-[10px] text-gray-500 border-t border-gray-200 pt-0.5">
           <span className="font-semibold">Total</span>
           <span className="ml-auto font-semibold text-gray-800">{formatHours(totalOt)}</span>
         </div>

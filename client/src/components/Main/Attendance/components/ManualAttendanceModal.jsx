@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { IoCloseSharp } from 'react-icons/io5'
 import { Loader } from 'lucide-react'
 
@@ -6,7 +6,11 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
   const [loading, setLoading] = useState(false)
   const todayIso = new Date().toLocaleDateString('en-CA')
 
-  const [employeeId, setEmployeeId] = useState('')
+const [employeeId, setEmployeeId] = useState('Select')
+const [search, setSearch] = useState("");
+const [searchFocused, setSearchFocused] = useState(false);
+const searchWrapRef = useRef(null);
+
   const [date, setDate] = useState(todayIso)
   const [inHour, setInHour] = useState('')
   const [inMinute, setInMinute] = useState('00')
@@ -27,12 +31,12 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
       setOutHour('')
       setOutMinute('00')
       setOutMeridiem('PM')
-      // Preselect first employee if available
-      if (employees && employees.length > 0) {
-        setEmployeeId(employees[0]._id || employees[0].id || '')
-      } else {
-        setEmployeeId('')
-      }
+      // // Preselect first employee if available
+      // if (employees && employees.length > 0) {
+      //   setEmployeeId(employees[0]._id || employees[0].id || '')
+      // } else {
+      //   setEmployeeId('')
+      // }
     }
   }, [isOpen, todayIso, employees])
 
@@ -80,6 +84,8 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
       return
     }
     
+    
+
 
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
 
@@ -109,6 +115,11 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     }
   }
 
+  const filteredEmployees = (employees || []).filter(emp =>
+  emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+  emp.empId?.toLowerCase().includes(search.toLowerCase())
+);
+
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
       <div className="card-hover bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
@@ -127,23 +138,52 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
         {/* Body / Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Employee Select */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Employee <span className="text-red-500">*</span>
-            </label>
-            <select
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-            >
-              <option value="">--- Select Employee ---</option>
-              {employees && employees.map((emp) => (
-                <option key={emp._id || emp.id} value={emp._id || emp.id}>
-                  {emp.name} ({emp.empId})
-                </option>
-              ))}
-            </select>
+         <div className="relative">
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Select Employee <span className="text-red-500">*</span>
+  </label>
+
+  {/* Search Input */}
+  <input
+    type="text"
+    placeholder="Search by name or emp id..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    onFocus={() => setSearchFocused(true)}
+    onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+
+  {/* Dropdown */}
+  {searchFocused && (
+    <div
+      ref={searchWrapRef}
+      className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto main-scroll"
+    >
+      {filteredEmployees.length > 0 ? (
+        filteredEmployees.map((emp) => (
+          <div
+            key={emp._id || emp.id}
+            onClick={() => {
+              setEmployeeId(emp._id || emp.id);
+              setSearch(`${emp.name} (${emp.empId})`);
+              setSearchFocused(false);
+            }}
+            className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+          >
+            <div className="font-medium">{emp.name}</div>
+            <div className="text-xs text-gray-500">{emp.empId}</div>
           </div>
+        ))
+      ) : (
+        <div className="px-3 py-2 text-sm text-gray-400">
+          No employee found
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
 
           {/* Date */}
           <div>
