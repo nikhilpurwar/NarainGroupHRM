@@ -5,7 +5,6 @@ import AttendanceFilter from "./components/AttendanceFilter"
 import EmployeeSummary from "./components/EmployeeSummary"
 import AttendanceTable from "./components/AttendanceTable"
 import EmployeeTable from "../commonComponents/employeeTable"
-import BarcodeScanner from "./components/BarcodeScanner"
 import PunchRecordsModal from "./components/PunchRecordsModal"
 import MonthlySummaryCard from "./components/MonthlySummaryCard"
 import ManualAttendanceModal from "./components/ManualAttendanceModal"
@@ -16,6 +15,7 @@ import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/att
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
+import { io as clientIO } from "socket.io-client"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
@@ -39,7 +39,6 @@ const Attendance = () => {
   const attendanceMap = useSelector(s => s.attendance.map || {})
   const [viewMode, setViewMode] = useState("list")
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const [scannerOpen, setScannerOpen] = useState(false)
   const [punchModalOpen, setPunchModalOpen] = useState(false)
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
@@ -85,6 +84,51 @@ const Attendance = () => {
     loadEmployeesRef.current = loadEmployees
     loadHolidaysRef.current = loadHolidays
   }, [dispatch])
+
+  /* ---------------- Socket.IO Real-time Updates ---------------- */
+  useEffect(() => {
+    const socket = clientIO(API_URL, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    socket.on("connect", () => {
+      console.log("✓ Attendance Socket.IO connected");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Attendance Socket.IO connection error:", err);
+    });
+
+    socket.on("attendance:updated", (payload) => {
+      if (!payload || !payload.employee) return;
+
+      // Update the attendance map immediately
+      dispatch(updateAttendanceEntry({ employeeId: payload.employee, attendance: payload.attendance }));
+
+      // If we have a report loaded and it belongs to the updated employee, refresh the report
+      if (report?.employee?._id === payload.employee) {
+        // Small delay to ensure backend has processed the monthly summary update
+        setTimeout(() => {
+          refreshReport();
+        }, 500);
+      }
+
+      // Refresh today's attendance data for live updates
+      try { dispatch(ensureTodayAttendance()) } catch (e) {}
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Attendance Socket.IO disconnected");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [API_URL, dispatch, report?.employee?._id]);
 
   /* ---------------- Fetch Report ---------------- */
   const fetchReport = async params => {
@@ -435,15 +479,7 @@ const Attendance = () => {
             </button>
           )
         })() : (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setScannerOpen(true)}
-              title="Open Scanner"
-              className="p-2 rounded-full bg-gray-700 text-gray-800  cursor-pointer"
-            >
-              <MdOutlineQrCodeScanner size={30} className="text-white hover:scale-120 transition duration-300" />
-            </button>
-            
+          <div className="flex items-center gap-3">            
             <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
@@ -594,19 +630,6 @@ const Attendance = () => {
           </>
         )}
       </div>
-
-      {/* Scanner */}
-      <BarcodeScanner
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-          onAttendanceMarked={async () => {
-            // scanner marked attendance on server — refresh employees and report
-            try { await loadEmployeesRef.current?.() } catch (e) { }
-            lastRequestedRef.current = null
-            refreshReport()
-            setScannerOpen(false)
-          }}
-      />
 
       {/* Punch Records Modal */}
       {selectedPunchDate && (

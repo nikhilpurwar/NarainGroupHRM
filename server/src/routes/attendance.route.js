@@ -1,5 +1,5 @@
 import express from 'express'
-import { attendanceReport, scanAttendance, todaysAttendance } from '../controllers/attendance.controller.js'
+import { attendanceReport, todaysAttendance } from '../controllers/attendance.controller.js'
 import { authenticate } from '../middleware/auth.middleware.js'
 import { checkPermission } from '../middleware/permission.middleware.js'
 
@@ -18,7 +18,7 @@ router.get('/attendance/today', authenticate, (req, res) => {
 })
 
 // Barcode attendance endpoint - supports both GET and POST (auth optional for barcode readers)
-router.get('/store-emp-attend', scanAttendance)
-router.post('/store-emp-attend', scanAttendance)
+// router.get('/store-emp-attend', scanAttendance)
+// router.post('/store-emp-attend', scanAttendance)
 
 export default router
