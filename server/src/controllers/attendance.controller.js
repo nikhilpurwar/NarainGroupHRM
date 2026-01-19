@@ -410,18 +410,17 @@ export const todaysAttendance = async (req, res) => {
 export const scanAttendance = async (req, res) => {
   try {
     const { code } = req.query;
-    const { date } = req.body;
+    // const { date } = req.body; // Removed unused date destructuring
 
     if (!code) {
       return res.status(400).json({ success: false, message: 'Barcode code is required' });
     }
 
     // Find employee by empId (barcode code typically contains empId)
-    const emp = await Employee.findOne({ empId: code })
+    const emp = await Employee.findOne({ empId: code }, { strictPopulate: false })
       .populate('headDepartment')
       .populate('subDepartment')
-      .populate('designation')
-      .populate('reportsTo', 'name empId');
+      .populate('designation');
 
     if (!emp) {
       return res.status(404).json({ success: false, message: 'Employee not found with this code' });
@@ -548,6 +547,27 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
       
+      // Update monthly summary immediately
+      const now2 = new Date();
+      const currentYear2 = now2.getFullYear();
+      const currentMonth2 = now2.getMonth() + 1; // 1-12
+      const atts2 = await Attendance.find({
+        employee: emp._id,
+        date: {
+          $gte: new Date(`${currentYear2}-${String(currentMonth2).padStart(2, '0')}-01T00:00:00Z`),
+          $lt: new Date(currentMonth2 === 12 ? currentYear2 + 1 : currentYear2, currentMonth2 === 12 ? 0 : currentMonth2, 1)
+        }
+      }).lean();
+      const days2 = monthDays(currentYear2, currentMonth2);
+      await updateMonthlySummary(emp._id, currentYear2, currentMonth2, atts2, days2, emp.joiningDate);
+
+      // Fetch updated summary for real-time emit
+      const updatedSummary2 = await MonthlySummary.findOne({ 
+        employee: emp._id, 
+        year: currentYear2, 
+        month: currentMonth2 
+      });
+      
       // Check for continuous IN across configured boundary (e.g., 7AM)
       await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
 
@@ -559,7 +579,12 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
       // emit socket update
       try {
         const io = getIO();
-        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: existingAttendance, type: 'in' });
+        if (io) io.emit('attendance:updated', { 
+          employee: emp._id.toString(), 
+          attendance: existingAttendance, 
+          type: 'in',
+          summary: updatedSummary2 
+        });
       } catch (e) {
         console.warn('Socket emit failed', e.message || e);
       }
@@ -619,6 +644,27 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     // Record punch in debounce cache
     attendanceService.recordPunch(emp._id.toString(), 'IN');
     
+    // Update monthly summary immediately
+    const now3 = new Date();
+    const currentYear3 = now3.getFullYear();
+    const currentMonth3 = now3.getMonth() + 1; // 1-12
+    const atts3 = await Attendance.find({
+      employee: emp._id,
+      date: {
+        $gte: new Date(`${currentYear3}-${String(currentMonth3).padStart(2, '0')}-01T00:00:00Z`),
+        $lt: new Date(currentMonth3 === 12 ? currentYear3 + 1 : currentYear3, currentMonth3 === 12 ? 0 : currentMonth3, 1)
+      }
+    }).lean();
+    const days3 = monthDays(currentYear3, currentMonth3);
+    await updateMonthlySummary(emp._id, currentYear3, currentMonth3, atts3, days3, emp.joiningDate);
+
+    // Fetch updated summary for real-time emit
+    const updatedSummary3 = await MonthlySummary.findOne({ 
+      employee: emp._id, 
+      year: currentYear3, 
+      month: currentMonth3 
+    });
+    
     // Check for continuous IN across configured boundary (e.g., 7AM)
     await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
 
@@ -631,7 +677,12 @@ async function handlePunchIn(emp, now, currentTimeString, res, attendanceIso = n
     // emit socket update for new attendance
     try {
       const io = getIO();
-      if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAttendanceDoc, type: 'in' });
+      if (io) io.emit('attendance:updated', { 
+        employee: emp._id.toString(), 
+        attendance: newAttendanceDoc, 
+        type: 'in',
+        summary: updatedSummary3 
+      });
     } catch (e) {
       console.warn('Socket emit failed', e.message || e);
     }
@@ -715,6 +766,27 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     // Record punch in debounce cache
     attendanceService.recordPunch(emp._id.toString(), 'OUT');
 
+    // Update monthly summary immediately
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const atts = await Attendance.find({
+      employee: emp._id,
+      date: {
+        $gte: new Date(`${currentYear}-${String(currentMonth).padStart(2, '0')}-01T00:00:00Z`),
+        $lt: new Date(currentMonth === 12 ? currentYear + 1 : currentYear, currentMonth === 12 ? 0 : currentMonth, 1)
+      }
+    }).lean();
+    const days = monthDays(currentYear, currentMonth);
+    await updateMonthlySummary(emp._id, currentYear, currentMonth, atts, days, emp.joiningDate);
+
+    // Fetch updated summary for real-time emit
+    const updatedSummary = await MonthlySummary.findOne({ 
+      employee: emp._id, 
+      year: currentYear, 
+      month: currentMonth 
+    });
+
     // Re-populate employee relations for response
     await emp.populate('headDepartment');
     await emp.populate('subDepartment');
@@ -724,7 +796,12 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
     // emit socket update for out
     try {
       const io = getIO();
-      if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance, type: 'out' });
+      if (io) io.emit('attendance:updated', { 
+        employee: emp._id.toString(), 
+        attendance, 
+        type: 'out',
+        summary: updatedSummary 
+      });
     } catch (e) {
       console.warn('Socket emit failed', e.message || e);
     }
@@ -754,7 +831,7 @@ async function handlePunchOut(emp, attendanceDoc, now, currentTimeString, res) {
 }
 
 // Helper function to calculate and store monthly summary
-async function updateMonthlySummary(employeeId, year, month, attendances, days, empJoiningDate) {
+export async function updateMonthlySummary(employeeId, year, month, attendances, days, empJoiningDate) {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

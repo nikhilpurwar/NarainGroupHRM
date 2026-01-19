@@ -11,6 +11,7 @@ import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 import { getIO } from "../utils/socket.util.js";
+import { updateMonthlySummary } from "./attendance.controller.js";
 
 // attendanceIso logic moved to attendance.service.getAttendanceIsoForTimestamp (async)
 
@@ -253,12 +254,22 @@ export const addAttendance = async (req, res) => {
           await emp.populate('subDepartment');
           await emp.populate('designation');
 
-          // Emit socket update
+          // Update monthly summary and emit socket update with summary
           try {
+            const attDate = attendanceDoc.date ? new Date(attendanceDoc.date) : new Date();
+            const year = attDate.getFullYear();
+            const month = attDate.getMonth() + 1;
+            const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + 1);
+            const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+            const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+            await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+            const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
             const io = getIO();
-            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'out' });
+            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'out', summary: updatedSummary });
           } catch (e) {
-            console.warn('Socket emit failed', e.message || e);
+            console.warn('Socket emit / summary update failed', e.message || e);
           }
 
           return res.status(200).json({ success: true, type: 'out', message: 'Punch OUT successful', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
@@ -320,12 +331,22 @@ export const addAttendance = async (req, res) => {
           await emp.populate('subDepartment');
           await emp.populate('designation');
 
-          // Emit socket update
+          // Update monthly summary and emit socket update with summary
           try {
+            const attDate = attendanceDoc.date ? new Date(attendanceDoc.date) : new Date();
+            const year = attDate.getFullYear();
+            const month = attDate.getMonth() + 1;
+            const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + 1);
+            const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+            const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+            await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+            const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
             const io = getIO();
-            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'in' });
+            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'in', summary: updatedSummary });
           } catch (e) {
-            console.warn('Socket emit failed', e.message || e);
+            console.warn('Socket emit / summary update failed', e.message || e);
           }
 
           return res.status(200).json({ success: true, type: 'in', message: 'Punch IN appended', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
@@ -373,12 +394,22 @@ export const addAttendance = async (req, res) => {
       await emp.populate('subDepartment');
       await emp.populate('designation');
 
-      // Emit socket update
+      // Update monthly summary and emit socket update with summary
       try {
+        const attDate = newAtt.date ? new Date(newAtt.date) : new Date();
+        const year = attDate.getFullYear();
+        const month = attDate.getMonth() + 1;
+        const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+        const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+        await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+        const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
         const io = getIO();
-        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAtt, type: 'in' });
+        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAtt, type: 'in', summary: updatedSummary });
       } catch (e) {
-        console.warn('Socket emit failed', e.message || e);
+        console.warn('Socket emit / summary update failed', e.message || e);
       }
 
       return res.status(201).json({ success: true, type: 'in', message: 'Punch IN successful', attendance: newAtt, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
@@ -536,6 +567,34 @@ export const addAttendance = async (req, res) => {
     salaryRecalcService
       .recalculateAndUpdateMonthlySalary(new Date(date))
       .catch(err => console.error('Salary recalculation failed (manual attendance):', err));
+    // Update monthly summary and emit socket update so UI updates in real-time
+    try {
+      const attDate = new Date(date);
+      const year = attDate.getFullYear();
+      const month = attDate.getMonth() + 1; // 1-12
+      // fetch attendances for that month
+      const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      const atts = await Attendance.find({
+        employee: emp._id,
+        date: { $gte: start, $lt: end }
+      }).lean();
+
+      const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+
+      await updateMonthlySummary(emp._id, year, month, atts, days, emp.joiningDate);
+
+      const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
+      try {
+        const io = getIO();
+        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: att, type: 'manual', summary: updatedSummary });
+      } catch (e) {
+        console.warn('Socket emit failed (manual attendance)', e.message || e);
+      }
+    } catch (e) {
+      console.warn('Failed to update monthly summary after manual attendance', e && e.message ? e.message : e);
+    }
 
     res.json({ success: true, message: 'Attendance marked successfully', data: { employee: emp, attendanceRecord: att } });
   } catch (err) {
@@ -836,6 +895,22 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
         console.error('Salary recalculation failed:', err)
       );
 
+      // Update monthly summary and emit socket update with summary
+      try {
+        const attDate = existingAttendance.date ? new Date(existingAttendance.date) : new Date();
+        const year = attDate.getFullYear();
+        const month = attDate.getMonth() + 1;
+        const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+        const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+        await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+        const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
+        try { const io = getIO(); if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: existingAttendance, type: 'in', summary: updatedSummary }); } catch(e){ console.warn('Socket emit failed', e && e.message ? e.message : e); }
+      } catch (e) {
+        console.warn('Failed to update monthly summary (barcode IN existing):', e && e.message ? e.message : e);
+      }
       return res.status(200).json({
         success: true,
         type: 'in',
@@ -898,6 +973,23 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
     salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
       console.error('Salary recalculation failed:', err)
     );
+
+    // Update monthly summary and emit socket update with summary
+    try {
+      const attDate = newAttendanceDoc.date ? new Date(newAttendanceDoc.date) : new Date();
+      const year = attDate.getFullYear();
+      const month = attDate.getMonth() + 1;
+      const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+      const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+      await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+      const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
+      try { const io = getIO(); if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAttendanceDoc, type: 'in', summary: updatedSummary }); } catch(e){ console.warn('Socket emit failed', e && e.message ? e.message : e); }
+    } catch (e) {
+      console.warn('Failed to update monthly summary (barcode IN new):', e && e.message ? e.message : e);
+    }
 
     return res.status(201).json({
       success: true,
@@ -982,6 +1074,23 @@ async function handlePunchOutBarcode(emp, attendanceDoc, now, currentTimeString,
     salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
       console.error('Salary recalculation failed:', err)
     );
+
+    // Update monthly summary and emit socket update with summary
+    try {
+      const attDate = attendance.date ? new Date(attendance.date) : new Date();
+      const year = attDate.getFullYear();
+      const month = attDate.getMonth() + 1;
+      const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      const attsForMonth = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+      const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+      await updateMonthlySummary(emp._id, year, month, attsForMonth, days, emp.joiningDate);
+      const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
+      try { const io = getIO(); if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance, type: 'out', summary: updatedSummary }); } catch(e){ console.warn('Socket emit failed', e && e.message ? e.message : e); }
+    } catch (e) {
+      console.warn('Failed to update monthly summary (barcode OUT):', e && e.message ? e.message : e);
+    }
 
     return res.status(200).json({
       success: true,

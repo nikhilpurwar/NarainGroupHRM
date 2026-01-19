@@ -8,7 +8,6 @@ import AttendanceTable from '../../Attendance/components/AttendanceTable'
 import MonthlySummaryCard from '../../Attendance/components/MonthlySummaryCard'
 import EmployeeTable from '../../commonComponents/employeeTable'
 import ManualAttendanceModal from '../../Attendance/components/ManualAttendanceModal'
-import BarcodeScanner from '../../Attendance/components/BarcodeScanner'
 import PunchRecordsModal from '../../Attendance/components/PunchRecordsModal'
 import { ensureEmployees } from '../../../../store/employeesSlice'
 import { ensureTodayAttendance } from '../../../../store/attendanceSlice'
@@ -39,7 +38,6 @@ const ReportsAttendance = () => {
   const [loading, setLoading] = useState(false)
   const [empsLoading, setEmpsLoading] = useState(false)
   const [holidays, setHolidays] = useState([])
-  const [scannerOpen, setScannerOpen] = useState(false)
   const [punchModalOpen, setPunchModalOpen] = useState(false)
   const [selectedPunchDate, setSelectedPunchDate] = useState(null)
   const [isProcessingPunch, setIsProcessingPunch] = useState(false)
@@ -386,7 +384,6 @@ const ReportsAttendance = () => {
 
       </div>
       <ManualAttendanceModal isOpen={manualModalOpen} onClose={() => setManualModalOpen(false)} employees={employees} onSubmit={handleManualAttendanceSubmit} />
-      <BarcodeScanner isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onAttendanceMarked={async () => { try { await loadEmployeesRef.current?.() } catch (e) { } lastRequestedRef.current = null; refreshReport(); setScannerOpen(false) }} />
       {selectedPunchDate && (<PunchRecordsModal isOpen={punchModalOpen} onClose={() => { setPunchModalOpen(false); setSelectedPunchDate(null) }} attendance={selectedPunchDate.attendance} date={selectedPunchDate.date} employeeName={report?.employee?.name} shiftHours={report?.employee?.shift || 8} />)}
     </div>
   )
