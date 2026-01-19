@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { MdKeyboardBackspace } from 'react-icons/md'
 import { FiDownload, FiSearch, FiPrinter } from 'react-icons/fi'
 import '../../../utility/print.css'
+import Spinner from '../../../utility/Spinner'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -13,6 +14,7 @@ const Barcodes = () => {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [error, setError] = useState(null) 
 
   // Add print styles
   useEffect(() => {
@@ -46,7 +48,8 @@ const Barcodes = () => {
         const res = await axios.get(`${API}/barcodes`)
         setList(res.data.data || [])
       } catch (err) {
-        console.error('Failed to load barcodes', err)
+        console.error(err)
+        setError('Failed to load barcodes')
       } finally {
         setLoading(false)
       }
@@ -78,7 +81,20 @@ const Barcodes = () => {
     window.print()
   }
 
-  if (loading) return <div className="p-6">Loading...</div>
+  if (loading)
+    return (
+      <div className="p-6 text-center">
+        <Spinner />
+      </div>
+    );
+    if (error)
+    return (
+      <div className="p-6 text-center text-red-600 font-medium">
+        {error}
+      </div>
+    )
+  
+
 
   return (
     <div className="p-6 bg-transparent max-w-7xl mx-auto space-y-6 print:p-0 print:max-w-none print:space-y-0 barcode-print-container">

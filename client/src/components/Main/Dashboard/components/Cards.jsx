@@ -47,7 +47,7 @@ const Cards = ({ data }) => {
           value={data.monthlyPresent}
           icon={<FaUserCheck size={20} />}
           gradient="from-green-50 to-green-100"
-          border="green-200"
+          border="border-green-200"
           text="text-green-700"
         />
 
@@ -57,7 +57,7 @@ const Cards = ({ data }) => {
           value={data.monthlyAbsent}
           icon={<FaUserTimes size={20} />}
           gradient="from-red-50 to-red-100"
-          border="red-200"
+          border="border-red-200"
           text="text-red-700"
         />
 
@@ -88,6 +88,7 @@ const Cards = ({ data }) => {
   }
   icon={<GiOpenGate size={20} />}
   gradient="from-sky-50 to-sky-100"
+  border="border-sky-200"
   text="text-sky-700"
 />
       </div>
@@ -135,12 +136,12 @@ const Cards = ({ data }) => {
 };
 
 /* ================= REUSABLE KPI CARD ================= */
-const KpiCard = ({ title, value, icon, gradient, text,border }) => {
+const KpiCard = ({ title, value, icon, gradient, text, border }) => {
   return (
-    <div className={`bg-gradient-to-br ${gradient} border${border} rounded-xl p-5 shadow-sm card-hover `}>
+    <div className={`bg-gradient-to-br ${gradient} border ${border} rounded-xl p-5 shadow-sm card-hover `}>
       <div className="h-full flex items-center justify-between ">
         <div className="flex flex-col justify-start items-start">
-          <p className={`text-sm font-semibold ${text} `}>
+          <p className={`text-sm font-semibold ${text}`}>
             {title}
           </p>
           <div className="text-3xl font-bold text-gray-900 mt-1 ">
