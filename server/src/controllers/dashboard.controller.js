@@ -29,7 +29,10 @@ export const dashboardSummary = async (req, res) => {
       Employee.countDocuments({ status: "active" }),
       Employee.countDocuments({ status: "inactive" }),
 
-      Attendance.find({ date: { $gte: today, $lt: tomorrow } }).lean(),
+      Attendance.find(
+  { date: { $gte: today, $lt: tomorrow } },
+  { employee: 1, status: 1, punchLogs: 1 }
+).lean(),
 
       HeadDepartment.find().select("name").lean(),
       SubDepartment.find().select("name headDepartment").lean(),
@@ -172,17 +175,38 @@ export const dashboardSummary = async (req, res) => {
       labels.push(day.toLocaleDateString("en-US", { weekday: "short" }));
     }
 
-    /* ================= RECENT EMPLOYEES ================= */
-    const recentEmployees = recentEmployeesRaw.map(emp => ({
-      _id: emp._id,
-      empId:emp.empId,
-      name: emp.name,
-      subDepartmentName: emp.subDepartment?.name || "N/A",
-      status:
-        attendanceMap.get(String(emp._id)) === "present"
-          ? "present"
-          : "absent",
-    }));
+// RECENT EMPLOYEES
+
+const recentEmployees = recentEmployeesRaw.map(emp => {
+  const attendanceStatus = attendanceMap.get(String(emp._id));
+
+  const shiftEnd = emp.shiftEnd
+    ? new Date(`${now.toDateString()} ${emp.shiftEnd}`)
+    : null;
+
+  let status = "pending";
+
+  if (attendanceStatus === "present") {
+    status = "present";
+  } 
+  else if (attendanceStatus === "out") {
+    status = "out";
+  } 
+  else if (shiftEnd && now >= shiftEnd) {
+    status = "absent";
+  }
+
+  return {
+    _id: emp._id,
+    empId: emp.empId,
+    name: emp.name,
+    subDepartmentName: emp.subDepartment?.name || "N/A",
+    shiftEnd: emp.shiftEnd, // optional but good
+    status,
+  };
+});
+
+         
 
     /* ================= MONTHLY ================= */
     const monthly = monthlySummaries.reduce(

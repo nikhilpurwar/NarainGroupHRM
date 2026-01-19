@@ -8,35 +8,41 @@ import EmployeeTable from "../commonComponents/employeeTable"
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees, fetchEmployees } from '../../../store/employeesSlice'
 import { FaBarcode } from "react-icons/fa";
+import { useState } from "react";
+
 
 const AllEmployees = () => {
   const dispatch = useDispatch()
-  const employees = useSelector(s => s.employees.data || [])
-  const loading = useSelector(s => s.employees.status === 'loading')
+  const reduxEmployees = useSelector((s) => s.employees.data || []);
+  const loading = useSelector((s) => s.employees.status === "loading");
   const navigate = useNavigate();
-
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
   const API_BASE = `${API_URL}/api/employees`;
+  const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
     dispatch(ensureEmployees())
   }, [dispatch])
 
+  useEffect(() => {
+    setEmployees(reduxEmployees);
+  }, [reduxEmployees]);
+
   const handleAddEmployee = () => navigate("/employee/add");
 
-  const handleDelete = async (empId) => {
-    const confirm = window.confirm("Delete this employee?");
-    if (!confirm) return;
-    try {
-      await axios.delete(`${API_BASE}/${empId}`);
-      // Force refetch immediately so status and list update
-      dispatch(fetchEmployees())
-      toast.success("Employee deleted");
-    } catch (err) {
-      console.error("Delete failed", err);
-      toast.error("Delete failed");
-    }
-  };
+const handleDelete = async (id) => {
+  try {
+    await axios.delete(`${API_BASE}/${id}`);
+
+    // ✅ instant UI update
+    setEmployees(prev => prev.filter(emp => emp._id !== id));
+
+    toast.success("Employee deleted");
+  } catch (err) {
+    console.error(err);
+    toast.error("Delete failed");
+  }
+};
 
   const handleToggleStatus = async (empId, currentStatus) => {
     const next = currentStatus === "active" ? "inactive" : "active";
@@ -81,7 +87,7 @@ const AllEmployees = () => {
           rowsPerPage={8}
           loading={loading}
           onEdit={(emp) => navigate(`/employee/${emp._id}/edit`)}
-          onDelete={(id) => handleDelete(id)}
+          onDelete={handleDelete}
           onToggleStatus={(id, status) => handleToggleStatus(id, status)}
           onView={(emp) => navigate(`/profile/${emp._id}`)}
           onNameClick={(emp) => navigate(`/profile/${emp._id}`)}

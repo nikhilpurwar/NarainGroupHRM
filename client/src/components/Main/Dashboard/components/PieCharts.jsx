@@ -12,13 +12,14 @@ export const PieCharts = ({ data }) => {
   const innerColors = [];
 
   const subColors = [
-    "#60a5fa",
+    "#af52bf",
     "#818cf8",
     "#fb7185",
     "#fb923c",
     "#fbbf24",
     "#34d399",
     "#22d3ee",
+    "#8bc34a"
   ];
 
   let colorIndex = 0;
