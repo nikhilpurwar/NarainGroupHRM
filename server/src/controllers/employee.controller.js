@@ -10,6 +10,7 @@ import salaryRecalcService from "../services/salaryRecalculation.service.js";
 import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
+import { getIO } from "../utils/socket.util.js";
 
 // attendanceIso logic moved to attendance.service.getAttendanceIsoForTimestamp (async)
 
@@ -148,12 +149,22 @@ export const getEmployeeById = async (req, res) => {
 
 export const addAttendance = async (req, res) => {
   try {
-    const { date, status, inTime, outTime, note } = req.body;
+    const { date, status, inTime, outTime, note } = req.body || {};
 
-    const emp = await Employee.findById(req.params.id)
-      .populate('headDepartment', 'name')
-      .populate('subDepartment', 'name')
-      .populate('designation', 'name');
+    let emp;
+    if (req.query.code) {
+      // Barcode mode: find by empId
+      emp = await Employee.findOne({ empId: req.query.code })
+        .populate('headDepartment', 'name')
+        .populate('subDepartment', 'name')
+        .populate('designation', 'name');
+    } else {
+      // Manual mode: find by _id
+      emp = await Employee.findById(req.params.id)
+        .populate('headDepartment', 'name')
+        .populate('subDepartment', 'name')
+        .populate('designation', 'name');
+    }
 
     if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
 
@@ -241,6 +252,15 @@ export const addAttendance = async (req, res) => {
           await emp.populate('headDepartment');
           await emp.populate('subDepartment');
           await emp.populate('designation');
+
+          // Emit socket update
+          try {
+            const io = getIO();
+            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'out' });
+          } catch (e) {
+            console.warn('Socket emit failed', e.message || e);
+          }
+
           return res.status(200).json({ success: true, type: 'out', message: 'Punch OUT successful', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
         } else {
           // Append IN to existing attendance
@@ -299,6 +319,15 @@ export const addAttendance = async (req, res) => {
           await emp.populate('headDepartment');
           await emp.populate('subDepartment');
           await emp.populate('designation');
+
+          // Emit socket update
+          try {
+            const io = getIO();
+            if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: attendanceDoc, type: 'in' });
+          } catch (e) {
+            console.warn('Socket emit failed', e.message || e);
+          }
+
           return res.status(200).json({ success: true, type: 'in', message: 'Punch IN appended', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
         }
       }
@@ -343,6 +372,15 @@ export const addAttendance = async (req, res) => {
       await emp.populate('headDepartment');
       await emp.populate('subDepartment');
       await emp.populate('designation');
+
+      // Emit socket update
+      try {
+        const io = getIO();
+        if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: newAtt, type: 'in' });
+      } catch (e) {
+        console.warn('Socket emit failed', e.message || e);
+      }
+
       return res.status(201).json({ success: true, type: 'in', message: 'Punch IN successful', attendance: newAtt, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
     }
 
@@ -643,5 +681,323 @@ export const deleteEmployee = async (req, res) => {
     res.json({ success: true, message: "Deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Mark attendance via barcode scanner (matches Laravel 72-hour rule)
+export const markAttendanceByBarcode = async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Barcode code is required' });
+    }
+
+    // Find employee by empId (barcode code typically contains empId)
+    const emp = await Employee.findOne({ empId: code }, { strictPopulate: false })
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('designation');
+
+    if (!emp) {
+      return res.status(404).json({ success: false, message: 'Employee not found with this code' });
+    }
+
+    // Do not allow inactive employees to punch
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' });
+    }
+
+    // Prefer client-provided timestamp when available to preserve user's local time.
+    // Client should send `clientTs` (epoch ms) or `punchTime` (ISO) and optionally `tzOffsetMinutes`.
+    let now;
+    const clientTsRaw = req.body?.clientTs || req.body?.punchTime || req.query?.ts;
+    if (clientTsRaw) {
+      // try numeric epoch first
+      const asNumber = Number(clientTsRaw);
+      if (!Number.isNaN(asNumber)) now = new Date(asNumber);
+      else now = new Date(clientTsRaw);
+      if (!(now instanceof Date) || isNaN(now)) now = new Date();
+    } else {
+      now = new Date();
+    }
+
+    // Build display time string. If client provided timezone offset, compute client's local time string.
+    const tzOffsetMinutes = typeof req.body?.tzOffsetMinutes !== 'undefined' ? Number(req.body.tzOffsetMinutes) : null;
+    let currentTimeString;
+    if (tzOffsetMinutes !== null && !Number.isNaN(tzOffsetMinutes)) {
+      // clientOffset = minutes to add to local time to get UTC; to get local from UTC: local = utc - offset
+      const clientLocal = new Date(now.getTime() - (tzOffsetMinutes * 60000));
+      currentTimeString = clientLocal.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } else {
+      currentTimeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // Check for duplicate punch (debounce)
+    if (attendanceService.isPunchDuplicate(emp._id.toString(), null)) {
+      return res.status(400).json({ success: false, message: 'Duplicate punch detected. Please try again after a few seconds.' });
+    }
+
+    // Determine attendance date based on configured boundary (default 07:00) (timezone-aware helper above)
+    const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
+    const attendanceDoc = await Attendance.findOne({
+      employee: emp._id,
+      date: {
+        $gte: new Date(`${attendanceIso}T00:00:00Z`),
+        $lte: new Date(`${attendanceIso}T23:59:59Z`)
+      }
+    });
+
+    // If attendance exists for the computed date, toggle based on last punch
+    if (attendanceDoc) {
+      // find last punch type
+      let lastPunchType = null;
+      if (Array.isArray(attendanceDoc.punchLogs) && attendanceDoc.punchLogs.length > 0) {
+        lastPunchType = (attendanceDoc.punchLogs[attendanceDoc.punchLogs.length - 1].punchType || '').toUpperCase();
+      }
+      if (lastPunchType === 'IN') {
+        // mark OUT
+        return handlePunchOutBarcode(emp, attendanceDoc, now, currentTimeString, res);
+      } else {
+        // mark IN (append to existing doc)
+        return handlePunchInBarcode(emp, now, currentTimeString, res, attendanceIso, attendanceDoc);
+      }
+    }
+
+    // No attendance doc => create new and mark IN
+    return handlePunchInBarcode(emp, now, currentTimeString, res, attendanceIso, null);
+
+  } catch (err) {
+    console.error('Barcode attendance error:', err);
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
+  }
+};
+
+// Handle Punch IN for barcode
+async function handlePunchInBarcode(emp, now, currentTimeString, res, attendanceIso = null, existingAttendance = null) {
+  try {
+    // Prevent punch for inactive employees
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' })
+    }
+    // If existingAttendance provided, append IN punch
+    if (existingAttendance) {
+      existingAttendance.punchLogs = existingAttendance.punchLogs || [];
+      existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
+      existingAttendance.inTime = currentTimeString;
+      // Recompute totals (no OUT yet, totals will be zero or previous)
+      const shiftCfg_exist = await attendanceService.getShiftConfig();
+      let shiftHours_exist = 0;
+      if (emp.shift) {
+        const text = String(emp.shift);
+        const match = text.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            shiftHours_exist = parsed;
+          }
+        }
+      }
+      if (!shiftHours_exist && typeof shiftCfg_exist.shiftHours === 'number' && shiftCfg_exist.shiftHours > 0) {
+        shiftHours_exist = shiftCfg_exist.shiftHours;
+      }
+      if (!shiftHours_exist) shiftHours_exist = 8;
+      const computed = attendanceService.computeTotalsFromPunchLogs(
+        existingAttendance.punchLogs,
+        shiftHours_exist,
+        { countOpenAsNow: true, dayMeta: { isWeekend: existingAttendance.isWeekend, isHoliday: existingAttendance.isHoliday } }
+      );
+      existingAttendance.totalHours = computed.totalHours;
+      existingAttendance.regularHours = computed.regularHours;
+      existingAttendance.overtimeHours = computed.overtimeHours;
+      existingAttendance.totalMinutes = computed.totalMinutes;
+      existingAttendance.totalHoursDisplay = computed.totalHoursDisplay;
+      existingAttendance.regularHoursDisplay = computed.regularHoursDisplay;
+      existingAttendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+      existingAttendance.dayOtHours = computed.dayOtHours;
+      existingAttendance.nightOtHours = computed.nightOtHours;
+      existingAttendance.sundayOtHours = computed.sundayOtHours;
+      existingAttendance.festivalOtHours = computed.festivalOtHours;
+      await existingAttendance.save();
+      
+      // Record punch in debounce cache
+      attendanceService.recordPunch(emp._id.toString(), 'IN');
+      
+      // Check for continuous IN across configured boundary (e.g., 7AM)
+      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+
+      await emp.populate('headDepartment');
+      await emp.populate('subDepartment');
+      await emp.populate('designation');
+
+      // Recalculate salary for current month
+      salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+        console.error('Salary recalculation failed:', err)
+      );
+
+      return res.status(200).json({
+        success: true,
+        type: 'in',
+        message: 'Punch IN appended to existing attendance',
+        attendance: existingAttendance,
+        employee_id: emp._id,
+        time: currentTimeString,
+        employee_name: emp.name
+      });
+    }
+
+    // create new attendance for attendanceIso (or today fallback)
+    const dateIso = attendanceIso || new Date().toISOString().slice(0,10);
+    const dateObj = new Date(`${dateIso}T00:00:00Z`);
+    const dayOfWeek = dateObj.getDay();
+    // determine weekend based on salary rule for this employee
+    let isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    try {
+      const rule = await getSalaryRuleForSubDepartment(emp.subDepartment?._id || emp.subDepartment);
+      const workingDaysPerWeek = rule?.workingDaysPerWeek || 6;
+      if (workingDaysPerWeek === 6) isWeekend = dayOfWeek === 0;
+      if (workingDaysPerWeek === 5) isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    } catch (e) {
+      isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    }
+
+    const newAttendanceDoc = await Attendance.create({
+      employee: emp._id,
+      date: dateObj,
+      status: 'present',
+      inTime: currentTimeString,
+      outTime: null,
+      totalHours: 0,
+      totalMinutes: 0,
+      totalHoursDisplay: '0h 0m',
+      regularHoursDisplay: '0h 0m',
+      overtimeHoursDisplay: '0h 0m',
+      regularHours: 0,
+      overtimeHours: 0,
+      dayOtHours: 0,
+      breakMinutes: 0,
+      isWeekend,
+      isHoliday: false,
+      punchLogs: [ { punchType: 'IN', punchTime: now } ],
+      note: 'Punch IN via barcode scanner'
+    });
+    
+    // Record punch in debounce cache
+    attendanceService.recordPunch(emp._id.toString(), 'IN');
+    
+    // Check for continuous IN across configured boundary (e.g., 7AM)
+    await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
+
+    // Re-populate employee relations for response
+    await emp.populate('headDepartment');
+    await emp.populate('subDepartment');
+    await emp.populate('designation');
+
+    // Recalculate salary for current month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
+
+    return res.status(201).json({
+      success: true,
+      type: 'in',
+      message: 'Punch IN successful',
+      attendance: newAttendanceDoc,
+      employee_id: emp._id,
+      time: currentTimeString,
+      employee_name: emp.name
+    });
+  } catch (err) {
+    console.error('Punch IN error:', err);
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
+  }
+}
+
+// Handle Punch OUT for barcode
+async function handlePunchOutBarcode(emp, attendanceDoc, now, currentTimeString, res) {
+  try {
+    // Prevent punch for inactive employees
+    if (emp.status && emp.status.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' })
+    }
+    const attendance = attendanceDoc;
+
+    // Append OUT punch and recompute totals/pairs from punchLogs
+    attendance.punchLogs = attendance.punchLogs || [];
+    attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
+
+    const shiftCfg_out = await attendanceService.getShiftConfig();
+    let shiftHours_out = 0;
+    if (emp.shift) {
+      const text = String(emp.shift);
+      const match = text.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        const parsed = Number(match[1]);
+        if (!Number.isNaN(parsed) && parsed > 0) {
+          shiftHours_out = parsed;
+        }
+      }
+    }
+    if (!shiftHours_out && typeof shiftCfg_out.shiftHours === 'number' && shiftCfg_out.shiftHours > 0) {
+      shiftHours_out = shiftCfg_out.shiftHours;
+    }
+    if (!shiftHours_out) shiftHours_out = 8;
+    const computed = attendanceService.computeTotalsFromPunchLogs(
+      attendance.punchLogs,
+      shiftHours_out,
+      { dayMeta: { isWeekend: attendance.isWeekend, isHoliday: attendance.isHoliday } }
+    );
+    const totalHours = computed.totalHours;
+    const regularHours = computed.regularHours;
+    const overtimeHours = computed.overtimeHours;
+
+    attendance.totalHours = totalHours;
+    attendance.regularHours = regularHours;
+    attendance.overtimeHours = overtimeHours;
+    attendance.totalMinutes = computed.totalMinutes;
+    attendance.totalHoursDisplay = computed.totalHoursDisplay;
+    attendance.regularHoursDisplay = computed.regularHoursDisplay;
+    attendance.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+    attendance.dayOtHours = computed.dayOtHours;
+    attendance.nightOtHours = computed.nightOtHours;
+    attendance.sundayOtHours = computed.sundayOtHours;
+    attendance.festivalOtHours = computed.festivalOtHours;
+    attendance.inTime = computed.lastInTime ? new Date(computed.lastInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.inTime;
+    attendance.outTime = computed.lastOutTime ? new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : attendance.outTime;
+    attendance.note = `Punch OUT via barcode scanner | Total: ${computed.totalHoursDisplay} | Regular: ${computed.regularHoursDisplay} | OT: ${computed.overtimeHoursDisplay}`;
+
+    await attendance.save();
+    
+    // Record punch in debounce cache
+    attendanceService.recordPunch(emp._id.toString(), 'OUT');
+
+    // Re-populate employee relations for response
+    await emp.populate('headDepartment');
+    await emp.populate('subDepartment');
+    await emp.populate('designation');
+
+    // Recalculate salary for current month
+    salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err => 
+      console.error('Salary recalculation failed:', err)
+    );
+
+    return res.status(200).json({
+      success: true,
+      type: 'out',
+      message: 'Punch OUT successful',
+      attendance,
+      employee_id: emp._id,
+      time: currentTimeString,
+      employee_name: emp.name,
+      total_hours: totalHours,
+      regular_hours: regularHours,
+      overtime_hours: overtimeHours
+    });
+  } catch (err) {
+    console.error('Punch OUT error:', err);
+    const e = handleMongooseError(err)
+    res.status(e.status || 500).json(apiError(e.code || 'internal_error', e.message || err.message))
   }
 };

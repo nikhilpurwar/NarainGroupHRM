@@ -25,6 +25,8 @@ router.get("/:id/profile", authenticate, getEmployeeProfile);
 router.put("/:id", authenticate, checkPermission, updateEmployee);
 router.delete("/:id", authenticate, checkPermission, deleteEmployee);
 router.post("/:id/attendance", authenticate, addAttendance);
+router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
+router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
 router.get("/:id/attendance", authenticate, getAttendance);
 
 export default router;
