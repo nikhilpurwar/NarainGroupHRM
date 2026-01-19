@@ -65,6 +65,17 @@ const Holidays = () => {
   const formatDate = (date) =>
     date ? new Date(date).toISOString().split("T")[0] : "-";
 
+  const isPastFestival = (festivalDate) => {
+  if (!festivalDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const festDate = new Date(festivalDate);
+  festDate.setHours(0, 0, 0, 0);
+
+  return festDate < today;
+};
+
   return (
     <div className="p-6">
       <div className="border border-gray-300 rounded-xl shadow-lg overflow-hidden">
@@ -130,31 +141,94 @@ const Holidays = () => {
 
             <tbody>
               {festivalList.map((item, index) => (
-                <tr key={item._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 border-t">{index + 1}</td>
-                  <td className="px-4 py-3 border-t">{item.name}</td>
-                  <td className="px-4 py-3 border-t">{formatDate(item.date)}</td>
-                  <td className="px-4 py-3 border-t">
-                    {item.description || "-"}
-                  </td>
-                  <td className="px-4 py-3 border-t">
-                    {formatDate(item.createdAt)}
-                  </td>
+                <tr
+  key={item._id}
+  className={`hover:bg-gray-50 transition ${
+    isPastFestival(item.date) ? "bg-gray-100 text-gray-400" : ""
+  }`}
+>
+  {/* S.No */}
+  <td className="px-4 py-3 border-t">{index + 1}</td>
 
-                  <td className="flex items-center gap-3 px-4 py-3 border-t">
-                    <FiEdit
-                      onClick={() => handleEdit(item)}
-                      size={16}
-                      className="text-blue-700 cursor-pointer hover:scale-115"
-                    />
+  {/* Festival Name */}
+  <td className="px-4 py-3 border-t">{item.name}</td>
 
-                    <MdDeleteOutline
-                      onClick={() => handleDelete(item._id)}
-                      size={20}
-                      className="text-red-600 cursor-pointer hover:scale-115"
-                    />
-                  </td>
-                </tr>
+  {/* Festival Date */}
+  <td className="px-4 py-3 border-t">{formatDate(item.date)}</td>
+
+  {/* Description */}
+  <td className="px-4 py-3 border-t">
+    {item.description || "-"}
+  </td>
+
+  {/* Created At */}
+  <td className="px-4 py-3 border-t">
+    {formatDate(item.createdAt)}
+  </td>
+
+  {/* Action */}
+  <td className="px-4 py-3 border-t">
+    {!isPastFestival(item.date) ? (
+      <div className="flex items-center gap-2">
+        {/* // Edit   */}
+        <button
+          onClick={() => handleEdit(item)}
+          title="Edit Festival"
+          className="p-2 rounded-full text-blue-700 hover:bg-blue-100 transition"
+        >
+          <FiEdit size={16} />
+        </button>
+
+        {/* // Delete   */}
+        <button
+          onClick={() => handleDelete(item._id)}
+          title="Delete Festival"
+          className="p-2 rounded-full text-red-600 hover:bg-red-100 transition"
+        >
+          <MdDeleteOutline size={18} />
+        </button>
+      </div> 
+    ) : (
+      <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-gray-300 text-gray-600">
+        Past
+      </span>
+    )}
+  </td>
+
+  {/* <td className="px-4 py-3 border-t">
+  <div className="flex items-center gap-2">
+    {/* Edit 
+    {!isPastFestival(item.date) ? (
+      <button
+        onClick={() => handleEdit(item)}
+        title="Edit Festival"
+        className="p-2 rounded-full text-blue-700 hover:bg-blue-100 transition"
+      >
+        <FiEdit size={16} />
+      </button>
+    ) : (
+      <button
+        disabled
+        title="Festival expired"
+        className="p-2 rounded-full text-gray-400 cursor-not-allowed"
+      >
+        <FiEdit size={16} />
+      </button>
+    )}
+
+    {/* Delete
+    <button
+      onClick={() => handleDelete(item._id)}
+      title="Delete Festival"
+      className="p-2 rounded-full text-red-600 hover:bg-red-100 transition"
+    >
+      <MdDeleteOutline size={18} />
+    </button>
+  </div>
+</td> */}
+
+
+</tr>
               ))}
             </tbody>
           </table>
@@ -163,5 +237,4 @@ const Holidays = () => {
     </div>
   );
 };
-
 export default Holidays;
