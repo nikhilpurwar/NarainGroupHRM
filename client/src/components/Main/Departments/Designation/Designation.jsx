@@ -15,7 +15,26 @@ const Designation = () => {
   const [selectedDesignation, setSelectedDesignation] = useState(null);
   const [designationList, setDesignationList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
+  const handleDelete = (id) => {
+  setDeleteId(id);
+};
+
+  const confirmDelete = async () => {
+  try {
+    setDeleting(true);
+    await axios.delete(`${API}/${deleteId}`);
+    toast.success("Designation deleted successfully!");
+    fetchData();
+  } catch (err) {
+    toast.error("Failed to delete Designation");
+  } finally {
+    setDeleting(false);
+    setDeleteId(null);
+  }
+};
   // Fetch designations
   const fetchData = async () => {
     try {
@@ -48,19 +67,7 @@ const Designation = () => {
     setModal(true);
   };
 
-  // Delete Designation
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this designation?")) return;
 
-    try {
-      await axios.delete(`${API}/${id}`);
-      toast.success("Designation deleted successfully!");
-      fetchData();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete designation.");
-    }
-  };
 
   return (
     <div className="p-6">
@@ -142,6 +149,15 @@ const Designation = () => {
             </tbody>
           </table>
         )}
+
+                      <DeleteConfirmationModal
+  open={!!deleteId}
+  title="Delete Designation Department"
+  message="This action cannot be undone."
+  loading={deleting}
+  onCancel={() => setDeleteId(null)}
+  onConfirm={confirmDelete}
+/>
       </div>
     </div >
   );

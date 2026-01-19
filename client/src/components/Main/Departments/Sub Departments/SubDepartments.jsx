@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import AddSubDepartment from "./components/AddSubDepartment";
 import axios from "axios";
+import DeleteConfirmationModal from "../DeleteConfirmation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/department/sub-departments`;
@@ -15,6 +16,27 @@ const SubDepartments = () => {
   const [selectedSubDept, setSelectedSubDept] = useState(null);
   const [subDeptList, setSubDeptList] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = (id) => {
+  setDeleteId(id);
+};
+
+  const confirmDelete = async () => {
+  try {
+    setDeleting(true);
+    await axios.delete(`${API}/${deleteId}`);
+    toast.success("Sub-department deleted successfully!");
+    fetchData();
+  } catch (err) {
+    toast.error("Failed to delete sub-department");
+  } finally {
+    setDeleting(false);
+    setDeleteId(null);
+  }
+};
 
   // Fetch sub-departments
   const fetchData = async () => {
@@ -48,19 +70,7 @@ const SubDepartments = () => {
     setModal(true);
   };
 
-  // Delete Festival
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this?")) return;
 
-    try {
-      await axios.delete(`${API}/${id}`);
-      toast.success("Sub-department deleted successfully!");
-      fetchData();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete sub-department.");
-    }
-  };
 
   const formatDate = (date) =>
     date ? new Date(date).toISOString().split("T")[0] : "-";
@@ -111,7 +121,7 @@ const SubDepartments = () => {
                 <th className="px-4 py-2 text-left">S.No.</th>
                 <th className="px-4 py-2 text-left">Sub Department Name</th>
                 <th className="px-4 py-2 text-left">Head Department Name</th>
-                <th className="px-4 py-2 text-left">HOD</th>
+                {/* <th className="px-4 py-2 text-left">HOD</th> */}
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
@@ -122,7 +132,7 @@ const SubDepartments = () => {
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
                   <td className="px-4 py-3 border-t">{item.headDepartment?.name || '-'}</td>
-                  <td className="px-4 py-3 border-t">{item.hod}</td>
+                  {/* <td className="px-4 py-3 border-t">{item.hod}</td> */}
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">
                     <FiEdit
@@ -142,6 +152,15 @@ const SubDepartments = () => {
             </tbody>
           </table>
         )}
+              <DeleteConfirmationModal
+  open={!!deleteId}
+  title="Delete Sub Department"
+  message="This action cannot be undone."
+  loading={deleting}
+  onCancel={() => setDeleteId(null)}
+  onConfirm={confirmDelete}
+/>
+
       </div>
     </div>
   );
