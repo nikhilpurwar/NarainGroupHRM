@@ -44,7 +44,7 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
         else if (currentScrollY < lastScrollY.current) {
             setIsVisible(true);
         }
-        console.log(el.scrollTop);
+        // console.log(el.scrollTop);
 
         lastScrollY.current = currentScrollY;
     };

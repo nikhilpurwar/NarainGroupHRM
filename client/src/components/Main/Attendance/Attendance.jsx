@@ -146,6 +146,7 @@ const Attendance = () => {
       lastRequestedRef.current = requestedKey
       const res = await axios.get(API, { params })
       setReport(res.data?.data || null)
+      setHolidays(res.data?.data?.holidays || [])
       setViewMode("report")
     } catch (err) {
       console.error('fetchReport error', err)
