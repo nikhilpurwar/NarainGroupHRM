@@ -1,213 +1,290 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
-import axios from 'axios'
-import AttendanceFilter from '../../Attendance/components/AttendanceFilter'
-import EmployeeSummary from '../../Attendance/components/EmployeeSummary'
-import AttendanceTable from '../../Attendance/components/AttendanceTable'
-import MonthlySummaryCard from '../../Attendance/components/MonthlySummaryCard'
-import EmployeeTable from '../../commonComponents/employeeTable'
-import ManualAttendanceModal from '../../Attendance/components/ManualAttendanceModal'
-import PunchRecordsModal from '../../Attendance/components/PunchRecordsModal'
-import { ensureEmployees } from '../../../../store/employeesSlice'
-import { ensureTodayAttendance } from '../../../../store/attendanceSlice'
-import { toast } from 'react-toastify'
-import { FaUserCheck } from 'react-icons/fa'
-import { IoMdLogOut } from 'react-icons/io'
-import Spinner from '../../../utility/Spinner'
-import { MdKeyboardBackspace } from 'react-icons/md'
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import AttendanceFilter from "../../Attendance/components/AttendanceFilter";
+import EmployeeSummary from "../../Attendance/components/EmployeeSummary";
+import AttendanceTable from "../../Attendance/components/AttendanceTable";
+import MonthlySummaryCard from "../../Attendance/components/MonthlySummaryCard";
+import EmployeeTable from "../../commonComponents/employeeTable";
+import ManualAttendanceModal from "../../Attendance/components/ManualAttendanceModal";
+import PunchRecordsModal from "../../Attendance/components/PunchRecordsModal";
+import { ensureEmployees } from "../../../../store/employeesSlice";
+import { ensureTodayAttendance } from "../../../../store/attendanceSlice";
+import { toast } from "react-toastify";
+import { FaUserCheck } from "react-icons/fa";
+import { IoMdLogOut } from "react-icons/io";
+import Spinner from "../../../utility/Spinner";
+import { MdKeyboardBackspace } from "react-icons/md";
+import { IoChevronDown } from "react-icons/io5";
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
-const API = `${API_URL}/api/attendance-report`
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
+const API = `${API_URL}/api/attendance-report`;
 
 const ReportsAttendance = () => {
-  const [searchParams] = useSearchParams()
-  const queryEmployeeId = searchParams.get('employeeId')
-  const dispatch = useDispatch()
-  const employees = useSelector(s => s.employees.data || [])
-  const attendanceMap = useSelector(s => s.attendance.map || {})
-  const navigate = useNavigate()
+  const [searchParams] = useSearchParams();
+  const queryEmployeeId = searchParams.get("employeeId");
+  const dispatch = useDispatch();
+  const employees = useSelector((s) => s.employees.data || []);
+  const attendanceMap = useSelector((s) => s.attendance.map || {});
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState({
-    search: '',
-    month: String(new Date().getMonth() + 1).padStart(2, '0'),
+    search: "",
+    month: String(new Date().getMonth() + 1).padStart(2, "0"),
     year: String(new Date().getFullYear()),
-  })
+  });
 
-  const [report, setReport] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [empsLoading, setEmpsLoading] = useState(false)
-  const [holidays, setHolidays] = useState([])
-  const [punchModalOpen, setPunchModalOpen] = useState(false)
-  const [selectedPunchDate, setSelectedPunchDate] = useState(null)
-  const [isProcessingPunch, setIsProcessingPunch] = useState(false)
-  const [manualModalOpen, setManualModalOpen] = useState(false)
-  const [searchFocused, setSearchFocused] = useState(false)
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [empsLoading, setEmpsLoading] = useState(false);
+  const [holidays, setHolidays] = useState([]);
+  const [punchModalOpen, setPunchModalOpen] = useState(false);
+  const [selectedPunchDate, setSelectedPunchDate] = useState(null);
+  const [isProcessingPunch, setIsProcessingPunch] = useState(false);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
-  const fetchInProgressRef = useRef(false)
-  const lastRequestedRef = useRef(null)
-  const loadEmployeesRef = useRef(null)
-  const loadHolidaysRef = useRef(null)
-  const searchWrapRef = useRef(null)
+  const fetchInProgressRef = useRef(false);
+  const lastRequestedRef = useRef(null);
+  const loadEmployeesRef = useRef(null);
+  const loadHolidaysRef = useRef(null);
+  const searchWrapRef = useRef(null);
 
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        setEmpsLoading(true)
-        await dispatch(ensureEmployees())
+        setEmpsLoading(true);
+        await dispatch(ensureEmployees());
       } catch (e) {
-        console.error('ensureEmployees failed', e)
+        console.error("ensureEmployees failed", e);
       } finally {
-        setEmpsLoading(false)
+        setEmpsLoading(false);
       }
-    }
+    };
 
     const loadHolidays = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/holidays`)
-        setHolidays(res.data?.data || [])
+        const res = await axios.get(`${API_URL}/api/holidays`);
+        setHolidays(res.data?.data || []);
       } catch (err) {
-        console.error('Failed to load holidays', err)
+        console.error("Failed to load holidays", err);
       }
-    }
+    };
 
     const init = async () => {
-      await loadEmployees()
-      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
-      await loadHolidays()
+      await loadEmployees();
+      try {
+        await dispatch(ensureTodayAttendance());
+      } catch (e) {}
+      await loadHolidays();
       // determine initial employee to show if none in query; if attendanceMap not ready, fall back to employees list
       if (!queryEmployeeId) {
-        const keys = Object.keys(attendanceMap || {})
+        const keys = Object.keys(attendanceMap || {});
         if (keys.length) {
-          fetchReport({ employeeId: keys[0], month: filters.month, year: filters.year })
-          return
+          fetchReport({
+            employeeId: keys[0],
+            month: filters.month,
+            year: filters.year,
+          });
+          return;
         }
         if ((employees || []).length) {
-          fetchReport({ employeeId: employees[0]._id, month: filters.month, year: filters.year })
+          fetchReport({
+            employeeId: employees[0]._id,
+            month: filters.month,
+            year: filters.year,
+          });
         }
       }
-    }
+    };
 
-    init()
-    loadEmployeesRef.current = loadEmployees
-    loadHolidaysRef.current = loadHolidays
-  }, [dispatch, attendanceMap, employees, queryEmployeeId])
+    init();
+    loadEmployeesRef.current = loadEmployees;
+    loadHolidaysRef.current = loadHolidays;
+  }, [dispatch, attendanceMap, employees, queryEmployeeId]);
 
   useEffect(() => {
     if (queryEmployeeId) {
-      fetchReport({ employeeId: queryEmployeeId, month: filters.month, year: filters.year })
+      fetchReport({
+        employeeId: queryEmployeeId,
+        month: filters.month,
+        year: filters.year,
+      });
     }
-  }, [queryEmployeeId])
+  }, [queryEmployeeId]);
 
-  const fetchReport = async params => {
-    if (fetchInProgressRef.current) return
-    const requestedKey = `${params.employeeId || ''}_${params.month || ''}_${params.year || ''}`
-    if (lastRequestedRef.current === requestedKey && report && report.employee && report.employee._id === params.employeeId) return
+  const fetchReport = async (params) => {
+    if (fetchInProgressRef.current) return;
+    const requestedKey = `${params.employeeId || ""}_${params.month || ""}_${params.year || ""}`;
+    if (
+      lastRequestedRef.current === requestedKey &&
+      report &&
+      report.employee &&
+      report.employee._id === params.employeeId
+    )
+      return;
 
     try {
-      fetchInProgressRef.current = true
-      setLoading(true)
-      lastRequestedRef.current = requestedKey
-      const res = await axios.get(API, { params, timeout: 10000 })
-      const data = res.data?.data || res.data || null
+      fetchInProgressRef.current = true;
+      setLoading(true);
+      lastRequestedRef.current = requestedKey;
+      const res = await axios.get(API, { params, timeout: 10000 });
+      const data = res.data?.data || res.data || null;
       if (!data || !data.employee) {
-        setReport(null)
-        toast.info('No report data for selected employee')
+        setReport(null);
+        toast.info("No report data for selected employee");
       } else {
-        setReport(data)
+        setReport(data);
       }
     } catch (err) {
-      console.error('fetchReport error', err)
-      setReport(null)
-      toast.error(err?.response?.data?.message || 'Failed to load report')
+      console.error("fetchReport error", err);
+      setReport(null);
+      toast.error(err?.response?.data?.message || "Failed to load report");
     } finally {
-      fetchInProgressRef.current = false
-      setLoading(false)
+      fetchInProgressRef.current = false;
+      setLoading(false);
     }
-  }
+  };
 
   const refreshReport = () => {
     if (report?.employee?._id) {
-      fetchReport({ employeeId: report.employee._id, month: filters.month, year: filters.year })
+      fetchReport({
+        employeeId: report.employee._id,
+        month: filters.month,
+        year: filters.year,
+      });
     }
-  }
+  };
 
-  const handlePunch = async emp => {
-    if (isProcessingPunch) return
+  const handlePunch = async (emp) => {
+    if (isProcessingPunch) return;
     try {
-      setIsProcessingPunch(true)
-      const res = await axios.post(`${API_URL}/api/employees/${emp._id}/attendance`, { clientTs: Date.now(), tzOffsetMinutes: new Date().getTimezoneOffset() })
-      const punchType = res.data?.type
-      try { await dispatch(ensureEmployees()) } catch (e) { }
-      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
-      try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }
+      setIsProcessingPunch(true);
+      const res = await axios.post(
+        `${API_URL}/api/employees/${emp._id}/attendance`,
+        {
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
+        },
+      );
+      const punchType = res.data?.type;
+      try {
+        await dispatch(ensureEmployees());
+      } catch (e) {}
+      try {
+        await dispatch(ensureTodayAttendance());
+      } catch (e) {}
+      try {
+        loadEmployeesRef.current && (await loadEmployeesRef.current());
+      } catch (e) {}
       if (report?.employee?._id === emp._id) {
-        lastRequestedRef.current = null
-        await fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year })
+        lastRequestedRef.current = null;
+        await fetchReport({
+          employeeId: emp._id,
+          month: filters.month,
+          year: filters.year,
+        });
       }
-      if (punchType === 'in') toast.success(`Punch IN successful for ${emp.name}`)
-      else if (punchType === 'out') toast.success(`Punch OUT successful for ${emp.name} (${res.data.total_hours || 0}h)`)
+      if (punchType === "in")
+        toast.success(`Punch IN successful for ${emp.name}`);
+      else if (punchType === "out")
+        toast.success(
+          `Punch OUT successful for ${emp.name} (${res.data.total_hours || 0}h)`,
+        );
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Punch failed')
+      toast.error(err?.response?.data?.message || "Punch failed");
     } finally {
-      setIsProcessingPunch(false)
+      setIsProcessingPunch(false);
     }
-  }
+  };
 
-  const handleManualAttendanceSubmit = async ({ employeeId, date, inTime, outTime }) => {
+  const handleManualAttendanceSubmit = async ({
+    employeeId,
+    date,
+    inTime,
+    outTime,
+  }) => {
     try {
-      setIsProcessingPunch(true)
-      const res = await axios.post(`${API_URL}/api/employees/${employeeId}/attendance`, { date, inTime, outTime, clientTs: Date.now(), tzOffsetMinutes: new Date().getTimezoneOffset() })
-      toast.success(res.data?.message || 'Attendance marked successfully')
-      try { await loadEmployeesRef.current?.() } catch (e) { }
+      setIsProcessingPunch(true);
+      const res = await axios.post(
+        `${API_URL}/api/employees/${employeeId}/attendance`,
+        {
+          date,
+          inTime,
+          outTime,
+          clientTs: Date.now(),
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
+        },
+      );
+      toast.success(res.data?.message || "Attendance marked successfully");
+      try {
+        await loadEmployeesRef.current?.();
+      } catch (e) {}
       if (report?.employee?._id === employeeId) {
-        lastRequestedRef.current = null
-        await fetchReport({ employeeId, month: filters.month, year: filters.year })
+        lastRequestedRef.current = null;
+        await fetchReport({
+          employeeId,
+          month: filters.month,
+          year: filters.year,
+        });
       }
-      setManualModalOpen(false)
+      setManualModalOpen(false);
     } catch (err) {
-      console.error('Manual attendance error', err)
-      toast.error(err?.response?.data?.message || 'Failed to mark attendance')
+      console.error("Manual attendance error", err);
+      toast.error(err?.response?.data?.message || "Failed to mark attendance");
     } finally {
-      setIsProcessingPunch(false)
+      setIsProcessingPunch(false);
     }
-  }
+  };
 
   const handleCellClick = (isoDate, rowType) => {
-    const attendance = report?.employee?.attendance?.find(a => a.date?.startsWith(isoDate))
+    const attendance = report?.employee?.attendance?.find((a) =>
+      a.date?.startsWith(isoDate),
+    );
     if (attendance) {
-      setSelectedPunchDate({ date: isoDate, attendance, rowType })
-      setPunchModalOpen(true)
+      setSelectedPunchDate({ date: isoDate, attendance, rowType });
+      setPunchModalOpen(true);
     }
-  }
+  };
 
   const getTodayPunchState = (emp) => {
-    if (!emp) return 'NOT_MARKED'
-    const todayIso = new Date().toLocaleDateString('en-CA')
-    const todayAttendance = emp?.attendance?.find(a => a.date?.startsWith(todayIso))
-    if (!todayAttendance || !todayAttendance.punchLogs?.length) return 'NOT_MARKED'
-    const lastPunch = todayAttendance.punchLogs.at(-1)?.punchType?.toUpperCase()
-    return lastPunch === 'IN' ? 'IN' : 'OUT'
-  }
+    if (!emp) return "NOT_MARKED";
+    const todayIso = new Date().toLocaleDateString("en-CA");
+    const todayAttendance = emp?.attendance?.find((a) =>
+      a.date?.startsWith(todayIso),
+    );
+    if (!todayAttendance || !todayAttendance.punchLogs?.length)
+      return "NOT_MARKED";
+    const lastPunch = todayAttendance.punchLogs
+      .at(-1)
+      ?.punchType?.toUpperCase();
+    return lastPunch === "IN" ? "IN" : "OUT";
+  };
 
   useEffect(() => {
     const onDocClick = (e) => {
-      if (!searchWrapRef.current) return
+      if (!searchWrapRef.current) return;
       if (!searchWrapRef.current.contains(e.target)) {
         // clear search to hide matches
-        if (filters.search && filters.search.trim() !== '') setFilters(f => ({ ...f, search: '' }))
+        if (filters.search && filters.search.trim() !== "")
+          setFilters((f) => ({ ...f, search: "" }));
       }
-    }
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
-  }, [filters.search])
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [filters.search]);
 
   // Search helpers
   const filteredEmployees = useMemo(() => {
-    const q = (filters.search || '').toLowerCase().trim()
-    if (!q) return employees
-    return employees.filter(e => (e.name || '').toLowerCase().includes(q) || (e.empId || '').toLowerCase().includes(q))
-  }, [employees, filters.search])
+    const q = (filters.search || "").toLowerCase().trim();
+    if (!q) return employees;
+    return employees.filter(
+      (e) =>
+        (e.name || "").toLowerCase().includes(q) ||
+        (e.empId || "").toLowerCase().includes(q),
+    );
+  }, [employees, filters.search]);
 
   return (
     <div className="relative bg-white p-6 min-h-screen">
@@ -221,105 +298,202 @@ const ReportsAttendance = () => {
         <span className="text-sm font-medium">Back to Employees</span>
       </button>
       <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
-        <input
-          type="text"
-          placeholder="Search by name or emp id..."
-          value={filters.search}
-          onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-          className="w-100 bg-white rounded-xl px-4 py-2 focus:outline-none"
-        />
-        {/* <button
+        {/* SEARCH */}
+        <div className="relative w-full max-w-lg">
+          {/* Search Bar */}
+          <input
+            type="text"
+            placeholder="Select or Search by name or emp id..."
+            value={filters.search}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, search: e.target.value }))
+            }
+            onFocus={() => setSearchFocused(true)}
+            className="w-full bg-white rounded-lg px-4 py-2 pr-10
+                   border border-gray-300
+                   text-sm
+                   focus:ring-2 focus:ring-indigo-500
+                   focus:border-indigo-500
+                   outline-none transition"
+          />
+          <IoChevronDown
+            size={18}
+            className={`absolute right-4 text-gray-500 pointer-events-none
+                    transition-transform duration-200 ${
+                      searchFocused ? "rotate-180" : ""
+                    }`}
+          />
+          {/* <button
           onClick={() => { const first = filteredEmployees[0]; if (first) fetchReport({ employeeId: first._id, month: filters.month, year: filters.year }) }}
           className="px-8 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
         >Search</button> */}
 
-        {/* Show live matches list when focused */}
-        {searchFocused && (
-          <div ref={searchWrapRef} className='absolute top-16 left-3.5 z-50'>
-            <div className="w-100 max-h-[50vh] bg-white/90 rounded-xl shadow-sm border border-gray-200 p-1 overflow-auto main-scroll">
+          {/* Chevron */}
+
+          {/* Dropdown */}
+          {searchFocused && (
+            <div
+              ref={searchWrapRef}
+              className="absolute z-50 left-0 right-0 mt-1
+                   bg-white rounded-xl
+                   shadow-xl border border-gray-200
+                   max-h-64 overflow-auto"
+            >
               {filteredEmployees.length ? (
-                filteredEmployees.map(emp => (
-                  <div key={emp._id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 rounded" onClick={() => { fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year }); setFilters(f => ({ ...f, search: '' })) }}>
+                filteredEmployees.map((emp) => (
+                  <div
+                    key={emp._id}
+                    onClick={() => {
+                      fetchReport({
+                        employeeId: emp._id,
+                        month: filters.month,
+                        year: filters.year,
+                      });
+                      setFilters((f) => ({ ...f, search: "" }));
+                      setSearchFocused(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3
+                         cursor-pointer
+                         hover:bg-indigo-50 transition
+                         rounded-lg mx-1 my-1"
+                  >
+                    {/* Avatar */}
                     {emp.avatar ? (
-                      <img src={emp.avatar} alt={emp.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                      <img
+                        src={emp.avatar}
+                        alt={emp.name}
+                        className="h-9 w-9 rounded-full object-cover shrink-0"
+                      />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">{((emp.name || '').split(/\s+/).slice(0, 2).map(n => n.charAt(0)).join('') || '').toUpperCase()}</div>
+                      <div
+                        className="h-9 w-9 rounded-full bg-indigo-100 text-indigo-600
+                                flex items-center justify-center font-semibold text-xs shrink-0"
+                      >
+                        {(
+                          (emp.name || "")
+                            .split(/\s+/)
+                            .slice(0, 2)
+                            .map((n) => n[0])
+                            .join("") || ""
+                        ).toUpperCase()}
+                      </div>
                     )}
+
+                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-800 truncate">{emp.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</div>
+                      <p className="font-medium text-gray-800 truncate">
+                        {emp.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {emp.empId} • {emp.mobile}
+                      </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-sm text-gray-400 py-6">No matches found</div>
+                <div className="py-8 text-center text-sm text-gray-400">
+                  No matches found
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
+        {/* ACTION BUTTONS */}
         <div className="flex items-center justify-end gap-2">
           {(() => {
-            const emp = report?.employee
-            const punchState = getTodayPunchState(emp)
-            if (punchState === 'NOT_MARKED') {
+            const emp = report?.employee;
+            const punchState = getTodayPunchState(emp);
+
+            if (punchState === "NOT_MARKED") {
               return (
                 <button
-                  title="Mark Attendance"
                   disabled={isProcessingPunch}
                   onClick={() => handlePunch(emp)}
-                  className="flex items-center gap-2 bg-white text-gray-800 px-3 py-1 rounded-full hover:text-white hover:bg-green-600"
+                  className="flex items-center gap-2 px-4 py-2
+                       rounded-full text-sm font-medium
+                       bg-green-100 text-green-700
+                       hover:bg-green-600 hover:text-white
+                       transition disabled:opacity-50"
                 >
-                  <FaUserCheck size={20} /> Mark Attendance
+                  <FaUserCheck size={18} /> Mark Attendance
                 </button>
-              )
+              );
             }
-            if (punchState === 'IN') {
+
+            if (punchState === "IN") {
               return (
                 <button
-                  title="Punch Out"
                   disabled={isProcessingPunch}
                   onClick={() => handlePunch(emp)}
-                  className="flex items-center gap-2 bg-red-200 text-red-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-red-700"
+                  className="flex items-center gap-2 px-4 py-2
+                       rounded-full text-sm font-medium
+                       bg-red-100 text-red-700
+                       hover:bg-red-600 hover:text-white
+                       transition disabled:opacity-50"
                 >
-                  Punch Out <IoMdLogOut size={26} />
+                  Punch Out <IoMdLogOut size={20} />
                 </button>
-              )
+              );
             }
+
             return (
               <button
-                title="Punch In"
                 disabled={isProcessingPunch}
                 onClick={() => handlePunch(emp)}
-                className="flex items-center gap-2 bg-green-200 text-green-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-green-700"
+                className="flex items-center gap-2 px-4 py-2
+                     rounded-full text-sm font-medium
+                     bg-indigo-100 text-indigo-700
+                     hover:bg-indigo-600 hover:text-white
+                     transition disabled:opacity-50"
               >
-                Punch In <IoMdLogOut size={26} className="rotate-180" />
+                Punch In <IoMdLogOut size={20} className="rotate-180" />
               </button>
-            )
+            );
           })()}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="md:col-span-5">
-          {loading &&
-            <Spinner />
-          }
+          {loading && <Spinner />}
           {!loading && report && (
             <div>
-
               <EmployeeSummary emp={report.employee} isMobile={false} />
-              <AttendanceFilter filters={filters} setFilters={setFilters} onSearch={() => { if (report?.employee?._id) fetchReport({ employeeId: report.employee._id, month: filters.month, year: filters.year }) }} reportData={report} isMobile={false} />
-              <MonthlySummaryCard summary={report.summary} days={report.days} table={report.table} holidays={holidays} isMobile={false} />
-              <AttendanceTable days={report.days} data={report.table} isMobile={false} attendanceRaw={report.employee.attendance} onCellClick={handleCellClick} holidays={holidays} />
+              <AttendanceFilter
+                filters={filters}
+                setFilters={setFilters}
+                onSearch={() => {
+                  if (report?.employee?._id)
+                    fetchReport({
+                      employeeId: report.employee._id,
+                      month: filters.month,
+                      year: filters.year,
+                    });
+                }}
+                reportData={report}
+                isMobile={false}
+              />
+              <MonthlySummaryCard
+                summary={report.summary}
+                days={report.days}
+                table={report.table}
+                holidays={holidays}
+                isMobile={false}
+              />
+              <AttendanceTable
+                days={report.days}
+                data={report.table}
+                isMobile={false}
+                attendanceRaw={report.employee.attendance}
+                onCellClick={handleCellClick}
+                holidays={holidays}
+              />
             </div>
           )}
-          {!loading && !report && !filters.search &&
+          {!loading && !report && !filters.search && (
             <div className="md:col-span-1">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-
                 {/* Header */}
                 <div className="px-4 py-3 border-b sticky top-0 bg-white z-10">
                   <h4 className="font-semibold text-gray-800 text-sm tracking-wide">
@@ -329,14 +503,14 @@ const ReportsAttendance = () => {
 
                 {/* List */}
                 <div className="max-h-[22rem] overflow-auto divide-y">
-                  {filteredEmployees.map(emp => (
+                  {filteredEmployees.map((emp) => (
                     <div
                       key={emp._id}
                       onClick={() =>
                         fetchReport({
                           employeeId: emp._id,
                           month: filters.month,
-                          year: filters.year
+                          year: filters.year,
                         })
                       }
                       className="flex items-center gap-3 px-4 py-3 cursor-pointer transition
@@ -351,7 +525,13 @@ const ReportsAttendance = () => {
                         />
                       ) : (
                         <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">
-                          {((emp.name || '').split(/\s+/).slice(0, 2).map(n => n.charAt(0)).join('') || '').toUpperCase()}
+                          {(
+                            (emp.name || "")
+                              .split(/\s+/)
+                              .slice(0, 2)
+                              .map((n) => n.charAt(0))
+                              .join("") || ""
+                          ).toUpperCase()}
                         </div>
                       )}
 
@@ -378,15 +558,112 @@ const ReportsAttendance = () => {
                 </div>
               </div>
             </div>
-          }
+          )}
         </div>
-
-
       </div>
-      <ManualAttendanceModal isOpen={manualModalOpen} onClose={() => setManualModalOpen(false)} employees={employees} onSubmit={handleManualAttendanceSubmit} />
-      {selectedPunchDate && (<PunchRecordsModal isOpen={punchModalOpen} onClose={() => { setPunchModalOpen(false); setSelectedPunchDate(null) }} attendance={selectedPunchDate.attendance} date={selectedPunchDate.date} employeeName={report?.employee?.name} shiftHours={report?.employee?.shift || 8} />)}
+      <ManualAttendanceModal
+        isOpen={manualModalOpen}
+        onClose={() => setManualModalOpen(false)}
+        employees={employees}
+        onSubmit={handleManualAttendanceSubmit}
+      />
+      {selectedPunchDate && (
+        <PunchRecordsModal
+          isOpen={punchModalOpen}
+          onClose={() => {
+            setPunchModalOpen(false);
+            setSelectedPunchDate(null);
+          }}
+          attendance={selectedPunchDate.attendance}
+          date={selectedPunchDate.date}
+          employeeName={report?.employee?.name}
+          shiftHours={report?.employee?.shift || 8}
+        />
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default ReportsAttendance
+export default ReportsAttendance;
+
+// <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
+//       <input
+//         type="text"
+//         placeholder="Search by name or emp id..."
+//         value={filters.search}
+//         onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+//         onFocus={() => setSearchFocused(true)}
+//         onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+//         className="w-100 bg-white rounded-xl px-4 py-2 focus:outline-none"
+//       />
+//       {/* <button
+//         onClick={() => { const first = filteredEmployees[0]; if (first) fetchReport({ employeeId: first._id, month: filters.month, year: filters.year }) }}
+//         className="px-8 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
+//       >Search</button> */}
+
+//       {/* Show live matches list when focused */}
+//       {searchFocused && (
+//         <div ref={searchWrapRef} className='absolute top-16 left-3.5 z-50'>
+//           <div className="w-100 max-h-[50vh] bg-white/90 rounded-xl shadow-sm border border-gray-200 p-1 overflow-auto main-scroll">
+//             {filteredEmployees.length ? (
+//               filteredEmployees.map(emp => (
+//                 <div key={emp._id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 rounded" onClick={() => { fetchReport({ employeeId: emp._id, month: filters.month, year: filters.year }); setFilters(f => ({ ...f, search: '' })) }}>
+//                   {emp.avatar ? (
+//                     <img src={emp.avatar} alt={emp.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
+//                   ) : (
+//                     <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">{((emp.name || '').split(/\s+/).slice(0, 2).map(n => n.charAt(0)).join('') || '').toUpperCase()}</div>
+//                   )}
+//                   <div className="flex-1 min-w-0">
+//                     <div className="font-medium text-gray-800 truncate">{emp.name}</div>
+//                     <div className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</div>
+//                   </div>
+//                 </div>
+//               ))
+//             ) : (
+//               <div className="text-center text-sm text-gray-400 py-6">No matches found</div>
+//             )}
+//           </div>
+//         </div>
+//       )}
+
+//       <div className="flex items-center justify-end gap-2">
+//         {(() => {
+//           const emp = report?.employee
+//           const punchState = getTodayPunchState(emp)
+//           if (punchState === 'NOT_MARKED') {
+//             return (
+//               <button
+//                 title="Mark Attendance"
+//                 disabled={isProcessingPunch}
+//                 onClick={() => handlePunch(emp)}
+//                 className="flex items-center gap-2 bg-white text-gray-800 px-3 py-1 rounded-full hover:text-white hover:bg-green-600"
+//               >
+//                 <FaUserCheck size={20} /> Mark Attendance
+//               </button>
+//             )
+//           }
+//           if (punchState === 'IN') {
+//             return (
+//               <button
+//                 title="Punch Out"
+//                 disabled={isProcessingPunch}
+//                 onClick={() => handlePunch(emp)}
+//                 className="flex items-center gap-2 bg-red-200 text-red-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-red-700"
+//               >
+//                 Punch Out <IoMdLogOut size={26} />
+//               </button>
+//             )
+//           }
+//           return (
+//             <button
+//               title="Punch In"
+//               disabled={isProcessingPunch}
+//               onClick={() => handlePunch(emp)}
+//               className="flex items-center gap-2 bg-green-200 text-green-700 border border-white/40 px-3 py-1 rounded-full hover:text-white hover:bg-green-700"
+//             >
+//               Punch In <IoMdLogOut size={26} className="rotate-180" />
+//             </button>
+//           )
+//         })()}
+//       </div>
+//     </div>

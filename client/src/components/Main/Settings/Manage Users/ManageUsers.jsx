@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io"
 import { MdDeleteOutline } from "react-icons/md"
 import { toast } from "react-toastify"
 import AddEditUsers from "./components/AddEditUsers"
+import ConfirmDelete from "../DeleteConfirmation"
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/users`
@@ -20,6 +21,9 @@ const ManageUsers = () => {
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleteItem, setDeleteItem] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   /* ================= FETCH ================= */
   const fetchUsers = async () => {
@@ -49,14 +53,23 @@ const ManageUsers = () => {
     setShowModal(true)
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return
+  const handleDelete = (user) => {
+    setDeleteItem(user)
+    setShowDelete(true)
+  }
+
+  const confirmDelete = async () => {
     try {
-      await axios.delete(`${API}/${id}`)
+      setDeleteLoading(true)
+      await axios.delete(`${API}/${deleteItem._id}`)
       toast.success("User deleted successfully")
       fetchUsers()
     } catch {
       toast.error("Delete failed")
+    } finally {
+      setDeleteLoading(false)
+      setShowDelete(false)
+      setDeleteItem(null)
     }
   }
 
@@ -136,7 +149,7 @@ const ManageUsers = () => {
                         <FiEdit size={16} />
                       </button>
                       <button
-                        onClick={() => handleDelete(user._id || user.id)}
+                        onClick={() => handleDelete(user)}
                         className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
                       >
                         <MdDeleteOutline size={16} />
@@ -149,6 +162,16 @@ const ManageUsers = () => {
           </div>
         )}
       </div>
+      <ConfirmDelete
+          isOpen={showDelete}
+          title="Delete User"
+          message="This user will be permanently removed."
+          itemName={deleteItem?.name}
+          value={deleteItem?.role}
+          loading={deleteLoading}
+          onCancel={() => setShowDelete(false)}
+          onConfirm={confirmDelete}
+        />
 
       {/* Modal */}
       <AddEditUsers

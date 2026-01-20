@@ -181,10 +181,12 @@ const searchWrapRef = useRef(null);
                         setSearch(`${emp.name} (${emp.empId})`)
                         setSearchFocused(false)
                       }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                    >
+                      className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
+                    > 
+                    <div className='flex col-span-2 gap-5'>
                       <div className="font-medium">{emp.name}</div>
-                      <div className="text-xs text-gray-500">{emp.empId}</div>
+                      <div className="text-xs py-1 text-gray-500">{emp.empId}</div>
+                    </div>
                     </div>
                   ))
                 ) : (

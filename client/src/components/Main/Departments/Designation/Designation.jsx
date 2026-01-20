@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import AddEditDesignation from "./component/AddEditDesignation";
 import axios from "axios";
+import DeleteConfirmationModal from "../DeleteConfirmation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/department/designations`;
@@ -25,7 +26,7 @@ const Designation = () => {
   const confirmDelete = async () => {
   try {
     setDeleting(true);
-    await axios.delete(`${API}/${deleteId}`);
+    await axios.delete(`${API}/${deleteId._id}`);
     toast.success("Designation deleted successfully!");
     fetchData();
   } catch (err) {
@@ -138,7 +139,7 @@ const Designation = () => {
                     </div>
                     <div className="p-1 hover:bg-red-100 rounded-md">
                       <MdDeleteOutline
-                        onClick={() => handleDelete(item._id)}
+                        onClick={() => handleDelete(item)}
                         size={20}
                         className="text-red-600 cursor-pointer hover:bg-red-100 hover:scale-110"
                       />
@@ -154,6 +155,8 @@ const Designation = () => {
   open={!!deleteId}
   title="Delete Designation Department"
   message="This action cannot be undone."
+  itemName={deleteId?.name}
+  value={deleteId?.subDepartment?.name}
   loading={deleting}
   onCancel={() => setDeleteId(null)}
   onConfirm={confirmDelete}

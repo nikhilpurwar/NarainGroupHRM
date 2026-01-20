@@ -27,7 +27,7 @@ const SubDepartments = () => {
   const confirmDelete = async () => {
   try {
     setDeleting(true);
-    await axios.delete(`${API}/${deleteId}`);
+    await axios.delete(`${API}/${deleteId._id}`);
     toast.success("Sub-department deleted successfully!");
     fetchData();
   } catch (err) {
@@ -142,7 +142,7 @@ const SubDepartments = () => {
                     />
 
                     <MdDeleteOutline
-                      onClick={() => handleDelete(item._id)}
+                      onClick={() => handleDelete(item)}
                       size={20}
                       className="text-red-600 cursor-pointer hover:scale-105"
                     />
@@ -156,6 +156,8 @@ const SubDepartments = () => {
   open={!!deleteId}
   title="Delete Sub Department"
   message="This action cannot be undone."
+  itemName={deleteId?.name}
+  value={deleteId?.headDepartment?.name}
   loading={deleting}
   onCancel={() => setDeleteId(null)}
   onConfirm={confirmDelete}

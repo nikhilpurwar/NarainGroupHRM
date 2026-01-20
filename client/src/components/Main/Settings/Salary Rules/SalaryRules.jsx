@@ -29,6 +29,7 @@ import {
 import { TbCalendarStats, TbDoorExit } from 'react-icons/tb'
 import AddEditRules from './component/AddEditRules'
 import RulesFilterBar from './component/RulesFilterBar'
+import ConfirmDelete from '../DeleteConfirmation'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 
@@ -73,6 +74,9 @@ const SalaryRules = () => {
     fixedSalary: null,
     allowOT: null,
   })
+  const [showDelete, setShowDelete] = useState(false)
+const [deleteItem, setDeleteItem] = useState(null)
+const [deleteLoading, setDeleteLoading] = useState(false)
 
   const fetchRules = async () => {
     try {
@@ -165,20 +169,25 @@ const SalaryRules = () => {
     }
   }
 
-  const remove = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this rule?')) return
+const handleDelete = (rule) => {
+  setDeleteItem(rule)
+  setShowDelete(true)
+}
 
-    try {
-      const res = await axios.delete(`${API_URL}/api/salary/rules/${id}`)
-      if (res.data.success) {
-        toast.success('Rule deleted successfully')
-        fetchRules()
-      }
-    } catch {
-      toast.error('Failed to delete rule')
-    }
+const confirmDelete = async () => {
+  try {
+    setDeleteLoading(true)
+    await axios.delete(`${API_URL}/api/salary/rules/${deleteItem._id}`)
+    toast.success("Rule deleted successfully")
+    fetchRules()
+  } catch {
+    toast.error("Failed to delete rule")
+  } finally {
+    setDeleteLoading(false)
+    setShowDelete(false)
+    setDeleteItem(null)
   }
-
+}
   const getStatusIcon = (value) =>
     value ?
       <FiCheckCircle className="text-green-500" size={18} /> :
@@ -370,7 +379,7 @@ const SalaryRules = () => {
                             <FiEdit2 size={18} />
                           </button>
                           <button
-                            onClick={() => remove(r._id)}
+                            onClick={() => handleDelete(r)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete Rule"
                           >
@@ -425,6 +434,18 @@ const SalaryRules = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDelete
+  isOpen={showDelete}
+  title="Delete Salary Rule"
+  message="This salary rule will be permanently removed."
+  itemName={deleteItem?.name}
+  value={`SubDept: ${deleteItem?.subDepartment.name} • ${deleteItem?.shiftHours}Hours`}
+  loading={deleteLoading}
+  onCancel={() => setShowDelete(false)}
+  onConfirm={confirmDelete}
+/>
+
 
       {/* Modal */}
       <AddEditRules

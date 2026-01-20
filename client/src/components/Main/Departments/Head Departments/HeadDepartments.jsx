@@ -27,7 +27,7 @@ const HeadDepartments = () => {
   const confirmDelete = async () => {
   try {
     setDeleting(true);
-    await axios.delete(`${API}/${deleteId}`);
+    await axios.delete(`${API}/${deleteId._id}`);
     toast.success("Head-department deleted successfully!");
     fetchData();
   } catch (err) {
@@ -128,7 +128,7 @@ const HeadDepartments = () => {
 
             <tbody>
               {departmentList.map((item, index) => (
-                <tr key={item._id} className="hover:bg-gray-50">
+                <tr key={item._id} className="hover:bg-gray-50 ">
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
                   {/* <td className="px-4 py-3 border-t">{item.hod}</td> */}
@@ -141,7 +141,7 @@ const HeadDepartments = () => {
                     />
 
                     <MdDeleteOutline
-                      onClick={() => handleDelete(item._id)}
+                      onClick={() => handleDelete(item)}
                       size={20}
                       className="text-red-600 cursor-pointer hover:scale-105"
                     />
@@ -156,6 +156,7 @@ const HeadDepartments = () => {
   open={!!deleteId}
   title="Delete Head Department"
   message="This action cannot be undone."
+  itemName={deleteId?.name}
   loading={deleting}
   onCancel={() => setDeleteId(null)}
   onConfirm={confirmDelete}
