@@ -44,6 +44,11 @@ const employeeSchema = new mongoose.Schema({
     // Attendance moved to separate collection `Attendance` linked by employee id
 }, { timestamps: true });
 
+// Ensure unique empId at the database level. Use sparse to allow documents
+// without empId to coexist (pre-existing records) — remove sparse if you
+// want to enforce uniqueness for all documents.
+employeeSchema.index({ empId: 1 }, { unique: true, sparse: true });
+
 const Employee = mongoose.model("Employee", employeeSchema);
 
 export default Employee;

@@ -312,19 +312,7 @@ const AddEditEmployee = () => {
                 payload.avatar = form.avatar
             }
 
-            // generate employee id when adding
-            if (!isEdit && (!form.empId || !form.empId.trim())) {
-                try {
-                    const listRes = await axios.get(API)
-                    const count = (listRes.data && listRes.data.data && listRes.data.data.length) || 0
-                    const seq = count + 1
-                    const yy = new Date().getFullYear() % 100
-                    const padded = String(seq).padStart(4, '0')
-                    payload.empId = `EMP${yy}${padded}`
-                } catch (genErr) {
-                    console.warn('Failed to generate empId', genErr)
-                }
-            }
+            // empId generation moved to backend; leave `payload.empId` as provided by user (or undefined)
 
             if (isEdit) {
                 await axios.put(`${API}/${id}`, payload)
