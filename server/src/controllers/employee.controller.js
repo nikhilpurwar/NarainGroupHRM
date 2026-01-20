@@ -1,6 +1,7 @@
 import Employee from "../models/employee.model.js";
 import User from "../models/setting.model/user.model.js";
 import Attendance from "../models/attendance.model.js";
+import Holiday from "../models/setting.model/holidays.model.js";
 import Advance from "../models/advance.model.js";
 import MonthlySummary from "../models/monthlySummary.model.js";
 import MonthlySalaryModel from "../models/salary.model/monthlySalary.model.js";
@@ -202,6 +203,18 @@ export const addAttendance = async (req, res) => {
           // Re-evaluate weekend flag using SalaryRule
           if (attendanceDoc.date) {
             attendanceDoc.isWeekend = await isWeekendForEmployee(emp, new Date(attendanceDoc.date));
+            // Determine if this date is a holiday and mark accordingly
+            try {
+              const dIso = attendanceDoc.date ? new Date(attendanceDoc.date).toISOString().slice(0,10) : null;
+              if (dIso) {
+                const _start = new Date(`${dIso}T00:00:00Z`);
+                const _end = new Date(`${dIso}T23:59:59Z`);
+                const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+                attendanceDoc.isHoliday = !!_h;
+              }
+            } catch (e) {
+              // ignore holiday lookup errors
+            }
           }
           const shiftCfg = await attendanceService.getShiftConfig();
           let shiftHours = 0;
@@ -281,6 +294,15 @@ export const addAttendance = async (req, res) => {
           // Re-evaluate weekend flag using SalaryRule
           if (attendanceDoc.date) {
             attendanceDoc.isWeekend = await isWeekendForEmployee(emp, new Date(attendanceDoc.date));
+            try {
+              const dIso = attendanceDoc.date ? new Date(attendanceDoc.date).toISOString().slice(0,10) : null;
+              if (dIso) {
+                const _start = new Date(`${dIso}T00:00:00Z`);
+                const _end = new Date(`${dIso}T23:59:59Z`);
+                const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+                attendanceDoc.isHoliday = !!_h;
+              }
+            } catch (e) {}
           }
           const shiftCfg2 = await attendanceService.getShiftConfig();
           let shiftHours2 = 0;
@@ -356,6 +378,16 @@ export const addAttendance = async (req, res) => {
       // Create new attendance and mark IN
       const dateObj = new Date(`${attendanceIso}T00:00:00Z`);
       const isWeekend2 = await isWeekendForEmployee(emp, dateObj);
+      // Determine if the attendance date is a holiday
+      let newAttIsHoliday = false;
+      try {
+        const dIso = dateObj.toISOString().slice(0,10);
+        const _start = new Date(`${dIso}T00:00:00Z`);
+        const _end = new Date(`${dIso}T23:59:59Z`);
+        const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+        newAttIsHoliday = !!_h;
+      } catch (e) {}
+
       const newAtt = await Attendance.create({
         employee: emp._id,
         date: dateObj,
@@ -374,7 +406,7 @@ export const addAttendance = async (req, res) => {
         overtimeHoursDisplay: '0h 0m',
         breakMinutes: 0,
         isWeekend: isWeekend2,
-        isHoliday: false,
+        isHoliday: newAttIsHoliday,
         punchLogs: [{ punchType: 'IN', punchTime: now }],
         note: 'Punch IN via manual toggle'
       });
@@ -495,6 +527,8 @@ export const addAttendance = async (req, res) => {
     let sundayOtHours = 0;
     let festivalOtHours = 0;
     let totalMinutes = inPunch && outPunch ? Math.round((outPunch - inPunch) / 60000) : 0;
+    // default holiday flag for manual attendance computation/storage
+    let manualIsHoliday = false;
 
     if (inPunch && outPunch) {
       // If out time is earlier than or equal to in time on the same calendar date,
@@ -520,13 +554,23 @@ export const addAttendance = async (req, res) => {
         shiftHours = 8;
       }
 
+      // Determine if the date is holiday for manual marking (use for computation and storage)
+      let manualIsHoliday = false;
+      try {
+        const dIso = new Date(date).toISOString().slice(0,10);
+        const _start = new Date(`${dIso}T00:00:00Z`);
+        const _end = new Date(`${dIso}T23:59:59Z`);
+        const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+        manualIsHoliday = !!_h;
+      } catch (e) {}
+
       const computed = attendanceService.computeTotalsFromPunchLogs(
         [
           { punchType: 'IN', punchTime: inPunch },
           { punchType: 'OUT', punchTime: outPunch }
         ],
         shiftHours,
-        { dayMeta: { isWeekend, isHoliday: false } }
+        { dayMeta: { isWeekend, isHoliday: manualIsHoliday } }
       );
 
       totalHours = computed.totalHours;
@@ -538,6 +582,9 @@ export const addAttendance = async (req, res) => {
       festivalOtHours = computed.festivalOtHours;
       totalMinutes = computed.totalMinutes;
     }
+
+    // manualIsHoliday computed above is reused for storage
+    const manualStoreIsHoliday = manualIsHoliday;
 
     const att = await Attendance.safeCreate({
       employee: emp._id,
@@ -555,7 +602,7 @@ export const addAttendance = async (req, res) => {
       festivalOtHours,
       breakMinutes: 0,
       isWeekend,
-      isHoliday: false,
+      isHoliday: manualStoreIsHoliday,
       punchLogs: [
         ...(inPunch ? [{ punchType: 'IN', punchTime: inPunch }] : []),
         ...(outPunch ? [{ punchType: 'OUT', punchTime: outPunch }] : [])
@@ -937,6 +984,16 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
       isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     }
 
+    // Determine if today's attendance date is a holiday
+    let newAttendanceIsHoliday = false;
+    try {
+      const dIso = dateObj.toISOString().slice(0,10);
+      const _start = new Date(`${dIso}T00:00:00Z`);
+      const _end = new Date(`${dIso}T23:59:59Z`);
+      const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+      newAttendanceIsHoliday = !!_h;
+    } catch (e) {}
+
     const newAttendanceDoc = await Attendance.create({
       employee: emp._id,
       date: dateObj,
@@ -953,7 +1010,7 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
       dayOtHours: 0,
       breakMinutes: 0,
       isWeekend,
-      isHoliday: false,
+      isHoliday: newAttendanceIsHoliday,
       punchLogs: [ { punchType: 'IN', punchTime: now } ],
       note: 'Punch IN via barcode scanner'
     });

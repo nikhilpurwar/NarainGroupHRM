@@ -44,7 +44,7 @@ const SalaryTable = memo(({
             onClick={onRecalculate}
             disabled={isRecalculating}
           >
-            <ListRestart className={`inline-block ${isRecalculating ? 'animate-spin' : ''}`} size={26} />
+            <ListRestart className={`inline-block `} size={26} />
           </button>
         </div>
         <div className="py-12 text-center">
@@ -77,13 +77,13 @@ const SalaryTable = memo(({
       <div className="flex items-center justify-between px-4 py-4 border-b bg-gray-50">
         <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
         <button
-          type="button"
           title='Recalculate Monthly Salary'
-          className={`button-hover ${isRecalculating ? 'opacity-60 cursor-not-allowed' : ''}`}
+          type="button"
+          className={`${isRecalculating ? 'opacity-60 cursor-not-allowed' : ''}`}
           onClick={onRecalculate}
           disabled={isRecalculating}
         >
-          <ListRestart className={`inline-block ${isRecalculating ? 'animate-spin' : ''}`} size={26} />
+          <ListRestart className={`inline-block `} size={26} />
         </button>
       </div>
 
