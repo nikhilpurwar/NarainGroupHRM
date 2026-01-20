@@ -5,6 +5,7 @@ import { MdDeleteOutline } from "react-icons/md"
 import { IoIosAddCircle } from "react-icons/io"
 import { toast } from "react-toastify"
 import AddEditCharge from "./components/AddEditCharges"
+import ConfirmDelete from "../DeleteConfirmation"
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/charges`
@@ -17,6 +18,10 @@ const Charges = () => {
   const [showModal, setShowModal] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [selectedCharge, setSelectedCharge] = useState(null)
+  const [showDelete, setShowDelete] = useState(false)
+const [deleteItem, setDeleteItem] = useState(null)
+const [deleteLoading, setDeleteLoading] = useState(false)
+
 
   /* ================= FETCH ================= */
   const fetchCharges = async () => {
@@ -48,16 +53,26 @@ const Charges = () => {
     setShowModal(true)
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this?")) return
-    try {
-      await axios.delete(`${API}/${id}`)
-      toast.success("Charge deleted successfully")
-      fetchCharges()
-    } catch {
-      toast.error("Delete failed")
-    }
+const handleDelete = (charge) => {
+  setDeleteItem(charge)
+  setShowDelete(true)
+}
+
+const confirmDelete = async () => {
+  try {
+    setDeleteLoading(true)
+    await axios.delete(`${API}/${deleteItem._id}`)
+    toast.success("Charge deleted successfully")
+    fetchCharges()
+  } catch {
+    toast.error("Delete failed")
+  } finally {
+    setDeleteLoading(false)
+    setShowDelete(false)
+    setDeleteItem(null)
   }
+}
+
 
   /* ================= UI ================= */
   return (
@@ -138,7 +153,7 @@ const Charges = () => {
                     />
                     <MdDeleteOutline
                       size={16}
-                      onClick={() => handleDelete(c._id)}
+                      onClick={() => handleDelete(c)}
                       className="text-red-600 cursor-pointer"
                     />
                   </td>
@@ -147,6 +162,17 @@ const Charges = () => {
             </tbody>
           </table>
         )}
+       <ConfirmDelete
+  isOpen={showDelete}
+  title="Delete Charge"
+  message="This charge will be permanently removed."
+  itemName={deleteItem?.deduction}
+  value={`${deleteItem?.value} (${deleteItem?.value_type})`}
+  loading={deleteLoading}
+  onCancel={() => setShowDelete(false)}
+  onConfirm={confirmDelete}
+/>
+
       </div>
     </div>
   )

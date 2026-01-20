@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import AddHeadDepartment from "./components/AddHeadDepartment";
 import axios from "axios";
+import DeleteConfirmationModal from "../DeleteConfirmation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/department/head-departments`;
@@ -15,6 +16,27 @@ const HeadDepartments = () => {
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [departmentList, setDepartmentList] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = (id) => {
+  setDeleteId(id);
+};
+
+  const confirmDelete = async () => {
+  try {
+    setDeleting(true);
+    await axios.delete(`${API}/${deleteId._id}`);
+    toast.success("Head-department deleted successfully!");
+    fetchData();
+  } catch (err) {
+    toast.error("Failed to delete Head-department");
+  } finally {
+    setDeleting(false);
+    setDeleteId(null);
+  }
+};
 
   // Fetch head departments
   const fetchData = async () => {
@@ -49,18 +71,7 @@ const HeadDepartments = () => {
   };
 
   // Delete Festival
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this?")) return;
 
-    try {
-      await axios.delete(`${API}/${id}`);
-      toast.success("Head department deleted successfully!");
-      fetchData();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete head department.");
-    }
-  };
 
   // const formatDate = (date) =>
   //   date ? new Date(date).toISOString().split("T")[0] : "-";
@@ -110,17 +121,17 @@ const HeadDepartments = () => {
               <tr>
                 <th className="px-4 py-2 text-left">S.No.</th>
                 <th className="px-4 py-2 text-left">Head Department</th>
-                <th className="px-4 py-2 text-left">HOD Name</th>
+                {/* <th className="px-4 py-2 text-left">HOD Name</th> */}
                 <th className="px-4 py-2 text-left">Action</th>
               </tr>
             </thead>
 
             <tbody>
               {departmentList.map((item, index) => (
-                <tr key={item._id} className="hover:bg-gray-50">
+                <tr key={item._id} className="hover:bg-gray-50 ">
                   <td className="px-4 py-3 border-t">{index + 1}</td>
                   <td className="px-4 py-3 border-t">{item.name}</td>
-                  <td className="px-4 py-3 border-t">{item.hod}</td>
+                  {/* <td className="px-4 py-3 border-t">{item.hod}</td> */}
 
                   <td className="flex items-center gap-3 px-4 py-3 border-t">
                     <FiEdit
@@ -130,7 +141,7 @@ const HeadDepartments = () => {
                     />
 
                     <MdDeleteOutline
-                      onClick={() => handleDelete(item._id)}
+                      onClick={() => handleDelete(item)}
                       size={20}
                       className="text-red-600 cursor-pointer hover:scale-105"
                     />
@@ -140,6 +151,16 @@ const HeadDepartments = () => {
             </tbody>
           </table>
         )}
+
+        <DeleteConfirmationModal
+  open={!!deleteId}
+  title="Delete Head Department"
+  message="This action cannot be undone."
+  itemName={deleteId?.name}
+  loading={deleting}
+  onCancel={() => setDeleteId(null)}
+  onConfirm={confirmDelete}
+/>
       </div>
     </div>
   );

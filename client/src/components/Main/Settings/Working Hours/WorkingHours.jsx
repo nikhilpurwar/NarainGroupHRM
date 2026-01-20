@@ -5,6 +5,7 @@ import { MdDeleteOutline } from "react-icons/md"
 import { IoIosAddCircle } from "react-icons/io"
 import { toast } from "react-toastify"
 import AddEditTimings from "./components/AddEditTimings"
+import ConfirmDelete from "../DeleteConfirmation"
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/break-times`
@@ -17,6 +18,33 @@ const WorkingHours = () => {
   const [showModal, setShowModal] = useState(false)
   const [isEdit, setIsEdit] = useState(false)
   const [selectedTiming, setSelectedTiming] = useState(null)
+  const [showDelete, setShowDelete] = useState(false)
+const [deleteItem, setDeleteItem] = useState(null)
+const [deleteLoading, setDeleteLoading] = useState(false)
+
+const handleDelete = (row) => {
+  setDeleteItem(row)
+  setShowDelete(true)
+}
+
+const confirmDelete = async () => {
+  if (!deleteItem?._id) {
+    toast.error("Invalid record")
+    return
+  }
+  try {
+    setDeleteLoading(true)
+    await axios.delete(`${API}/${deleteItem._id}`)
+    toast.success("Break time deleted successfully")
+    fetchData()
+  } catch {
+    toast.error("Delete failed")
+  } finally {
+    setDeleteLoading(false)
+    setShowDelete(false)
+    setDeleteItem(null)
+  }
+}
 
   /* ================= FETCH ================= */
   const fetchData = async () => {
@@ -46,17 +74,6 @@ const WorkingHours = () => {
     setIsEdit(true)
     setSelectedTiming(item)
     setShowModal(true)
-  }
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure?")) return
-    try {
-      await axios.delete(`${API}/${id}`)
-      toast.success("Deleted successfully")
-      fetchData()
-    } catch {
-      toast.error("Delete failed")
-    }
   }
 
   /* ================= UI ================= */
@@ -143,7 +160,7 @@ const WorkingHours = () => {
                         />
                         <MdDeleteOutline
                           size={16}
-                          onClick={() => handleDelete(item._id || item.id)}
+                          onClick={() => handleDelete(item)}
                           className="text-red-600 cursor-pointer hover:scale-110"
                         />                     
                   </td>
@@ -152,6 +169,20 @@ const WorkingHours = () => {
             </tbody>
           </table>
         )}
+<ConfirmDelete
+  isOpen={showDelete}
+  title="Delete Break Time"
+  message="This break time record will be permanently deleted."
+  itemName={
+    deleteItem
+      ? `${deleteItem.shiftName} (${deleteItem.shiftStart} - ${deleteItem.shiftEnd})`
+      : ""
+  }
+  value={deleteItem?.shiftHour}
+  loading={deleteLoading}
+  onCancel={() => setShowDelete(false)}
+  onConfirm={confirmDelete}
+/>
       </div>
     </div>
   )

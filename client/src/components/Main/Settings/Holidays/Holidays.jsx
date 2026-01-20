@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import AddFestival from "./components/AddFestival";
 import axios from "axios";
+import ConfirmDelete from "../DeleteConfirmation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/holidays`
@@ -15,6 +16,20 @@ const Holidays = () => {
   const [selectedFestival, setSelectedFestival] = useState(null);
   const [festivalList, setFestivalList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showDelete, setShowDelete] = useState(false)
+const [deleteItem, setDeleteItem] = useState(null)
+
+const handleDelete = (festival) => {
+  setDeleteItem(festival)
+  setShowDelete(true)
+}
+
+const confirmDelete = async () => {
+  await axios.delete(`${API}/${deleteItem._id}`)
+  toast.success("Festival deleted")
+  fetchData()
+  setShowDelete(false)
+}
 
   // Fetch all holidays
   const fetchData = async () => {
@@ -49,18 +64,6 @@ const Holidays = () => {
   };
 
   // Delete Festival
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this?")) return;
-
-    try {
-      await axios.delete(`${API}/${id}`);
-      toast.success("Festival deleted successfully!");
-      fetchData();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete festival.");
-    }
-  };
 
   const formatDate = (date) =>
     date ? new Date(date).toISOString().split("T")[0] : "-";
@@ -181,7 +184,7 @@ const Holidays = () => {
 
         {/* // Delete   */}
         <button
-          onClick={() => handleDelete(item._id)}
+          onClick={() => handleDelete(item)}
           title="Delete Festival"
           className="p-2 rounded-full text-red-600 hover:bg-red-100 transition"
         >
@@ -233,6 +236,15 @@ const Holidays = () => {
             </tbody>
           </table>
         )}
+        <ConfirmDelete
+  isOpen={showDelete}
+  title="Delete Festival"
+  message="This festival will be removed from the calendar."
+  itemName={deleteItem?.name}
+  value={`(${formatDate(deleteItem?.date)})`}
+  onCancel={() => setShowDelete(false)}
+  onConfirm={confirmDelete}
+/>
       </div>
     </div>
   );

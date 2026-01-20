@@ -221,7 +221,7 @@ const ManageAdvance = () => {
               </div>
               <div>
                 <span className="text-gray-600">Date:</span>
-                <span className="ml-2">{advanceToDelete.date}</span>
+                <span className="ml-2">{formatDate(advanceToDelete.date)}</span>
               </div>
               <div>
                 <span className="text-gray-600">Status:</span>

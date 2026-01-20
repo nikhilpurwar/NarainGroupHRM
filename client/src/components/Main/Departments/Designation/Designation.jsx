@@ -5,6 +5,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import AddEditDesignation from "./component/AddEditDesignation";
 import axios from "axios";
+import DeleteConfirmationModal from "../DeleteConfirmation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/department/designations`;
@@ -15,7 +16,26 @@ const Designation = () => {
   const [selectedDesignation, setSelectedDesignation] = useState(null);
   const [designationList, setDesignationList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
+  const handleDelete = (id) => {
+  setDeleteId(id);
+};
+
+  const confirmDelete = async () => {
+  try {
+    setDeleting(true);
+    await axios.delete(`${API}/${deleteId._id}`);
+    toast.success("Designation deleted successfully!");
+    fetchData();
+  } catch (err) {
+    toast.error("Failed to delete Designation");
+  } finally {
+    setDeleting(false);
+    setDeleteId(null);
+  }
+};
   // Fetch designations
   const fetchData = async () => {
     try {
@@ -48,19 +68,7 @@ const Designation = () => {
     setModal(true);
   };
 
-  // Delete Designation
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this designation?")) return;
 
-    try {
-      await axios.delete(`${API}/${id}`);
-      toast.success("Designation deleted successfully!");
-      fetchData();
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete designation.");
-    }
-  };
 
   return (
     <div className="p-6">
@@ -131,7 +139,7 @@ const Designation = () => {
                     </div>
                     <div className="p-1 hover:bg-red-100 rounded-md">
                       <MdDeleteOutline
-                        onClick={() => handleDelete(item._id)}
+                        onClick={() => handleDelete(item)}
                         size={20}
                         className="text-red-600 cursor-pointer hover:bg-red-100 hover:scale-110"
                       />
@@ -142,6 +150,17 @@ const Designation = () => {
             </tbody>
           </table>
         )}
+
+                      <DeleteConfirmationModal
+  open={!!deleteId}
+  title="Delete Designation Department"
+  message="This action cannot be undone."
+  itemName={deleteId?.name}
+  value={deleteId?.subDepartment?.name}
+  loading={deleting}
+  onCancel={() => setDeleteId(null)}
+  onConfirm={confirmDelete}
+/>
       </div>
     </div >
   );
