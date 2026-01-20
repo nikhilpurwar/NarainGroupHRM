@@ -65,6 +65,48 @@ const isWeekendForEmployee = async (emp, dateObj) => {
 
 export const createEmployee = async (req, res) => {
   try {
+    // Ensure empId uniqueness: if provided, reject when duplicate.
+    const preferredEmpId = req.body?.empId ? String(req.body.empId).trim() : null;
+    if (preferredEmpId) {
+      const exists = await Employee.findOne({ empId: preferredEmpId }).lean();
+      if (exists) return res.status(409).json({ success: false, message: 'empId already exists' });
+      req.body.empId = preferredEmpId;
+    } else {
+      // generate empId in format EMP<YY><NNNNN>, e.g., EMP2600001
+      const now = new Date();
+      const yy = now.getFullYear().toString().slice(-2);
+      const prefix = `EMP${yy}`;
+
+      // Find the last empId for this year prefix and increment the numeric suffix
+      const last = await Employee.findOne({ empId: { $regex: `^${prefix}` } }).sort({ empId: -1 }).lean();
+      let candidate;
+      if (last && last.empId && last.empId.length >= prefix.length + 1) {
+        const lastNum = parseInt(last.empId.slice(prefix.length), 10);
+        const nextNum = Number.isFinite(lastNum) ? lastNum + 1 : 1;
+        candidate = `${prefix}${String(nextNum).padStart(5, '0')}`;
+      } else {
+        candidate = `${prefix}${String(1).padStart(5, '0')}`;
+      }
+
+      // Verify uniqueness and defensively handle rare collisions
+      let collision = await Employee.findOne({ empId: candidate }).lean();
+      let attempts = 0;
+      while (collision && attempts < 50) {
+        const curNum = parseInt(candidate.slice(prefix.length), 10) || 0;
+        const nextNum = curNum + 1;
+        candidate = `${prefix}${String(nextNum).padStart(5, '0')}`;
+        collision = await Employee.findOne({ empId: candidate }).lean();
+        attempts++;
+      }
+
+      // Final fallback if still colliding (very unlikely)
+      if (collision) {
+        candidate = `${prefix}${Date.now().toString().slice(-5)}`;
+      }
+
+      req.body.empId = candidate;
+    }
+
     // create employee first
     const emp = await Employee.create(req.body);
 
