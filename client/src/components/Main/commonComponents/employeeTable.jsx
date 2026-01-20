@@ -11,7 +11,7 @@ const DEFAULT_AVATAR = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/20
 
 const EmployeeTable = ({
     employees = [],
-    rowsPerPage = 8,
+    // rowsPerPage = 8,
     onEdit = () => { },
     onToggleStatus = () => { },
     onNameClick = () => { },
@@ -130,7 +130,7 @@ const EmployeeTable = ({
         setCurrentPage(1)
     }, [nameSearch, department, subDepartment, designation, employees])
 
-    const [pageSize, setPageSize] = useState(rowsPerPage)
+    const [pageSize, setPageSize] = useState(5)
 
     const totalPages = Math.ceil(filtered.length / pageSize)
     const indexOfLast = currentPage * pageSize
