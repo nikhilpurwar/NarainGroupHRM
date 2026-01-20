@@ -291,6 +291,17 @@ const handlePunch = {
     }
 
     if (existingAttendance) {
+      // Ensure holiday flag is accurate for this attendance date
+      try {
+        const dIso = existingAttendance.date ? new Date(existingAttendance.date).toISOString().slice(0,10) : null;
+        if (dIso) {
+          const _start = new Date(`${dIso}T00:00:00Z`);
+          const _end = new Date(`${dIso}T23:59:59Z`);
+          const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+          existingAttendance.isHoliday = !!_h;
+        }
+      } catch (e) {}
+
       existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
       existingAttendance.inTime = currentTimeString;
       await updateAttendanceTotals(existingAttendance, emp);
@@ -327,6 +338,16 @@ const handlePunch = {
       // Use default
     }
 
+    // Determine if this date is a holiday
+    let newIsHoliday = false;
+    try {
+      const dIso = dateObj.toISOString().slice(0,10);
+      const _start = new Date(`${dIso}T00:00:00Z`);
+      const _end = new Date(`${dIso}T23:59:59Z`);
+      const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+      newIsHoliday = !!_h;
+    } catch (e) {}
+
     const newAttendance = await Attendance.create({
       employee: emp._id,
       date: dateObj,
@@ -343,7 +364,7 @@ const handlePunch = {
       dayOtHours: 0,
       breakMinutes: 0,
       isWeekend,
-      isHoliday: false,
+      isHoliday: newIsHoliday,
       punchLogs: [{ punchType: 'IN', punchTime: now }],
       note: 'Punch IN via barcode scanner'
     });
@@ -368,6 +389,17 @@ const handlePunch = {
     if (emp.status?.toString().toLowerCase() !== 'active') {
       throw new Error('Employee is inactive');
     }
+
+    // Ensure holiday flag is accurate before computing totals
+    try {
+      const dIso = attendance.date ? new Date(attendance.date).toISOString().slice(0,10) : null;
+      if (dIso) {
+        const _start = new Date(`${dIso}T00:00:00Z`);
+        const _end = new Date(`${dIso}T23:59:59Z`);
+        const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
+        attendance.isHoliday = !!_h;
+      }
+    } catch (e) {}
 
     attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
     await updateAttendanceTotals(attendance, emp);

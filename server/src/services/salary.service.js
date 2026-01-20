@@ -440,9 +440,11 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     let sundayBucket = a.sundayOtHours || 0
     let festivalBucket = a.festivalOtHours || 0
 
+    let totals = null
+
     // If punch logs exist and buckets are missing (older data), recompute live
     if (Array.isArray(a.punchLogs) && a.punchLogs.length > 0) {
-      const totals = computeTotalsFromPunchLogs(
+      totals = computeTotalsFromPunchLogs(
         a.punchLogs,
         shiftHours,
         { countOpenAsNow: true, dayMeta: { isWeekend: a.isWeekend, isHoliday: a.isHoliday } }
@@ -458,25 +460,39 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
       }
     }
 
-    basicHours += regular
+    // Determine total worked hours for this attendance record
+    const totalWorked = (totals && typeof totals.totalHours === 'number')
+      ? totals.totalHours
+      : (typeof a.totalHours === 'number' ? a.totalHours : (regular + overtime))
 
-    if (dayBucket || nightBucket || sundayBucket || festivalBucket) {
-      dayOtHours += dayBucket
-      nightOtHours += nightBucket
-      sundayOtHours += sundayBucket
-      festivalOtHours += festivalBucket
-    } else if (overtime > 0) {
-      // Fallback for legacy records without buckets
-      if (a.isHoliday) {
-        festivalOtHours += overtime
-      } else if (a.isWeekend) {
-        sundayOtHours += overtime
-      } else {
-        dayOtHours += overtime
+    // If employee is present on a holiday/festival AND festival OT is allowed,
+    // count ALL worked hours as festival OT (and do not include them in basic hours).
+    const statusStr = String(a.status || '').toLowerCase()
+    const isPresent = statusStr === 'present' || statusStr === 'halfday'
+    if (rule?.allowFestivalOT && a.isHoliday && isPresent) {
+      festivalOtHours += totalWorked
+    } else {
+      // Normal handling: basic hours come from regular hours
+      basicHours += regular
+
+      if (dayBucket || nightBucket || sundayBucket || festivalBucket) {
+        dayOtHours += dayBucket
+        nightOtHours += nightBucket
+        sundayOtHours += sundayBucket
+        festivalOtHours += festivalBucket
+      } else if (overtime > 0) {
+        // Fallback for legacy records without buckets
+        if (a.isHoliday) {
+          festivalOtHours += overtime
+        } else if (a.isWeekend) {
+          sundayOtHours += overtime
+        } else {
+          dayOtHours += overtime
+        }
       }
     }
 
-    if (a.status === 'present') presentDays++
+    if (isPresent) presentDays++
   })
 
   // Apply OT rules strictly from SalaryRule
