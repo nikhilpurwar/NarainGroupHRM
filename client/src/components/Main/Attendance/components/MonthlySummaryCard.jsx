@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Clock, TrendingUp } from 'lucide-react'
 
 // summary: backend monthly summary document
 // days/table/holidays: optional props used to recompute counts so UI matches grid
-const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays = [] }) => {
+const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays = [], employee = null }) => {
     if (!summary && (!table || !days.length)) return null
 
     const isHoliday = (isoDate) => {
@@ -32,6 +32,17 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
     let computedPresent = 0
     let computedAbsent = 0
 
+    // Determine employee created/join date (if provided in summary) so
+    // absents before join are not counted. Try common field names.
+    // Prefer explicit `employee` prop if provided, otherwise fall back to fields on `summary`.
+    const createdAtCandidate = employee?.createdAt || summary?.employee?.createdAt || summary?.createdAt || summary?.joinDate || summary?.joinedAt || summary?.dateJoined || summary?.employeeCreatedAt || null
+    let createdDate = null
+    if (createdAtCandidate) {
+        const dstr = typeof createdAtCandidate === 'string' ? createdAtCandidate.split('T')[0] : (createdAtCandidate instanceof Date ? createdAtCandidate.toISOString().slice(0,10) : String(createdAtCandidate))
+        createdDate = new Date(dstr)
+        createdDate.setHours(0,0,0,0)
+    }
+
     if (table && days && days.length && table['Status']) {
         const statusRow = table['Status'] || []
         const today = new Date()
@@ -45,6 +56,9 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
             const dayOfWeek = dayDate.getDay()
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
             const holiday = isHoliday(iso)
+
+            // Ignore days before the employee joined
+            if (createdDate && dayDate < createdDate) continue
 
             const rawStatus = statusRow[i]
             if (!rawStatus) continue
