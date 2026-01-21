@@ -56,6 +56,11 @@ const formatHours = (hours) => {
   return `${hrs}h ${mins}m`;
 };
 
+const isNumeric = (v) => {
+  if (v === null || typeof v === 'undefined') return false;
+  return !Number.isNaN(Number(String(v).trim())) && String(v).trim() !== '';
+};
+
 const normalizeDate = (date) => {
   if (!date) return null;
   if (typeof date === 'string') {
@@ -171,10 +176,17 @@ const StatusBadge = ({ status, isoDate, holidayName, isMobile }) => {
   );
 };
 
-const OtCell = ({ isoDate, attendanceMap }) => {
+const OtCell = ({ isoDate, attendanceMap, fallback }) => {
   const otData = useMemo(() => {
     const rec = attendanceMap.get(isoDate);
-    if (!rec) return { dayOt: 0, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: 0 };
+    if (!rec) {
+      // try fallback value from table (e.g. '7' or '7.5')
+      if (isNumeric(fallback)) {
+        const total = Number(fallback);
+        return { dayOt: total, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: total };
+      }
+      return { dayOt: 0, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: 0 };
+    }
 
     const dayOt = Number(rec.dayOtHours || 0);
     const nightOt = Number(rec.nightOtHours || 0);
@@ -182,8 +194,9 @@ const OtCell = ({ isoDate, attendanceMap }) => {
     const festivalOt = Number(rec.festivalOtHours || 0);
     const totalOt = dayOt + nightOt + sundayOt + festivalOt;
 
+    if (totalOt <= 0) return { dayOt: 0, nightOt: 0, sundayOt: 0, festivalOt: 0, totalOt: 0 };
     return { dayOt, nightOt, sundayOt, festivalOt, totalOt };
-  }, [isoDate, attendanceMap]);
+  }, [isoDate, attendanceMap, fallback]);
 
   if (!otData.totalOt) return '--';
 
@@ -316,8 +329,22 @@ const AttendanceTable = ({
         break;
         
       case 'OT (Hours)':
-        content = <OtCell isoDate={isoDate} attendanceMap={attendanceMap} />;
+        content = <OtCell isoDate={isoDate} attendanceMap={attendanceMap} fallback={cell} />;
         break;
+
+      case 'Regular Hours': {
+        const rec = attendanceMap.get(isoDate);
+        const display = rec?.regularHoursDisplay ?? (typeof rec?.regularHours !== 'undefined' ? formatHours(rec.regularHours) : (isNumeric(cell) ? formatHours(Number(cell)) : (cell || '--')));
+        content = display;
+        break;
+      }
+
+      case 'Worked Hours': {
+        const rec = attendanceMap.get(isoDate);
+        const display = rec?.totalHoursDisplay ?? (typeof rec?.totalHours !== 'undefined' ? formatHours(rec.totalHours) : (isNumeric(cell) ? formatHours(Number(cell)) : (cell || '--')));
+        content = display;
+        break;
+      }
         
       case 'In':
       case 'Out':

@@ -147,7 +147,7 @@ export const createEmployee = async (req, res) => {
 export const getEmployees = async (req, res) => {
   try {
     const emps = await Employee.find()
-      .select('name empId fatherName mobile salary status headDepartment subDepartment designation avatar')
+      .select('name empId fatherName mobile salary status headDepartment subDepartment designation avatar createdAt')
       .populate('headDepartment', 'name')
       .populate('subDepartment', 'name')
       .populate('designation', 'name')
@@ -492,7 +492,7 @@ export const addAttendance = async (req, res) => {
     // Manual explicit attendance creation (inTime/outTime provided) - preserve previous behavior
     if (!date) return res.status(400).json({ success: false, message: "date is required" });
 
-    // Check for duplicate attendance on same date in Attendance collection
+    // Check for existing attendance record on the same date (we'll handle non-overlapping additions)
     const dateObj = new Date(date);
     const dateIso = dateObj.toISOString().slice(0, 10);
 
@@ -502,10 +502,6 @@ export const addAttendance = async (req, res) => {
         $lte: new Date(`${dateIso}T23:59:59Z`)
       }
     });
-
-    if (existingAttendance) {
-      return res.status(400).json({ success: false, message: "Attendance already marked for this date" });
-    }
 
     // If manual marking (no inTime provided), capture current time as inTime
     let capturedInTime = inTime;
@@ -597,7 +593,7 @@ export const addAttendance = async (req, res) => {
       }
 
       // Determine if the date is holiday for manual marking (use for computation and storage)
-      let manualIsHoliday = false;
+      manualIsHoliday = false;
       try {
         const dIso = new Date(date).toISOString().slice(0,10);
         const _start = new Date(`${dIso}T00:00:00Z`);
@@ -628,6 +624,153 @@ export const addAttendance = async (req, res) => {
     // manualIsHoliday computed above is reused for storage
     const manualStoreIsHoliday = manualIsHoliday;
 
+    // If an attendance record already exists for this date, allow adding non-overlapping manual time
+    if (existingAttendance) {
+      // derive existing interval (start, end) from punchLogs when available
+      let existingStart = null;
+      let existingEnd = null;
+      try {
+        if (Array.isArray(existingAttendance.punchLogs) && existingAttendance.punchLogs.length) {
+          for (const p of existingAttendance.punchLogs) {
+            if (!p || !p.punchTime) continue;
+            const t = new Date(p.punchTime);
+            if (p.punchType && String(p.punchType).toUpperCase() === 'IN') {
+              if (!existingStart || t < existingStart) existingStart = t;
+            } else if (p.punchType && String(p.punchType).toUpperCase() === 'OUT') {
+              if (!existingEnd || t > existingEnd) existingEnd = t;
+            } else {
+              // treat any timestamp as potential bounds
+              if (!existingStart || t < existingStart) existingStart = t;
+              if (!existingEnd || t > existingEnd) existingEnd = t;
+            }
+          }
+        }
+        // fallback to inTime/outTime strings if punchLogs absent
+        if (!existingStart && existingAttendance.inTime) existingStart = normalizeTimeToDateWithOffset(dateIso, existingAttendance.inTime, tzOffsetMinutes);
+        if (!existingEnd && existingAttendance.outTime) existingEnd = normalizeTimeToDateWithOffset(dateIso, existingAttendance.outTime, tzOffsetMinutes);
+      } catch (e) {
+        existingStart = existingStart || null;
+        existingEnd = existingEnd || null;
+      }
+
+      // Normalize intervals for overlap check. If end is missing, treat as point or open interval.
+      const existingIntervalStart = existingStart || null;
+      const existingIntervalEnd = existingEnd || existingStart || null;
+      const newIntervalStart = inPunch || null;
+      const newIntervalEnd = outPunch || inPunch || null;
+
+      const intervalsOverlap = (aStart, aEnd, bStart, bEnd) => {
+        if (!aStart || !bStart) return false; // cannot compare without starts
+        const aS = aStart.getTime();
+        const aE = (aEnd || aStart).getTime();
+        const bS = bStart.getTime();
+        const bE = (bEnd || bStart).getTime();
+        return !(bE <= aS || bS >= aE);
+      };
+
+      if (newIntervalStart && existingIntervalStart) {
+        if (intervalsOverlap(existingIntervalStart, existingIntervalEnd, newIntervalStart, newIntervalEnd)) {
+          return res.status(400).json({ success: false, message: 'Selected time overlaps existing attendance for this date' });
+        }
+      }
+
+      // Append new punches to existing record and recompute totals
+      existingAttendance.punchLogs = existingAttendance.punchLogs || [];
+      if (inPunch) existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: inPunch });
+      if (outPunch) existingAttendance.punchLogs.push({ punchType: 'OUT', punchTime: outPunch });
+
+      // sort punchLogs by time
+      existingAttendance.punchLogs.sort((a, b) => new Date(a.punchTime) - new Date(b.punchTime));
+
+      // recompute totals using service
+      const shiftHoursManual = (function () {
+        let s = 8;
+        if (emp.shift) {
+          const text = String(emp.shift);
+          const match = text.match(/(\d+(?:\.\d+)?)/);
+          if (match) {
+            const parsed = Number(match[1]);
+            if (!Number.isNaN(parsed) && parsed > 0) s = parsed;
+          }
+        }
+        return s;
+      })();
+
+      // Use same computation options as automatic flows (no countOpenAsNow for manual append)
+      const recomputed = attendanceService.computeTotalsFromPunchLogs(
+        existingAttendance.punchLogs,
+        shiftHoursManual,
+        { dayMeta: { isWeekend, isHoliday: manualStoreIsHoliday } }
+      );
+
+      // expose computed pairs so frontend bucket visuals (D/N/S/F) can render
+      existingAttendance._computedPairs = recomputed.pairs || null;
+
+      existingAttendance.totalHours = recomputed.totalHours;
+      existingAttendance.regularHours = recomputed.regularHours;
+      existingAttendance.overtimeHours = recomputed.overtimeHours;
+      existingAttendance.dayOtHours = recomputed.dayOtHours;
+      existingAttendance.nightOtHours = recomputed.nightOtHours;
+      existingAttendance.sundayOtHours = recomputed.sundayOtHours;
+      existingAttendance.festivalOtHours = recomputed.festivalOtHours;
+      existingAttendance.totalMinutes = recomputed.totalMinutes;
+      existingAttendance.totalHoursDisplay = recomputed.totalHoursDisplay;
+      existingAttendance.regularHoursDisplay = recomputed.regularHoursDisplay;
+      existingAttendance.overtimeHoursDisplay = recomputed.overtimeHoursDisplay;
+      existingAttendance.inTime = recomputed.firstInTime ? new Date(recomputed.firstInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : existingAttendance.inTime;
+      existingAttendance.outTime = recomputed.lastOutTime ? new Date(recomputed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : existingAttendance.outTime;
+      existingAttendance.isHoliday = manualStoreIsHoliday;
+
+      await existingAttendance.save();
+
+      // Recalculate monthly salary for the month of this manual attendance date
+      salaryRecalcService.recalculateAndUpdateMonthlySalary(new Date(date)).catch(err => console.error('Salary recalculation failed (manual attendance append):', err));
+
+      // Update monthly summary and emit socket update
+      try {
+        const attDate = new Date(date);
+        const year = attDate.getFullYear();
+        const month = attDate.getMonth() + 1; // 1-12
+        const start = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00Z`);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        const atts = await Attendance.find({ employee: emp._id, date: { $gte: start, $lt: end } }).lean();
+        const days = (function(y, m){ const d = new Date(y, m, 0).getDate(); return new Array(d).fill(0).map((_,i)=> ({ date: String(i+1).padStart(2,'0'), iso: `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`, day: ''})); })(year, month);
+        await updateMonthlySummary(emp._id, year, month, atts, days, emp.joiningDate);
+        const updatedSummary = await MonthlySummary.findOne({ employee: emp._id, year, month }).lean();
+        try {
+          const io = getIO();
+          if (io) io.emit('attendance:updated', { employee: emp._id.toString(), attendance: existingAttendance, type: 'manual-append', summary: updatedSummary });
+        } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to update monthly summary after manual attendance append', e && e.message ? e.message : e);
+      }
+
+      return res.json({ success: true, message: 'Attendance updated (appended) successfully', data: { employee: emp, attendanceRecord: existingAttendance } });
+    }
+
+    // If no existing attendance was present, create the attendance record
+    // compute pairs for frontend bucket representation
+    let createComputed = null;
+    try {
+      const plogs = [
+        ...(inPunch ? [{ punchType: 'IN', punchTime: inPunch }] : []),
+        ...(outPunch ? [{ punchType: 'OUT', punchTime: outPunch }] : [])
+      ];
+      let shiftHoursManualForCreate = 8;
+      if (emp.shift) {
+        const text = String(emp.shift);
+        const match = text.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (!Number.isNaN(parsed) && parsed > 0) shiftHoursManualForCreate = parsed;
+        }
+      }
+      createComputed = attendanceService.computeTotalsFromPunchLogs(plogs, shiftHoursManualForCreate, { dayMeta: { isWeekend, isHoliday: manualStoreIsHoliday } });
+    } catch (e) {
+      createComputed = null;
+    }
+
     const att = await Attendance.safeCreate({
       employee: emp._id,
       date: new Date(date),
@@ -651,6 +794,52 @@ export const addAttendance = async (req, res) => {
       ],
       note: note || 'Marked manually'
     });
+
+    if (createComputed && createComputed.pairs) {
+      // attach computed pairs for immediate frontend consumption
+      att._computedPairs = createComputed.pairs;
+    }
+
+    // Ensure response includes formatted display fields and OT buckets (compute from saved punchLogs)
+    try {
+      const shiftCfgResp = await attendanceService.getShiftConfig();
+      let shiftHoursForResp = 8;
+      if (emp.shift) {
+        const text = String(emp.shift);
+        const match = text.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (!Number.isNaN(parsed) && parsed > 0) shiftHoursForResp = parsed;
+        }
+      }
+      if (!shiftHoursForResp && typeof shiftCfgResp.shiftHours === 'number' && shiftCfgResp.shiftHours > 0) {
+        shiftHoursForResp = shiftCfgResp.shiftHours;
+      }
+
+      const respComputed = attendanceService.computeTotalsFromPunchLogs(
+        att.punchLogs || [],
+        shiftHoursForResp,
+        { dayMeta: { isWeekend: !!att.isWeekend, isHoliday: !!att.isHoliday } }
+      );
+
+      // attach computed fields to response object
+      att.totalHours = respComputed.totalHours;
+      att.regularHours = respComputed.regularHours;
+      att.overtimeHours = respComputed.overtimeHours;
+      att.totalMinutes = respComputed.totalMinutes;
+      att.totalHoursDisplay = respComputed.totalHoursDisplay;
+      att.regularHoursDisplay = respComputed.regularHoursDisplay;
+      att.overtimeHoursDisplay = respComputed.overtimeHoursDisplay;
+      att.dayOtHours = respComputed.dayOtHours;
+      att.nightOtHours = respComputed.nightOtHours;
+      att.sundayOtHours = respComputed.sundayOtHours;
+      att.festivalOtHours = respComputed.festivalOtHours;
+      att._computedPairs = respComputed.pairs || att._computedPairs || null;
+
+      try { await att.save(); } catch (e) { /* non-fatal */ }
+    } catch (e) {
+      // ignore compute failures for response
+    }
 
     // Recalculate monthly salary for the month of this manual attendance date
     salaryRecalcService

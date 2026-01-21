@@ -36,7 +36,7 @@ const getHolidayMap = (holidays) => {
   return map;
 };
 
-const computeAttendanceData = async (att, emp, todayForClamp) => {
+const computeAttendanceData = async (att, emp, todayForClamp, options = {}) => {
   if (!att?.punchLogs?.length) return att;
 
   const shiftCfg = await attendanceService.getShiftConfig();
@@ -67,31 +67,67 @@ const computeAttendanceData = async (att, emp, todayForClamp) => {
     }
   }
 
+  // Resolve salary rule for OT permissions
+  const rule = await getSalaryRuleForSubDepartment(emp.subDepartment?._id || emp.subDepartment);
+  const allowSundayOT = !!(rule?.allowSundayOT);
+  const allowFestivalOT = !!(rule?.allowFestivalOT);
+
   const computed = attendanceService.computeTotalsFromPunchLogs(
     att.punchLogs,
     shiftHours,
     {
       countOpenAsNow: true,
       now: nowForAttendance,
-      dayMeta: { isWeekend: att.isWeekend, isHoliday: att.isHoliday }
+      dayMeta: { isWeekend: att.isWeekend, isHoliday: att.isHoliday, allowSundayOT, allowFestivalOT, forceFullSunday: !!options.forceFullSunday, forceFullFestival: !!options.forceFullFestival }
     }
   );
-
-  return {
+  // Prefer stored values from DB when present (manual entries may have precomputed buckets)
+  const merged = {
     ...att,
-    totalHours: computed.totalHours,
-    regularHours: computed.regularHours,
-    overtimeHours: computed.overtimeHours,
-    totalMinutes: computed.totalMinutes,
-    totalHoursDisplay: computed.totalHoursDisplay,
-    regularHoursDisplay: computed.regularHoursDisplay,
-    overtimeHoursDisplay: computed.overtimeHoursDisplay,
-    dayOtHours: computed.dayOtHours,
-    nightOtHours: computed.nightOtHours,
-    sundayOtHours: computed.sundayOtHours,
-    festivalOtHours: computed.festivalOtHours,
+    totalHours: typeof att.totalHours === 'number' ? att.totalHours : computed.totalHours,
+    regularHours: typeof att.regularHours === 'number' ? att.regularHours : computed.regularHours,
+    overtimeHours: typeof att.overtimeHours === 'number' ? att.overtimeHours : computed.overtimeHours,
+    totalMinutes: typeof att.totalMinutes === 'number' ? att.totalMinutes : computed.totalMinutes,
+    totalHoursDisplay: att.totalHoursDisplay || computed.totalHoursDisplay,
+    regularHoursDisplay: att.regularHoursDisplay || computed.regularHoursDisplay,
+    overtimeHoursDisplay: att.overtimeHoursDisplay || computed.overtimeHoursDisplay,
+    dayOtHours: typeof att.dayOtHours === 'number' ? att.dayOtHours : computed.dayOtHours,
+    nightOtHours: typeof att.nightOtHours === 'number' ? att.nightOtHours : computed.nightOtHours,
+    sundayOtHours: typeof att.sundayOtHours === 'number' ? att.sundayOtHours : computed.sundayOtHours,
+    festivalOtHours: typeof att.festivalOtHours === 'number' ? att.festivalOtHours : computed.festivalOtHours,
     _computedPairs: computed.pairs
   };
+
+  // If salary rule dictates full-day Festival/Sunday OT for this attendance, prefer computed full-day buckets
+  if ((att.isHoliday && allowFestivalOT) || options.forceFullFestival) {
+    merged.festivalOtHours = computed.festivalOtHours;
+    // zero other OT buckets to avoid double-counting
+    merged.dayOtHours = 0;
+    merged.nightOtHours = 0;
+    merged.sundayOtHours = 0;
+  }
+
+  if ((att.isWeekend && allowSundayOT) || options.forceFullSunday) {
+    merged.sundayOtHours = computed.sundayOtHours;
+    // zero other OT buckets
+    merged.dayOtHours = 0;
+    merged.nightOtHours = 0;
+    merged.festivalOtHours = 0;
+  }
+
+  // Ensure display strings reflect the merged numeric values when DB has numeric buckets
+  const toDisplay = (hrs) => {
+    if (typeof hrs !== 'number' || Number.isNaN(hrs)) return null;
+    const H = Math.floor(hrs);
+    const M = Math.round((hrs - H) * 60);
+    return `${H}h ${M}m`;
+  };
+
+  merged.totalHoursDisplay = att.totalHoursDisplay || toDisplay(merged.totalHours) || computed.totalHoursDisplay;
+  merged.regularHoursDisplay = att.regularHoursDisplay || toDisplay(merged.regularHours) || computed.regularHoursDisplay;
+  merged.overtimeHoursDisplay = att.overtimeHoursDisplay || toDisplay(merged.overtimeHours) || computed.overtimeHoursDisplay;
+
+  return merged;
 };
 
 const isWeekend = (date, workingDaysPerWeek = 6) => {
@@ -214,8 +250,49 @@ export const attendanceReport = async (req, res) => {
     const todayForClamp = new Date();
     todayForClamp.setHours(0, 0, 0, 0);
 
+    // Determine salary rule and which days should get full Sunday/Festival OT
+    const salaryRule = await getSalaryRuleForSubDepartment(employeeData.subDepartment?._id || employeeData.subDepartment);
+    const isDressingSubDept = (employeeData.subDepartment && typeof employeeData.subDepartment === 'object'
+      ? (employeeData.subDepartment.name || '').toLowerCase().includes('dressing')
+      : String(salaryRule?.name || '').toLowerCase().includes('dressing'));
+
+    // collect present sunday dates
+    const sundayDates = [];
+    const attendanceByIso = {};
+    attendances.forEach(att => {
+      const dateStr = att.date instanceof Date ? att.date.toISOString().slice(0,10) : String(att.date).slice(0,10);
+      attendanceByIso[dateStr] = att;
+      const d = new Date(dateStr);
+      const isWeekend = d.getDay() === 0; // Sunday
+      const isPresent = (att.status && String(att.status).toLowerCase() === 'present') || (Array.isArray(att.punchLogs) && att.punchLogs.length > 0) || (typeof att.totalMinutes === 'number' && att.totalMinutes > 0);
+      if (isWeekend && isPresent) sundayDates.push(dateStr);
+    });
+
+    // For dressing sub-department, only first 2 Sundays count for full Sunday OT
+    const maxSundayFull = isDressingSubDept ? 2 : Number.POSITIVE_INFINITY;
+    sundayDates.sort();
+    const sundayAllowSet = new Set(sundayDates.slice(0, maxSundayFull));
+
+    // For festivals, allow full festival OT if salaryRule allows and attendance present
+    const festivalAllowSet = new Set();
+    if (salaryRule?.allowFestivalOT) {
+      Object.keys(attendanceByIso).forEach(iso => {
+        if (holidayMap.has(iso)) {
+          const att = attendanceByIso[iso];
+          const isPresent = (att.status && String(att.status).toLowerCase() === 'present') || (Array.isArray(att.punchLogs) && att.punchLogs.length > 0) || (typeof att.totalMinutes === 'number' && att.totalMinutes > 0);
+          if (isPresent) festivalAllowSet.add(iso);
+        }
+      });
+    }
+
+    // determine sunday/festival OT decision (no debug logs)
+
     const processedAttendances = await Promise.all(
-      attendances.map(att => computeAttendanceData(att, employeeData, todayForClamp))
+      attendances.map(att => {
+        const iso = att.date instanceof Date ? att.date.toISOString().slice(0,10) : String(att.date).slice(0,10);
+        if (iso === '2026-01-04') console.log('forceFullSunday for 2026-01-04=', sundayAllowSet.has(iso), 'festival=', festivalAllowSet.has(iso));
+        return computeAttendanceData(att, employeeData, todayForClamp, { forceFullSunday: sundayAllowSet.has(iso), forceFullFestival: festivalAllowSet.has(iso) });
+      })
     );
 
     const attMap = {};
