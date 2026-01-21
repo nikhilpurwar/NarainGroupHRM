@@ -717,16 +717,51 @@ export async function updateMonthlySummary(employeeId, year, month, attendances,
       // Use default
     }
 
+    // Normalize or derive employee joining/created date when not provided
+    let joiningDate = null;
+    if (empJoiningDate) {
+      joiningDate = empJoiningDate instanceof Date ? new Date(empJoiningDate) : new Date(String(empJoiningDate));
+      joiningDate.setHours(0,0,0,0);
+    } else {
+      try {
+        const emp = await Employee.findById(employeeId).select('createdAt').lean();
+        if (emp?.createdAt) {
+          joiningDate = new Date(emp.createdAt);
+          joiningDate.setHours(0,0,0,0);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // Load holidays for the month and build a set for quick lookup
+    let holidaySet = new Set();
+    try {
+      const y = parseInt(year, 10);
+      const m = parseInt(month, 10);
+      const startOfMonth = new Date(y, m - 1, 1);
+      const endOfMonth = new Date(y, m, 0);
+      const holidays = await Holiday.find({ date: { $gte: startOfMonth, $lte: endOfMonth } }).lean();
+      holidays.forEach(h => {
+        if (!h?.date) return;
+        const dstr = h.date instanceof Date ? h.date.toISOString().slice(0,10) : String(h.date).split('T')[0];
+        if (dstr) holidaySet.add(dstr);
+      });
+    } catch (e) {
+      // ignore holiday lookup errors
+    }
+
     // Process each day
     days.forEach(day => {
       const dayDate = new Date(day.iso);
       dayDate.setHours(0, 0, 0, 0);
       
       const pastDate = dayDate < today;
-      const afterJoining = !empJoiningDate || dayDate >= empJoiningDate;
+      const afterJoining = !joiningDate || dayDate >= joiningDate;
       const weekend = isWeekend(dayDate, workingDaysPerWeek);
+      const isHoliday = holidaySet.has(day.iso);
 
-      if (!weekend && afterJoining) {
+      if (!weekend && afterJoining && !isHoliday) {
         counts.totalWorkingDays++;
 
         const rec = attMap[day.iso];
@@ -750,6 +785,7 @@ export async function updateMonthlySummary(employeeId, year, month, attendances,
               break;
           }
         } else if (pastDate) {
+          // Count as absent only when it's not a holiday and employee had joined
           counts.totalAbsent++;
         }
       }

@@ -480,6 +480,7 @@ const ReportsAttendance = () => {
                 table={report.table}
                 holidays={holidays}
                 isMobile={false}
+                employee={report.employee}
               />
               <AttendanceTable
                 days={report.days}
