@@ -11,7 +11,7 @@ import ManualAttendanceModal from "./components/ManualAttendanceModal"
 import { toast } from "react-toastify"
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees } from '../../../store/employeesSlice'
-import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice'
+import { ensureTodayAttendance, updateAttendanceEntry, fetchTodayAttendance } from '../../../store/attendanceSlice'
 import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
@@ -328,6 +328,17 @@ const Attendance = () => {
 
       // Merge returned attendance record into current report to show OT immediately
       const returnedAtt = res.data?.data?.attendanceRecord || res.data?.attendance || res.data?.data?.attendance
+      // update Redux attendance map so table components use server values
+      if (returnedAtt) {
+        try {
+          // prefer employee id from returned attendance if present
+          const empKey = returnedAtt.employee && (returnedAtt.employee._id || returnedAtt.employee) ? String(returnedAtt.employee._id || returnedAtt.employee) : String(employeeId)
+          dispatch(updateAttendanceEntry({ employeeId: empKey, attendance: returnedAtt }))
+        } catch (e) {}
+      }
+
+      // force refresh today's attendance cache to ensure map is populated
+      try { await dispatch(fetchTodayAttendance()) } catch (e) {}
       if (report?.employee?._id === employeeId && returnedAtt) {
         try {
           const attDateIso = returnedAtt.date

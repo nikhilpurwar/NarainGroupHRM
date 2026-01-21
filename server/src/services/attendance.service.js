@@ -257,26 +257,40 @@ export function computeTotalsFromPunchLogs(punchLogs = [], shiftHours = 8, { cou
    let sundayOtMinutes = 0;
    let festivalOtMinutes = 0;
 
-   if (overtimeMinutes > 0) {
-     const { isWeekend = false, isHoliday = false } = dayMeta || {};
-     if (isHoliday) {
-       festivalOtMinutes = overtimeMinutes;
-     } else if (isWeekend) {
-       sundayOtMinutes = overtimeMinutes;
-     } else {
-       // Normal working day 
-       // Split OT into night vs day based purely on punch times (no salary rules)
-       const refOut = lastOutTime || (pairs.length ? pairs[pairs.length - 1].out : null);
-       if (refOut) {
-         for (let i = 0; i < overtimeMinutes; i++) {
-           const m = new Date(refOut.getTime() - (i + 1) * 60000);
-           if (isNightMinute(m)) {
-             nightOtMinutes++;
+   {
+     const { isWeekend = false, isHoliday = false, allowSundayOT = false, allowFestivalOT = false, forceFullSunday = false, forceFullFestival = false } = dayMeta || {};
+
+     // If the day is a festival and festival OT is allowed (or forced), allocate full worked minutes to festival OT
+     if ((isHoliday && allowFestivalOT) || forceFullFestival) {
+       festivalOtMinutes = totalMinutes;
+     }
+
+     // If the day is a weekend (Sunday) and Sunday OT is allowed (or forced), allocate full worked minutes to sunday OT
+     if ((isWeekend && allowSundayOT) || forceFullSunday) {
+       sundayOtMinutes = totalMinutes;
+     }
+
+     // If neither full-day festival nor full-day sunday OT were applied, fall back to splitting overtime minutes
+     if (!festivalOtMinutes && !sundayOtMinutes && overtimeMinutes > 0) {
+       if (isHoliday) {
+         // holiday but not allowed: only overtime portion treated as festival OT
+         festivalOtMinutes = overtimeMinutes;
+       } else if (isWeekend) {
+         // weekend but not allowed: only overtime portion treated as sunday OT
+         sundayOtMinutes = overtimeMinutes;
+       } else {
+         // Normal working day: split OT between night/day windows
+         const refOut = lastOutTime || (pairs.length ? pairs[pairs.length - 1].out : null);
+         if (refOut) {
+           for (let i = 0; i < overtimeMinutes; i++) {
+             const m = new Date(refOut.getTime() - (i + 1) * 60000);
+             if (isNightMinute(m)) {
+               nightOtMinutes++;
+             }
            }
          }
+         dayOtMinutes = Math.max(0, overtimeMinutes - nightOtMinutes);
        }
-       // Whatever is not night OT on a normal working day is treated as day OT
-       dayOtMinutes = Math.max(0, overtimeMinutes - nightOtMinutes);
      }
    }
 
