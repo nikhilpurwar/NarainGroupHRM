@@ -3,6 +3,7 @@ import axios from "axios"
 import { FiEdit } from "react-icons/fi"
 import { IoIosAddCircle } from "react-icons/io"
 import { MdDeleteOutline } from "react-icons/md"
+import { IoToggle, IoToggleOutline } from "react-icons/io5"
 import { toast } from "react-toastify"
 import AddEditUsers from "./components/AddEditUsers"
 import ConfirmDelete from "../DeleteConfirmation"
@@ -56,6 +57,16 @@ const ManageUsers = () => {
   const handleDelete = (user) => {
     setDeleteItem(user)
     setShowDelete(true)
+  }
+
+  const handleToggleStatus = async (user) => {
+    try {
+      const res = await axios.patch(`${API}/${user._id}/toggle`)
+      toast.success(res.data.message)
+      fetchUsers()
+    } catch {
+      toast.error("Toggle failed")
+    }
   }
 
   const confirmDelete = async () => {
@@ -121,6 +132,7 @@ const ManageUsers = () => {
                   <th className="p-4 text-left">Name</th>
                   <th className="p-4 text-left">Email</th>
                   <th className="p-4 text-left">User Type</th>
+                  <th className="p-4 text-left">Status</th>
                   <th className="p-4 text-left">Actions</th>
                 </tr>
               </thead>
@@ -141,10 +153,33 @@ const ManageUsers = () => {
                         {user.role}
                       </span>
                     </td>
+                    <td className="p-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          user.isActive 
+                            ? "bg-green-100 text-green-700" 
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {user.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
                     <td className="p-4 flex gap-3">
+                      <button
+                        onClick={() => handleToggleStatus(user)}
+                        className={`p-2 rounded-lg ${
+                          user.isActive 
+                            ? "bg-red-100 text-red-600 hover:bg-red-200" 
+                            : "bg-green-100 text-green-600 hover:bg-green-200"
+                        }`}
+                        title={user.isActive ? "Deactivate" : "Activate"}
+                      >
+                        {user.isActive ? <IoToggle size={16} /> : <IoToggleOutline size={16} />}
+                      </button>
                       <button
                         onClick={() => handleEdit(user)}
                         className="p-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
+                        disabled={!user.isActive}
                       >
                         <FiEdit size={16} />
                       </button>

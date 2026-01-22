@@ -26,6 +26,16 @@ export const login = async (req, res) => {
     }
 
     if (!user) return res.status(401).json({ success: false, message: 'Invalid Employee ID/Email' })
+    
+    if (!user.isActive) {
+      const admin = await User.findOne({ role: 'admin', isActive: true })
+      const adminName = admin ? admin.name : 'Administrator'
+      return res.status(403).json({ 
+        success: false, 
+        message: `Your credentials temporarily terminated. Please contact admin (${adminName})` 
+      })
+    }
+    
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) return res.status(401).json({ success: false, message: 'Invalid password' })
     // If this user maps to an employee record, ensure employee is active

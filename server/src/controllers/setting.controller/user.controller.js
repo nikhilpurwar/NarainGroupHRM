@@ -2,11 +2,11 @@ import User from '../../models/setting.model/user.model.js'
 import bcrypt from 'bcrypt'
 
 const normalizeRole = (r) => {
-  if (!r) return 'accounts'
+  if (!r) return 'account'
   const role = String(r).toLowerCase()
   if (role.startsWith('admin')) return 'admin'
   if (role.startsWith('gate')) return 'gate'
-  return 'accounts'
+  return 'account'
 }
 
 export const listUsers = async (req, res) => {
@@ -55,11 +55,25 @@ export const updateUser = async (req, res) => {
   }
 }
 
+export const toggleUserStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' })
+    
+    user.isActive = !user.isActive
+    await user.save()
+    
+    res.json({ success: true, data: user, message: `User ${user.isActive ? 'activated' : 'deactivated'}` })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+}
+
 export const deleteUser = async (req, res) => {
   try {
     const u = await User.findByIdAndDelete(req.params.id)
     if (!u) return res.status(404).json({ success: false, message: 'Not found' })
-    res.json({ success: true, message: 'Deleted' })
+    res.json({ success: true, message: 'User permanently deleted' })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
   }

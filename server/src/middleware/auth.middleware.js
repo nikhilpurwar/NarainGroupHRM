@@ -15,6 +15,32 @@ export const authenticate = (req, res, next) => {
   }
 }
 
+export const checkUserActive = async (req, res, next) => {
+  try {
+    const User = (await import('../models/setting.model/user.model.js')).default
+    const user = await User.findById(req.user.id)
+    if (!user) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your credentials terminated. Please contact admin',
+        forceLogout: true
+      })
+    }
+    if (!user.isActive) {
+      const admin = await User.findOne({ role: 'admin', isActive: true })
+      const adminName = admin ? admin.name : 'Administrator'
+      return res.status(403).json({ 
+        success: false, 
+        message: `Your credentials temporarily terminated. Please contact admin (${adminName})`,
+        forceLogout: true
+      })
+    }
+    next()
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
 export const authorize = (roles = []) => (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' })
   if (typeof roles === 'string') roles = [roles]
