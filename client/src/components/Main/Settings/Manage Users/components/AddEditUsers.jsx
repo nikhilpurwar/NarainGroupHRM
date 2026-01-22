@@ -24,15 +24,16 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
 
   useEffect(() => {
     if (isEdit && user) {
+      const firstName = (user.name || '').split(' ')[0] || 'User'
       setForm({
         name: user.name || "",
         email: user.email || "",
-        role: user.role || "Admin",
-        password: "",
+        role: user.role || "admin",
+        password: `${firstName}@123`,
       })
       setSelectedEmployeeId("")
     } else {
-      setForm({ name: "", email: "", role: "Admin", password: "" })
+      setForm({ name: "", email: "", role: "admin", password: "" })
       setSelectedEmployeeId("")
     }
     setShowPassword(false)
@@ -136,9 +137,9 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded"
             >
-              <option value="Admin">Admin</option>
-              <option value="Gate">Gate</option>
-              <option value="Account">Account</option>
+              <option value="admin">Admin</option>
+              <option value="gate">Gate</option>
+              <option value="account">Account</option>
             </select>
           </div>
 
@@ -171,7 +172,6 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
             />
           </div>
 
-          {!isEdit && (
             <div>
               <label className="block text-sm font-medium">Password*</label>
               <div className="relative">
@@ -191,7 +191,6 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
                 </span>
               </div>
             </div>
-          )}
 
           <button
             disabled={loading}

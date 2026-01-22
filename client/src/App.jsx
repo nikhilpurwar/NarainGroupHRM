@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import { fetchPermissions } from './store/permissionsSlice'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import axios from 'axios'
+import { toast } from 'react-toastify'
 
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -40,8 +42,26 @@ function App() {
   const dispatch = useDispatch()
 
   useEffect(() => {
+    // Global axios interceptor for handling deactivated users
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.data?.forceLogout) {
+          localStorage.removeItem('token')
+          sessionStorage.removeItem('token')
+          sessionStorage.removeItem('user')
+          sessionStorage.removeItem('expiresAt')
+          toast.error(error.response.data.message)
+          window.location.href = '/login'
+        }
+        return Promise.reject(error)
+      }
+    )
+
     // load permissions once at app startup
     dispatch(fetchPermissions()).catch(() => {})
+
+    return () => axios.interceptors.response.eject(interceptor)
   }, [dispatch])
   const RequireAuth = ({ children }) => {
     if (typeof window === 'undefined') return children
