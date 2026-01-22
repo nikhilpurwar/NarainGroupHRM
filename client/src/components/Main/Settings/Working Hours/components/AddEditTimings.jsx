@@ -213,7 +213,7 @@ const AddEditTimings = ({
 
 const InputText = ({ label, error, ...props }) => (
   <div>
-    <label className="block mb-1 font-medium">{label} *</label>
+    <label className="block mb-1 font-medium">{label}  <span className="text-red-500">*</span></label>
     <input
       className={`w-full border px-3 py-2 rounded
         ${error ? "border-red-500" : ""}`}
@@ -225,7 +225,7 @@ const InputText = ({ label, error, ...props }) => (
 
 const InputTime = ({ label, error, required = true, ...props }) => (
   <div>
-    <label className="block mb-1 font-medium">{label}{required ? ' *' : ''}</label>
+    <label className="block mb-1 font-medium">{label}{required ? <span className="text-red-500">*</span> : ''}</label>
     <input
       type="time"
       className={`w-full border px-3 py-2 rounded

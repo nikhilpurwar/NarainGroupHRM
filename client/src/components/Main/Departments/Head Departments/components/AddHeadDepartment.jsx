@@ -123,11 +123,11 @@ const AddHeadDepartment = ({
             )}
           </div>
 
-          {/* HOD */}
+          {/* HOD
           <div>
             <label className="block text-sm font-medium mb-1">
               HOD 
-              {/* <span className="text-red-500">*</span> */}
+              {/* <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -143,7 +143,7 @@ const AddHeadDepartment = ({
             {errors.hod && (
               <p className="text-red-500 text-xs mt-1">{errors.hod}</p>
             )}
-          </div>
+          </div> */}
 
           {/* Submit Button */}
           <button

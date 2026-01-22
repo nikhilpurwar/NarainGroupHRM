@@ -68,7 +68,7 @@ const AddEditRules = ({
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <FiUsers />
-                Sub Department *
+                Sub Department <span className="text-red-500">*</span>
               </label>
               <select
                 className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500"
@@ -90,7 +90,7 @@ const AddEditRules = ({
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                 <FiEdit2 />
-                Rule Name *
+                Rule Name  <span className="text-red-500">*</span>
               </label>
               <input
                 className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500"

@@ -88,7 +88,7 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium mb-1">Festival Name *</label>
+            <label className="block text-sm font-medium mb-1">Festival Name  <span className="text-red-500">*</span></label>
             <input
               type="text"
               className={`w-full px-3 py-2 border rounded ${
@@ -97,6 +97,7 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Diwali, Holi"
+              
             />
             {errors.name && (
               <p className="text-red-500 text-xs">{errors.name}</p>
@@ -105,7 +106,7 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium mb-1">Festival Date *</label>
+            <label className="block text-sm font-medium mb-1">Festival Date  <span className="text-red-500">*</span></label>
             <input
               type="date"
               className={`w-full px-3 py-2 border rounded ${
@@ -113,6 +114,7 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
               }`}
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              
             />
             {errors.date && (
               <p className="text-red-500 text-xs">{errors.date}</p>

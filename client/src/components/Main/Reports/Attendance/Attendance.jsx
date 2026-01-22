@@ -31,7 +31,7 @@ const ReportsAttendance = () => {
 
   const [filters, setFilters] = useState({
     search: "",
-    month: String(new Date().getMonth() + 1).padStart(2, "0"),
+    month: String(new Date().getMonth() + 1),
     year: String(new Date().getFullYear()),
   });
 
@@ -50,6 +50,7 @@ const ReportsAttendance = () => {
   const loadEmployeesRef = useRef(null);
   const loadHolidaysRef = useRef(null);
   const searchWrapRef = useRef(null);
+  const searchInputRef = useRef(null)
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -262,18 +263,21 @@ const ReportsAttendance = () => {
     return lastPunch === "IN" ? "IN" : "OUT";
   };
 
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!searchWrapRef.current) return;
-      if (!searchWrapRef.current.contains(e.target)) {
-        // clear search to hide matches
-        if (filters.search && filters.search.trim() !== "")
-          setFilters((f) => ({ ...f, search: "" }));
-      }
-    };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [filters.search]);
+useEffect(() => {
+  const onDocClick = (e) => {
+    if (!searchWrapRef.current) return;
+
+    if (!searchWrapRef.current.contains(e.target)) {
+      setSearchFocused(false);
+      setFilters((f) => ({ ...f, search: "" }));
+    }
+  };
+
+  document.addEventListener("mousedown", onDocClick);
+  return () => document.removeEventListener("mousedown", onDocClick);
+}, []);
+
+
 
   // Search helpers
   const filteredEmployees = useMemo(() => {
@@ -299,9 +303,10 @@ const ReportsAttendance = () => {
       </button>
       <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
         {/* SEARCH */}
-        <div className="relative w-full max-w-lg">
+        <div ref={searchWrapRef} className="relative w-full max-w-lg">
           {/* Search Bar */}
-          <input
+          <input 
+            ref={searchInputRef}
             type="text"
             placeholder="Select or Search by name or emp id..."
             value={filters.search}
@@ -315,14 +320,10 @@ const ReportsAttendance = () => {
                    focus:ring-2 focus:ring-indigo-500
                    focus:border-indigo-500
                    outline-none transition"
-          />
-          <IoChevronDown
-            size={18}
-            className={`absolute right-4 text-gray-500 pointer-events-none
-                    transition-transform duration-200 ${
-                      searchFocused ? "rotate-180" : ""
-                    }`}
-          />
+                   />
+                <IoChevronDown size={18}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none transition-transform duration-200 ${searchFocused ? "rotate-180" : ""}`}
+                />
           {/* <button
           onClick={() => { const first = filteredEmployees[0]; if (first) fetchReport({ employeeId: first._id, month: filters.month, year: filters.year }) }}
           className="px-8 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
@@ -443,8 +444,8 @@ const ReportsAttendance = () => {
                 onClick={() => handlePunch(emp)}
                 className="flex items-center gap-2 px-4 py-2
                      rounded-full text-sm font-medium
-                     bg-indigo-100 text-indigo-700
-                     hover:bg-indigo-600 hover:text-white
+                     bg-green-100 text-green-700
+                     hover:bg-green-600 hover:text-white
                      transition disabled:opacity-50"
               >
                 Punch In <IoMdLogOut size={20} className="rotate-180" />
@@ -550,7 +551,7 @@ const ReportsAttendance = () => {
                       <span className="h-2 w-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100" />
                     </div>
                   ))}
-
+                  
                   {filteredEmployees.length === 0 && (
                     <div className="text-center text-sm text-gray-400 py-10">
                       No matches found
