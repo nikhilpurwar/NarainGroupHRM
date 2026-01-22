@@ -169,11 +169,11 @@ const confirmDelete = async () => {
     {formatDate(item.createdAt)}
   </td>
 
-  {/* Action */}
+  {/* Action
   <td className="px-4 py-3 border-t">
     {!isPastFestival(item.date) ? (
       <div className="flex items-center gap-2">
-        {/* // Edit   */}
+        {/* // Edit   
         <button
           onClick={() => handleEdit(item)}
           title="Edit Festival"
@@ -182,7 +182,7 @@ const confirmDelete = async () => {
           <FiEdit size={16} />
         </button>
 
-        {/* // Delete   */}
+        {/* // Delete   
         <button
           onClick={() => handleDelete(item)}
           title="Delete Festival"
@@ -196,11 +196,11 @@ const confirmDelete = async () => {
         Past
       </span>
     )}
-  </td>
+  </td> */}
 
-  {/* <td className="px-4 py-3 border-t">
+   <td className="px-4 py-3 border-t">
   <div className="flex items-center gap-2">
-    {/* Edit 
+    {/* Edit */}
     {!isPastFestival(item.date) ? (
       <button
         onClick={() => handleEdit(item)}
@@ -219,17 +219,23 @@ const confirmDelete = async () => {
       </button>
     )}
 
-    {/* Delete
+    {/* Delete (always visible) */}
     <button
-      onClick={() => handleDelete(item._id)}
+      onClick={() => handleDelete(item)}
       title="Delete Festival"
       className="p-2 rounded-full text-red-600 hover:bg-red-100 transition"
     >
       <MdDeleteOutline size={18} />
     </button>
-  </div>
-</td> */}
 
+    {/* Past Badge */}
+    {isPastFestival(item.date) && (
+      <span className="ml-2 inline-block px-3 py-1 text-xs font-semibold rounded-full bg-gray-300 text-gray-600">
+        Past
+      </span>
+    )}
+  </div>
+</td>
 
 </tr>
               ))}

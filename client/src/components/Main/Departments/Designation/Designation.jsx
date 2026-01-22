@@ -72,7 +72,7 @@ const Designation = () => {
 
   return (
     <div className="p-6">
-      <div className="border border-gray-300 rounded-xl shadow-lg overflow-hidden">
+      <div className="max-w-7xl mx-auto border border-gray-300 rounded-xl shadow-lg overflow-hidden">
 
         {/* Header */}
         <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
@@ -129,22 +129,21 @@ const Designation = () => {
                   <td className="px-4 py-3 border-t">{item.subDepartment?.name || "-"}</td>
                   {/* <td className="px-4 py-3 border-t">{item.code || "-"}</td> */}
 
-                  <td className="flex items-center gap-3 px-4 py-3 border-t">
-                    <div className="p-1 hover:bg-blue-100 rounded-md">
-                      <FiEdit
-                        onClick={() => handleEdit(item)}
-                        size={16}
-                        className=" text-blue-700 cursor-pointer  hover:scale-110"
-                      />
-                    </div>
-                    <div className="p-1 hover:bg-red-100 rounded-md">
-                      <MdDeleteOutline
-                        onClick={() => handleDelete(item)}
-                        size={20}
-                        className="text-red-600 cursor-pointer hover:bg-red-100 hover:scale-110"
-                      />
-                    </div>
-                  </td>
+                 <td className="px-4 py-3 border-t">
+                           <div className="flex items-center gap-3">
+                             <FiEdit
+                               onClick={() => handleEdit(item)}
+                               size={16}
+                               className="text-blue-600 cursor-pointer hover:text-blue-800 transition"
+                             />
+                 
+                             <MdDeleteOutline
+                               onClick={() => handleDelete(item)}
+                               size={20}
+                               className="text-red-600 cursor-pointer hover:text-red-800 transition"
+                             />
+                           </div>
+                         </td>
                 </tr>
               ))}
             </tbody>

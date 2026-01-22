@@ -3,7 +3,7 @@ import React from "react";
 const FestivalList = ({ holidays }) => {
   return (
     <div className="border rounded-xl bg-white shadow-lg overflow-hidden">
-      <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg">
+      <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-xl">
         Holidays in Next 30 Days
       </div>
 
@@ -19,7 +19,7 @@ const FestivalList = ({ holidays }) => {
         <tbody>
           {holidays.length > 0 ? (
             holidays.map((item, index) => (
-              <tr key={item._id} className="hover:bg-gray-100">
+              <tr key={item._id} className="border-b hover:bg-gray-100 transition cursor-pointer">
                 <td className="px-4 py-3 border-t">{index + 1}</td>
                 <td className="px-4 py-3 border-t">{item.name}</td>
                 <td className="px-4 py-3 border-t">{item.date ? new Date(item.date).toLocaleDateString() : "-"}</td>
