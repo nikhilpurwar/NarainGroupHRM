@@ -13,26 +13,26 @@ const API = `${API_URL}/api/employees`
 const DEDUCTION_API = `${API_URL}/api/charges`
 const SHIFT_API = `${API_URL}/api/break-times`
 
-const Input = ({ label, name, value, onChange, readOnly, type = "text", error }) => (
-    <div>
-        <label className="block font-medium mb-1">{label}</label>
-        <input
-            type={type}
-            name={name}
-            value={value}
-            onChange={onChange}
-            readOnly={readOnly}
-            className={`w-full border p-3 rounded-lg ${error ? "border-red-500" : ""
-                } ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""}`}
-        />
-        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-    </div>
-)
+const Input = ({label,name,value,onChange,type = "text",error,required = false,prefix,suffix,}) => (
+  <div> <label className="block font-medium mb-1 text-gray-800">{label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <div className="relative">
+      {prefix && ( <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{prefix}</span>)}
+      <input type={type} name={name} value={value} onChange={onChange} className={`w-full border p-3 rounded-lg ${ prefix ? "pl-12" : "" } ${error ? "border-red-500" : ""}`} />
+      {suffix && (<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"> {suffix}</span>
+      )} </div>
+    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+  </div>
+);
 
 
-const Select = ({ label, name, value, onChange, options, error }) => (
+const Select = ({ label, name, value, onChange, options, error ,required=false, }) => (
     <div>
-        <label className="block font-medium mb-1">{label}</label>
+        <label className="block font-medium mb-1 text-gray-800">
+      <span>{label}</span>
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
         <select
             name={name}
             value={value}
@@ -225,6 +225,16 @@ const AddEditEmployee = () => {
             }
             return
         }
+        if (name === "mobile") {
+    const digitsOnly = value.replace(/\D/g, "");
+    const limitedTo10 = digitsOnly.slice(0, 10);
+
+    setForm((prev) => ({
+      ...prev,
+      mobile: limitedTo10,
+    }));
+    return;
+  }
         setForm({ ...form, [name]: value })
         setErrors((prev) => ({ ...prev, [name]: undefined }))
     }
@@ -414,10 +424,11 @@ const AddEditEmployee = () => {
                                 />
                             </div>
                         </div>
-                        <Input label="First Name*" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} />
-                        <Input label="Last Name*" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} />
-                        <Input label="Mobile*" name="mobile" value={form.mobile} onChange={handleChange} error={errors.mobile} />
-                        <Input label="Email*" name="email" value={form.email} onChange={handleChange} error={errors.email} />
+                        <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} required />
+                        <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} required/>
+                        <Input label="Mobile" name="mobile" value={form.mobile} onChange={handleChange} required error={errors.mobile} prefix="+91" suffix={
+                        <span style={{ color: !form.mobile? "#999": form.mobile.length === 10 ? "green": "red",}}> ({form.mobile?.length || 0}/10)</span>}/>
+                        <Input label="Email" name="email" value={form.email} onChange={handleChange} error={errors.email} required/>
                         <Input label="Father Name" name="fatherName" value={form.fatherName} onChange={handleChange} />
                         <Input label="Mother Name" name="motherName" value={form.motherName} onChange={handleChange} />
 
@@ -438,7 +449,8 @@ const AddEditEmployee = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         {/* Head Department */}
                         <div>
-                            <label className="block font-medium mb-1">Head Department*</label>
+                           
+                            <label className="block font-medium mb-1 text-gray-800"><span>Head Department</span>  <span className="text-red-500 ml-1">*</span> </label>
                             <select
                                 name="headDepartment"
                                 value={form.headDepartment}
@@ -460,7 +472,8 @@ const AddEditEmployee = () => {
 
                         {/* Sub Department - Cascaded */}
                         <div>
-                            <label className="block font-medium mb-1">Sub Department*</label>
+                                 <label className="block font-medium mb-1 text-gray-800"><span>Sub Department</span>  <span className="text-red-500 ml-1">*</span> </label>
+                          
                             <select
                                 name="subDepartment"
                                 value={form.subDepartment}
@@ -482,13 +495,15 @@ const AddEditEmployee = () => {
 
                         {/* Designation - Cascaded */}
                         <div>
-                            <label className="block font-medium mb-1">Designation*</label>
+                               <label className="block font-medium mb-1 text-gray-800"><span>Designation</span>  <span className="text-red-500 ml-1">*</span> </label>
+                          
                             <select
                                 name="designation"
                                 value={form.designation}
                                 onChange={handleChange}
                                 disabled={!form.subDepartment}
-                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"required
+                                className="w-full border p-3 rounded-lg disabled:bg-gray-200"
+                                required
                             >
                                 <option value="">Select Designation</option>
                                 {filteredDesignations.map(d => (
@@ -515,7 +530,7 @@ const AddEditEmployee = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         <Select
-                            label="Salary Type*"
+                            label="Salary Type"
                             name="empType"
                             value={form.empType}
                             onChange={handleChange}
@@ -523,7 +538,7 @@ const AddEditEmployee = () => {
                             required
 
                         />
-                        <Input label="Salary*" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} />
+                        <Input label="Salary" name="salary" type="number" value={form.salary} onChange={handleChange} error={errors.salary} required/>
                     </div>
 
                     {/* DEDUCTIONS */}

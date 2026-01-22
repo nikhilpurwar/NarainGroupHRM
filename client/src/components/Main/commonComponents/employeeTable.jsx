@@ -20,6 +20,7 @@ const EmployeeTable = ({
   employees = [],
   onDelete = () => {},
 //   rowsPerPage = 5,
+  initialDepartment = "",
   onEdit = () => {},
   onToggleStatus = () => {},
   onNameClick = () => {},
@@ -214,6 +215,12 @@ const handleConfirmDelete = () => {
   // ✅ close modal immediately
   closeDeleteModal();
 };
+
+useEffect(() => {
+  if (initialDepartment) {
+    setDepartment(initialDepartment);
+  }
+}, [initialDepartment]);
 
   // Fetch all schema options from backend
   useEffect(() => {

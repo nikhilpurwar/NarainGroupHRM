@@ -106,10 +106,11 @@ const ManageAdvance = () => {
     setShowView(true);
   };
 
-  const onEdit = (data) => {
-    setSelectedAdvance(data);
-    setShowAddEdit(true);
-  };
+const onEdit = (advance) => {
+  setSelectedAdvance(advance);
+  setShowView(false);
+  setShowAddEdit(true);
+};
 
   /* ================= PAGINATION ================= */
   const totalPages = Math.ceil(advances.length / pageSize);

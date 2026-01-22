@@ -102,7 +102,7 @@ const AddEditCharges = ({
           {/* Deduction */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Deduction / Charges *
+              Deduction / Charges  <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -123,7 +123,8 @@ const AddEditCharges = ({
           {/* Value Type */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Value Type *
+              
+              Value Type  <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.value_type}
@@ -140,7 +141,7 @@ const AddEditCharges = ({
           {/* Value */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              Value *
+              Value  <span className="text-red-500">*</span>
             </label>
             <input
               type="number"

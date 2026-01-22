@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios"
 import { toast } from "react-toastify"
 import { IoCloseSharp, IoCloudUploadOutline } from "react-icons/io5"
@@ -12,6 +12,8 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [employees, setEmployees] = useState([])
   const [search, setSearch] = useState("")
+  const [showDropdown, setShowDropdown] = useState(false)
+  
 
   const [form, setForm] = useState({
     employee: "",
@@ -24,6 +26,15 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
     attachment: null,
   })
 
+  const toggleDropdown = () => {
+  if (isEdit) return
+  setShowDropdown((prev) => !prev)
+}
+
+  const dropdownRef = useRef(null)
+const inputRef = useRef(null)
+
+
   const [errors, setErrors] = useState({})
 
   /* ================= PREFILL (EDIT MODE) ================= */
@@ -31,7 +42,7 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
     if (data) {
       setForm({
         employee: data.employee?._id || "",
-        date: data.date || "",
+        date: data.date ? data.date.split("T")[0] : "",
         type: data.type || "",
         amount: data.amount || "",
         instalment: data.instalment || "",
@@ -39,6 +50,11 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
         start_from: data.start_from || "",
         attachment: null,
       })
+       setSearch(
+      data.employee
+        ? `${data.employee.name} | ${data.employee.empId}`
+        : ""
+    );
     }
   }, [data])
 
@@ -128,13 +144,38 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
       setLoading(false)
     }
   }
+useEffect(() => {
+  const handleClickOutside = (e) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(e.target)
+    ) {
+      setShowDropdown(false)
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside)
+  return () => document.removeEventListener("mousedown", handleClickOutside)
+}, [])
+
+
+const filteredEmployees = useMemo(() => {
+  const q = search.toLowerCase().trim()
+  if (!q) return employees
+
+  return employees.filter(
+    (emp) =>
+      emp.name?.toLowerCase().includes(q) ||
+      emp.empId?.toLowerCase().includes(q)
+  )
+}, [employees, search])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
       <div className="card-hover bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 main-scroll">
 
         {/* HEADER */}
-        <div className="flex justify-between items-center border-b pb-3 sticky top-0 bg-white z-10">
+        <div className="flex justify-between items-center pb-3 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">
             {isEdit ? "Edit Advance / Loan" : "Add Advance / Loan"}
           </h2>
@@ -144,53 +185,76 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
         </div>
 
         {/* FORM */}
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-          {/* EMPLOYEE */}
-          <div className="relative">
-            <label className="text-sm font-medium">Employee *</label>
+         {/* EMPLOYEE */}
+<div className="relative" ref={dropdownRef}>
+  <label className="text-sm font-medium">
+              Select Employee
+              <span className="text-red-500">*</span>
+            </label>
+<input
+  ref={inputRef}
+  type="text"
+  placeholder="Select or search by name or emp id..."
+  value={search}
+  disabled={isEdit}
+  onClick={toggleDropdown}
+  onChange={(e) => {
+    setSearch(e.target.value)
+    setShowDropdown(true)
+  }}
+  className={`w-full border rounded px-3 py-2 ${
+    errors.employee ? "border-red-500" : ""
+  }`}
+/>
 
-            {/* Search box */}
-            <input
-              type="text"
-              placeholder="Search by ID or name"
-              className="w-full border rounded px-3 py-2 mb-2"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
 
-            {/* Suggestions */}
-            {search && (
-              <ul className="absolute z-10 bg-white border rounded w-full max-h-40 overflow-y-auto">
-                {employees
-                  .filter(
-                    (emp) =>
-                      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-                      emp.empId.toLowerCase().includes(search.toLowerCase())
-                  )
-                  .map((emp) => (
-                    <li
-                      key={emp._id}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => {
-                        setForm({ ...form, employee: emp._id });
-                        setSearch(`${emp.name} | ${emp.empId}`); // show selection in input
-                      }}
-                    >
-                      {emp.name} | {emp.empId}
-                    </li>
-                  ))}
-              </ul>
-            )}
-
-            {errors.employee && (
-              <p className="text-red-500 text-xs">{errors.employee}</p>
-            )}
+  {/* DROPDOWN */}
+  {showDropdown && !isEdit && (
+    <div
+      className="absolute z-50 left-0 right-0 mt-1
+                 bg-white border rounded-lg
+                 shadow-lg max-h-56 overflow-auto"
+    >
+      {filteredEmployees.length ? (
+        filteredEmployees.map((emp) => (
+          <div
+            key={emp._id}
+            onClick={() => {
+              setForm((f) => ({ ...f, employee: emp._id }))
+              setSearch(`${emp.name} | ${emp.empId}`)
+              setShowDropdown(false)
+            }}
+            className="px-4 py-3 cursor-pointer
+                       hover:bg-indigo-50 transition"
+          >
+            <p className="font-medium text-sm">{emp.name}</p>
+            <p className="text-xs text-gray-500">{emp.empId}</p>
           </div>
+        ))
+      ) : (
+        <div className="py-4 text-center text-sm text-gray-400">
+          No employees found
+        </div>
+      )}
+    </div>
+  )}
+
+  {errors.employee && (
+    <p className="text-red-500 text-xs mt-1">
+      {errors.employee}
+    </p>
+  )}
+</div>
+
 
           {/* DATE */}
           <div>
-            <label className="text-sm font-medium">Date *</label>
+          <label className="text-sm font-medium">
+              Date
+              <span className="text-red-500">*</span>
+            </label>
             <input
               type="date"
               className={`w-full border rounded px-3 py-2 ${errors.date ? "border-red-500" : ""
@@ -205,7 +269,10 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
 
           {/* TYPE */}
           <div>
-            <label className="text-sm font-medium">Type *</label>
+             <label className="text-sm font-medium">
+              Type
+              <span className="text-red-500">*</span>
+            </label>
             <div className="flex gap-6 mt-1">
               <label className="flex gap-2 items-center">
                 <input
@@ -228,7 +295,10 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
 
           {/* AMOUNT */}
           <div>
-            <label className="text-sm font-medium">Amount *</label>
+             <label className="text-sm font-medium">
+              Amount
+              <span className="text-red-500">*</span>
+            </label>
             <input
               type="number"
               className={`w-full border rounded px-3 py-2 ${errors.amount ? "border-red-500" : ""
@@ -243,8 +313,10 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
             <>
               {/* INSTALLMENTS */}
               <div>
-                <label className="text-sm font-medium">Installments *</label>
-                <input
+               <label className="text-sm font-medium">
+              Installments
+              <span className="text-red-500">*</span>
+            </label> <input
                   type="number"
                   className={`w-full border rounded px-3 py-2 ${errors.instalment ? "border-red-500" : ""
                     }`}
@@ -275,8 +347,9 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
 
               {/* TEXT ABOUT */}
               <div>
-                <label className="text-sm font-medium">Text about *</label>
-                <textarea
+               <label className="text-sm font-medium"> Text About
+              <span className="text-red-500">*</span>
+            </label><textarea
                   rows={3}
                   className={`w-full border rounded px-3 py-2 ${errors.reason ? "border-red-500" : ""
                     }`}
@@ -333,7 +406,7 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
           >
             {loading ? (
                 <>
-                  <Loader className="mr-2" size={16} />
+                 
                   Saving...
                 </>
               ) : (

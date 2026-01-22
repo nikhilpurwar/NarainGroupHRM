@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
@@ -19,6 +19,8 @@ const AllEmployees = () => {
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
   const API_BASE = `${API_URL}/api/employees`;
   const [employees, setEmployees] = useState([]);
+  const [searchParams] = useSearchParams();
+  const departmentFromUrl = searchParams.get("department");
 
   useEffect(() => {
     dispatch(ensureEmployees())
@@ -96,6 +98,7 @@ const handleDelete = async (id) => {
             subDepartments: ["GENERAL MANAGER", "OPRATION MANAGER"],
             groups: ["senior-staff", "junior-staff"],
           }}
+          initialDepartment={departmentFromUrl}
         />
       </div>
     </div>

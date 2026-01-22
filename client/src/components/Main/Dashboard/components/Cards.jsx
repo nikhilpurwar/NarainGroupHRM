@@ -8,14 +8,18 @@ import {
 } from "react-icons/fa"; 
 import { GiOpenGate } from "react-icons/gi";
 import {IoMdLogOut } from "react-icons/io";
+import { useNavigate } from "react-router-dom";
+
+
 
 const Cards = ({ data }) => {
+  const navigate = useNavigate(); //
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
         {/* EMPLOYEES */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-5 shadow-sm card-hover">
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-5 shadow-sm card-hover" onClick={()=>navigate("/employees")} >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-indigo-700">
@@ -49,6 +53,8 @@ const Cards = ({ data }) => {
           gradient="from-green-50 to-green-100"
           border="border-green-200"
           text="text-green-700"
+          onClick={()=> navigate("/attendence-report")}
+
         />
 
         {/* MONTHLY ABSENT */}
@@ -59,6 +65,7 @@ const Cards = ({ data }) => {
           gradient="from-red-50 to-red-100"
           border="border-red-200"
           text="text-red-700"
+          onClick={()=> navigate("/attendence-report")}
         />
 
         {/* TODAY MOVEMENT */}
@@ -90,14 +97,16 @@ const Cards = ({ data }) => {
   gradient="from-sky-50 to-sky-100"
   border="border-sky-200"
   text="text-sky-700"
+  onClick={()=> navigate("/liveattend")}
 />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-6">
         {data.departments?.map((dept) => (
           <div
-            key={dept._id}
-            className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 shadow-sm card-hover"
-          >
+  key={dept._id}
+  onClick={() => navigate(`/employees?department=${dept._id}`)}
+  className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 shadow-sm card-hover cursor-pointer"
+>
             <div className=" flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm font-semibold text-slate-600">
@@ -136,9 +145,9 @@ const Cards = ({ data }) => {
 };
 
 /* ================= REUSABLE KPI CARD ================= */
-const KpiCard = ({ title, value, icon, gradient, text, border }) => {
+const KpiCard = ({ title, value, icon, gradient, text, border , onClick}) => {
   return (
-    <div className={`bg-gradient-to-br ${gradient} border ${border} rounded-xl p-5 shadow-sm card-hover `}>
+    <div onClick={onClick} className={`bg-gradient-to-br ${gradient} border ${border} rounded-xl p-5 shadow-sm card-hover`}>
       <div className="h-full flex items-center justify-between ">
         <div className="flex flex-col justify-start items-start">
           <p className={`text-sm font-semibold ${text}`}>
