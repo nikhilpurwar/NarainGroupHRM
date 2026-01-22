@@ -1,24 +1,5 @@
 import mongoose from "mongoose";
 
-const attendanceSchema = new mongoose.Schema({
-  date: { type: Date, required: true },
-  status: { type: String, enum: ["present", "absent"], default: "absent" },
-  inTime: { type: String }, // HH:mm:ss format
-  outTime: { type: String }, // HH:mm:ss format
-  totalHours: { type: Number, default: 0 }, // Total hours worked
-  regularHours: { type: Number, default: 0 }, // Regular shift hours
-  overtimeHours: { type: Number, default: 0 }, // Overtime hours (if any)
-  breakMinutes: { type: Number, default: 0 }, // Break duration in minutes
-  isWeekend: { type: Boolean, default: false }, // Sunday/Saturday flag
-  isHoliday: { type: Boolean, default: false }, // Holiday flag
-  punchLogs: [{ // Track individual punches for detailed records
-    punchType: { type: String, enum: ["IN", "OUT"], required: true },
-    punchTime: { type: Date, required: true },
-    _id: false
-  }],
-  note: { type: String }
-}, { _id: false });
-
 const employeeSchema = new mongoose.Schema({
     name: { type: String, required: true },
     fatherName: { type: String },
@@ -48,6 +29,8 @@ const employeeSchema = new mongoose.Schema({
 // without empId to coexist (pre-existing records) — remove sparse if you
 // want to enforce uniqueness for all documents.
 employeeSchema.index({ empId: 1 }, { unique: true, sparse: true });
+// Ensure unique email when provided. Use sparse so documents without email are allowed.
+employeeSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 const Employee = mongoose.model("Employee", employeeSchema);
 
