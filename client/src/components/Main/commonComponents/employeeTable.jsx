@@ -49,6 +49,16 @@ const EmployeeTable = ({
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+const formatDate = (date) => {
+  if (!date) return "—";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
   // When user clicks delete button
   const handleDeleteClick = (emp) => {
   setEmployeeToDelete(emp);
@@ -59,7 +69,8 @@ const closeDeleteModal = () => {
   setShowDeleteConfirm(false);
   setEmployeeToDelete(null);
 };
-/* ================= DELETE EMPLOYEE CONFIRMATION MODAL ================= */
+
+// DELETE EMPLOYEE CONFIRMATION MODAL
 const DeleteEmployeeConfirmationModal = () => {
   if (!showDeleteConfirm || !employeeToDelete) return null;
 
@@ -100,17 +111,17 @@ const DeleteEmployeeConfirmationModal = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-2 gap-3 gap-x-19  text-sm">
             <div>
               <span className="text-gray-600">Department:</span>
-              <span className="ml-2 font-medium">
+              <span className="ml-1 font-medium whitespace-nowrap">
                 {employeeToDelete.headDepartment?.name || "—"}
               </span>
             </div>
 
             <div>
               <span className="text-gray-600">Sub Dept:</span>
-              <span className="ml-2 font-medium">
+              <span className="ml-1 font-medium">
                 {employeeToDelete.subDepartment?.name || "—"}
               </span>
             </div>
@@ -118,7 +129,7 @@ const DeleteEmployeeConfirmationModal = () => {
             <div>
               <span className="text-gray-600">Status:</span>
               <span
-                className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                className={`ml-1 px-2 py-1 rounded-full text-xs ${
                   employeeToDelete.status === "active"
                     ? "bg-green-200 text-green-700"
                     : "bg-red-100 text-red-600"
@@ -130,10 +141,11 @@ const DeleteEmployeeConfirmationModal = () => {
 
             <div>
               <span className="text-gray-600">Joined:</span>
-              <span className="ml-2">
-                {employeeToDelete.createdAt
-                  ? new Date(employeeToDelete.createdAt).toLocaleDateString()
-                  : "—"}
+              <span className="ml-1">
+               {" "}
+          <strong>
+              {formatDate(employeeToDelete?.createdAt)}
+          </strong>
               </span>
             </div>
           </div>
@@ -197,6 +209,7 @@ const handleConfirmDelete = () => {
 
   // ✅ ONLY notify parent
   onDelete(employeeToDelete._id);
+  
 
   // ✅ close modal immediately
   closeDeleteModal();
@@ -233,6 +246,7 @@ const handleConfirmDelete = () => {
   }, []);
 
   useEffect(() => setFiltered(employees || []), [employees]);
+
 
   useEffect(() => {
     let temp = [...employees];

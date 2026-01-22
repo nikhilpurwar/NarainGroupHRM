@@ -104,7 +104,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow col-span-2">
+          <div className="bg-white p-6 rounded-xl shadow lg:col-span-2">
             <h2 className="text-xl font-bold mb-4">
               Attendance Trend (Last 7 Days)
             </h2>
@@ -133,7 +133,7 @@ const Dashboard = () => {
       
       <div className="grid grid-row-1 lg:grid-cols-3 gap-6">
         {/* Recent Employees */}
-        <span className="col-span-2">
+        <span className="lg:col-span-2">
           <EmployeeAttendance employees={data.recentEmployees} />
         </span>
         {/* Upcoming Holidays */}

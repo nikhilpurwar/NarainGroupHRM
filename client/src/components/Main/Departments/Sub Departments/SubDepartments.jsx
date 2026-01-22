@@ -77,7 +77,7 @@ const SubDepartments = () => {
 
   return (
     <div className="p-6">
-      <div className="border border-gray-300 rounded-xl shadow-lg overflow-hidden">
+      <div className="max-w-7xl mx-auto border border-gray-300 rounded-xl shadow-lg overflow-hidden">
         
         {/* Header */}
         <div className="flex justify-between items-center p-4 text-white bg-gray-900 font-semibold text-lg rounded-t-xl">
@@ -134,19 +134,21 @@ const SubDepartments = () => {
                   <td className="px-4 py-3 border-t">{item.headDepartment?.name || '-'}</td>
                   {/* <td className="px-4 py-3 border-t">{item.hod}</td> */}
 
-                  <td className="flex items-center gap-3 px-4 py-3 border-t">
-                    <FiEdit
-                      onClick={() => handleEdit(item)}
-                      size={16}
-                      className="text-blue-700 cursor-pointer hover:scale-105"
-                    />
-
-                    <MdDeleteOutline
-                      onClick={() => handleDelete(item)}
-                      size={20}
-                      className="text-red-600 cursor-pointer hover:scale-105"
-                    />
-                  </td>
+                 <td className="px-4 py-3 border-t">
+                           <div className="flex items-center gap-3">
+                             <FiEdit
+                               onClick={() => handleEdit(item)}
+                               size={16}
+                               className="text-blue-600 cursor-pointer hover:text-blue-800 transition"
+                             />
+                 
+                             <MdDeleteOutline
+                               onClick={() => handleDelete(item)}
+                               size={20}
+                               className="text-red-600 cursor-pointer hover:text-red-800 transition"
+                             />
+                           </div>
+                         </td>
                 </tr>
               ))}
             </tbody>

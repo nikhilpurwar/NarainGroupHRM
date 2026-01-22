@@ -14,7 +14,7 @@ const EmployeeAttendance = ({ employees = [] }) => {
   return (
     <div className="border rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
+      <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
         Recent Employees Attendance
         <select
           className="bg-white text-black rounded px-3 py-1 text-sm"

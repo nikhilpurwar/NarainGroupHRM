@@ -34,9 +34,9 @@ const handleDelete = async (id) => {
   try {
     await axios.delete(`${API_BASE}/${id}`);
 
-    // ✅ instant UI update
-    setEmployees(prev => prev.filter(emp => emp._id !== id));
-
+    // // ✅ instant UI update
+     setEmployees(prev => prev.filter(emp => emp._id !== id));
+    dispatch(fetchEmployees());
     toast.success("Employee deleted");
   } catch (err) {
     console.error(err);
