@@ -108,6 +108,14 @@ export const createEmployee = async (req, res) => {
     }
 
     // create employee first
+    // Ensure email uniqueness (case-insensitive) when provided
+    if (req.body?.email) {
+      const emailNorm = String(req.body.email).trim().toLowerCase();
+      const emailExists = await Employee.findOne({ email: { $regex: `^${emailNorm}$`, $options: 'i' } }).lean();
+      if (emailExists) return res.status(409).json({ success: false, message: 'Email already exists, Please use different email Id' });
+      req.body.email = emailNorm;
+    }
+
     const emp = await Employee.create(req.body);
 
     // generate barcode and QR based on empId (fallback to _id)
@@ -951,6 +959,16 @@ export const updateEmployee = async (req, res) => {
       // ignore and continue; fail-safe will block unauthorized later
     }
     const prevEmpId = emp.empId;
+    // If email is being updated, ensure uniqueness
+    if (req.body?.email) {
+      const newEmail = String(req.body.email).trim().toLowerCase();
+      if (String(emp.email || '').toLowerCase() !== newEmail) {
+        const existing = await Employee.findOne({ _id: { $ne: emp._id }, email: { $regex: `^${newEmail}$`, $options: 'i' } }).lean();
+        if (existing) return res.status(409).json({ success: false, message: 'Email already exists, Please use different email Id' });
+      }
+      req.body.email = newEmail;
+    }
+
     Object.assign(emp, req.body);
     // if empId changed or missing, regenerate barcode/QR
     if (req.body.empId && req.body.empId !== prevEmpId) {
