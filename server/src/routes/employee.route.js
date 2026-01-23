@@ -10,6 +10,8 @@ import {
   getBarcodes,
   getQRCodes,
   getEmployeeProfile,
+  getEmployeesForFaceRecognition,
+  faceAttendance,
 } from "../controllers/employee.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/permission.middleware.js";
@@ -27,6 +29,8 @@ router.delete("/:id", authenticate, checkPermission, deleteEmployee);
 router.post("/:id/attendance", authenticate, addAttendance);
 router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
 router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
+router.get("/faces", getEmployeesForFaceRecognition); // Get employees with face data
+router.post("/attendance/face", faceAttendance); // Face attendance endpoint
 router.get("/:id/attendance", authenticate, getAttendance);
 
 export default router;
