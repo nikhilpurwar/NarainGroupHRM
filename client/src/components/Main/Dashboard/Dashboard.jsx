@@ -104,14 +104,15 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow lg:col-span-2">
-            <h2 className="text-xl font-bold mb-4">
+          <div className="bg-white py-1 justify-between p-6 rounded-xl shadow lg:col-span-2">
+            <h2 className="text-xl font-bold mb-4 py-7">
               Attendance Trend (Last 7 Days)
             </h2>
                {/* <div className="h-20 w-20 flex align-right" >
               <Doughnut data={attendanceDonut}/>
               </div> */}
-            <LineTrendChart
+           <div>
+             <LineTrendChart
               data={(data?.attendanceTrend?.datasets || []).map((d, i) => ({
                 date: data.attendanceTrend.labels[i] || `Day ${i + 1}`,
                 value: d.present || 0,
@@ -119,6 +120,7 @@ const Dashboard = () => {
               height={160}
               stroke="#16a34a"
             />
+           </div>
           </div>   
 
            <PieCharts className="justify-center items-center" data={data} />
