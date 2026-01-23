@@ -25,6 +25,84 @@ const ManageUsers = () => {
   const [showDelete, setShowDelete] = useState(false)
   const [deleteItem, setDeleteItem] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [localStatusMap, setLocalStatusMap] = useState({})
+  const [pendingToggles, setPendingToggles] = useState({})
+
+  const StatusToggle3D = ({ isActive, onClick, isPending = false }) => {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      title={isActive ? "Set Inactive" : "Set Active"}
+      className={`
+        relative w-12 h-6 rounded-full
+        transition-all duration-300 ease-out
+        flex items-center
+        ${
+          isActive
+            ? "bg-gradient-to-r from-green-400 to-green-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(34,197,94,0.45)]"
+            : "bg-gradient-to-r from-red-400 to-red-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(239,68,68,0.45)]"
+        }
+      `}
+    >
+      {/* Knob */}
+      <span
+        className={`
+          absolute top-[3.5px] left-[4px] w-4 h-4 rounded-full
+          bg-gradient-to-b from-white via-gray-100 to-gray-300
+          shadow-[0_2px_5px_rgba(0,0,0,0.45)]
+          transition-transform duration-300
+          ${isActive ? "translate-x-6" : "translate-x-0"}
+        `}
+      />
+
+      {/* Spinner */}
+      {isPending && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+        </span>
+      )}
+    </button>
+  )
+}
+const toggleStatusOptimistic = async (user) => {
+  const id = user._id
+  const prev = user.isActive ? "active" : "inactive"
+  const next = prev === "active" ? "inactive" : "active"
+
+  // ✅ Optimistic UI
+  setLocalStatusMap((s) => ({ ...s, [id]: next }))
+  setPendingToggles((p) => ({ ...p, [id]: true }))
+
+  try {
+    await axios.patch(`${API}/${id}/toggle`)
+
+    // ✅ Conditional toast
+    if (next === "active") {
+      toast.success("User activated successfully")
+    } else {
+      toast.success("User deactivated successfully")
+    }
+
+  } catch (err) {
+    console.error(err)
+    toast.error("Toggle failed")
+
+    // ❌ Revert on error
+    setLocalStatusMap((s) => ({ ...s, [id]: prev }))
+  } finally {
+    setPendingToggles((p) => {
+      const np = { ...p }
+      delete np[id]
+      return np
+    })
+
+    fetchUsers()
+  }
+}
+
+
+
 
   /* ================= FETCH ================= */
   const fetchUsers = async () => {
@@ -165,17 +243,27 @@ const ManageUsers = () => {
                       </span>
                     </td>
                     <td className="p-4 flex gap-3">
-                      <button
-                        onClick={() => handleToggleStatus(user)}
-                        className={`p-2 rounded-lg ${
-                          user.isActive 
-                            ? "bg-red-100 text-red-600 hover:bg-red-200" 
-                            : "bg-green-100 text-green-600 hover:bg-green-200"
-                        }`}
-                        title={user.isActive ? "Deactivate" : "Activate"}
-                      >
-                        {user.isActive ? <IoToggle size={16} /> : <IoToggleOutline size={16} />}
-                      </button>
+                     <td className="p-4">
+  {(() => {
+    const id = user._id
+    const displayed =
+      localStatusMap[id] ??
+      (user.isActive ? "active" : "inactive")
+    const isPending = Boolean(pendingToggles[id])
+
+    return (
+      <StatusToggle3D
+        isActive={displayed === "active"}
+        isPending={isPending}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (!isPending) toggleStatusOptimistic(user)
+        }}
+      />
+    )
+  })()}
+</td>
+
                       <button
                         onClick={() => handleEdit(user)}
                         className="p-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
@@ -187,7 +275,7 @@ const ManageUsers = () => {
                         onClick={() => handleDelete(user)}
                         className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
                       >
-                        <MdDeleteOutline size={16} />
+                        <MdDeleteOutline size={18} />
                       </button>
                     </td>
                   </tr>
