@@ -145,7 +145,7 @@ const onEdit = (advance) => {
         onClick={onClick}
         title={isActive ? 'Set Inactive' : 'Set Active'}
         className={`
-                relative w-12 h-5 rounded-full
+                relative w-9 h-5 rounded-full
                 flex items-center
                 transition-all duration-300 ease-out
                 focus:outline-none
@@ -157,11 +157,12 @@ const onEdit = (advance) => {
         {/* Knob */}
         <span
           className={`
-                    absolute top-0.5 left-0.5 w-4 h-4 rounded-full
-                    bg-gradient-to-b from-white via-gray-100 to-gray-300
-                    shadow-[0_2px_5px_rgba(0,0,0,0.45)]
-                    transition-transform duration-300 ease-out
-                    ${isActive ? 'translate-x-7' : 'translate-x-0'}
+                   absolute top-[4px] left-[4px]
+          w-3 h-3 rounded-full
+          bg-gradient-to-b from-white via-gray-100 to-gray-300
+          shadow-[0_2px_4px_rgba(0,0,0,0.4)]
+          transition-transform duration-300
+          ${isActive ? "translate-x-4" : "translate-x-0"}
                 `}
         />
 

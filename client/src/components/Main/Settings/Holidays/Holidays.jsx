@@ -229,14 +229,17 @@ const confirmDelete = async () => {
     </button>
 
     {/* Past Badge */}
-    {isPastFestival(item.date) && (
-      <span className="ml-2 inline-block px-3 py-1 text-xs font-semibold rounded-full bg-gray-300 text-gray-600">
-        Past
-      </span>
-    )}
+    
   </div>
 </td>
 
+ <td className="px-4 py-3 border-t">
+  <div>{isPastFestival(item.date) && (
+      <span className="ml-2 inline-block px-3 py-1 text-xs font-semibold rounded-full bg-gray-300 text-gray-600">
+        Past
+      </span>
+    )}</div>
+</td>
 </tr>
               ))}
             </tbody>

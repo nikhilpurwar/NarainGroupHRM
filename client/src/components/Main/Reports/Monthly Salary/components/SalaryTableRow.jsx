@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Eye, BanknoteArrowUp, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SalaryTableRow = memo(({
   item,
@@ -8,6 +9,7 @@ const SalaryTableRow = memo(({
   onDownloadPDF,
   onLoanDeductChange
 }) => {
+   const navigate = useNavigate();
 
   // const formatDaysHoursMinutes = (hours, hoursPerDay = 8) => {
   //   if (!hours && hours !== 0) return '0d 0h 0m';
@@ -43,7 +45,7 @@ const SalaryTableRow = memo(({
   const dailySalaryValue = isDailySalary ? (item.salary || 0) : (item.salaryPerDay || 0);
 
   return (
-    <tr className="hover:bg-gray-50 transition">
+    <tr className="hover:bg-gray-50 transition ">
       <td className="px-4 py-3 text-sm font-medium text-gray-900">{serialNumber}</td>
       <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.empId}</td>
       <td className="px-4 py-3">
@@ -54,7 +56,7 @@ const SalaryTableRow = memo(({
             </span>
           </div>
           <div>
-            <div className="text-sm font-medium text-gray-900">{item.empName}</div>
+            <div className="text-sm font-medium text-gray-900 cursor-pointer" onClick={()=>navigate("/attReport")}>{item.empName}</div>
             <div className="text-xs text-gray-500">{item.department || 'N/A'}</div>
           </div>
         </div>
@@ -68,7 +70,7 @@ const SalaryTableRow = memo(({
       <td className="px-4 py-3 text-sm text-gray-900">₹{dailySalaryValue.toLocaleString()}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.salaryPerHour?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-center">
-        <div className={`border-b items-center px-3 py-1 rounded-full text-xs font-medium ${item.presentDays >= 22 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+        <div className={`border-b items-center px-3 py-1 rounded-full text-xs cursor-pointer font-medium ${item.presentDays >= 22 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`} onClick={()=>navigate('/attReport')} >
           {item.presentDays}
         </div>
         <small
@@ -207,7 +209,7 @@ const SalaryTableRow = memo(({
       <td className="px-4 py-3 text-sm text-gray-900 bg-gray-50">₹{item.basicPF?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-blue-700 bg-blue-50">₹{item.otPF?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.insurance?.toLocaleString() || '0'}</td>
-      <td className="px-4 py-3 text-sm text-gray-900">₹{item.advance?.toLocaleString() || '0'}</td>
+      <td className="px-4 py-3 text-sm text-gray-900 cursor-pointer" onClick={()=>navigate("/advance")}>₹{item.advance?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.loanPending?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.loanReceived?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">

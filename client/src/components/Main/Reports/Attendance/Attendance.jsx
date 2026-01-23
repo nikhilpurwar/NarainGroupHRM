@@ -44,6 +44,7 @@ const ReportsAttendance = () => {
   const [isProcessingPunch, setIsProcessingPunch] = useState(false);
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   const fetchInProgressRef = useRef(false);
   const lastRequestedRef = useRef(null);
@@ -145,6 +146,7 @@ const ReportsAttendance = () => {
     } finally {
       fetchInProgressRef.current = false;
       setLoading(false);
+      setInitializing(false); // 
     }
   };
 
@@ -493,7 +495,7 @@ useEffect(() => {
               />
             </div>
           )}
-          {!loading && !report && !filters.search && (
+          {!initializing && !loading && !report && !filters.search && (
             <div className="md:col-span-1">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 {/* Header */}
