@@ -199,6 +199,196 @@ export const getEmployeeById = async (req, res) => {
   }
 };
 
+export const getEmployeesForFaceRecognition = async (req, res) => {
+  try {
+    const employees = await Employee.find(
+      { status: 'active', avatar: { $exists: true, $ne: null } },
+      { _id: 1, name: 1, empId: 1, avatar: 1 }
+    ).lean();
+
+    return res.json({
+      success: true,
+      data: employees
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const faceAttendance = async (req, res) => {
+  try {
+    const { employeeId } = req.body;
+    if (!employeeId) {
+      return res.status(400).json({ success: false, message: 'Employee ID is required' });
+    }
+
+    const emp = await Employee.findById(employeeId)
+      .populate('headDepartment')
+      .populate('subDepartment')
+      .populate('designation');
+
+    if (!emp) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (emp.status?.toString().toLowerCase() !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' });
+    }
+
+    const now = new Date();
+    const clientTsRaw = req.body?.clientTs || req.body?.punchTime;
+    if (clientTsRaw) {
+      const asNumber = Number(clientTsRaw);
+      const clientTime = !Number.isNaN(asNumber) ? new Date(asNumber) : new Date(clientTsRaw);
+      if (!isNaN(clientTime.getTime())) now.setTime(clientTime.getTime());
+    }
+
+    const tzOffsetMinutes = Number(req.body?.tzOffsetMinutes);
+    let currentTimeString;
+    if (!Number.isNaN(tzOffsetMinutes)) {
+      const clientLocal = new Date(now.getTime() - (tzOffsetMinutes * 60000));
+      currentTimeString = clientLocal.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    } else {
+      currentTimeString = now.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+
+    if (attendanceService.isPunchDuplicate(emp._id.toString(), null)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate punch detected. Please try again after a few seconds.'
+      });
+    }
+
+    const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
+    const attendanceDoc = await Attendance.findOne({
+      employee: emp._id,
+      date: {
+        $gte: new Date(`${attendanceIso}T00:00:00Z`),
+        $lte: new Date(`${attendanceIso}T23:59:59Z`)
+      }
+    });
+
+    let result;
+    if (attendanceDoc) {
+      const lastPunch = attendanceDoc.punchLogs?.slice(-1)[0]?.punchType?.toUpperCase();
+      if (lastPunch === 'IN') {
+        result = await processPunchOut(emp, attendanceDoc, now, currentTimeString, 'face recognition');
+      } else {
+        result = await processPunchIn(emp, now, currentTimeString, attendanceIso, attendanceDoc, 'face recognition');
+      }
+    } else {
+      result = await processPunchIn(emp, now, currentTimeString, attendanceIso, null, 'face recognition');
+    }
+
+    return res.json({
+      success: true,
+      ...result,
+      employee_id: emp._id,
+      time: currentTimeString,
+      employee_name: emp.name
+    });
+  } catch (err) {
+    console.error('Face attendance error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const processPunchIn = async (emp, now, currentTimeString, attendanceIso, existingAttendance, method = 'manual toggle') => {
+  if (existingAttendance) {
+    existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
+    existingAttendance.inTime = currentTimeString;
+    await updateAttendanceTotals(existingAttendance, emp);
+    await existingAttendance.save();
+    attendanceService.recordPunch(emp._id.toString(), 'IN');
+    await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+    return { type: 'in', message: 'Punch IN appended', attendance: existingAttendance };
+  }
+
+  const dateObj = new Date(`${attendanceIso}T00:00:00Z`);
+  const isWeekend = await isWeekendForEmployee(emp, dateObj);
+  let isHoliday = false;
+  try {
+    const dIso = dateObj.toISOString().slice(0,10);
+    const holiday = await Holiday.findOne({ 
+      date: { $gte: new Date(`${dIso}T00:00:00Z`), $lte: new Date(`${dIso}T23:59:59Z`) } 
+    }).lean();
+    isHoliday = !!holiday;
+  } catch (e) {}
+
+  const newAtt = await Attendance.create({
+    employee: emp._id,
+    date: dateObj,
+    status: 'present',
+    inTime: currentTimeString,
+    totalHours: 0,
+    regularHours: 0,
+    overtimeHours: 0,
+    totalMinutes: 0,
+    totalHoursDisplay: '0h 0m',
+    regularHoursDisplay: '0h 0m',
+    overtimeHoursDisplay: '0h 0m',
+    isWeekend,
+    isHoliday,
+    punchLogs: [{ punchType: 'IN', punchTime: now }],
+    note: `Punch IN via ${method}`
+  });
+
+  attendanceService.recordPunch(emp._id.toString(), 'IN');
+  await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+  return { type: 'in', message: 'Punch IN successful', attendance: newAtt };
+};
+
+const processPunchOut = async (emp, attendance, now, currentTimeString, method = 'manual toggle') => {
+  attendance.punchLogs.push({ punchType: 'OUT', punchTime: now });
+  await updateAttendanceTotals(attendance, emp);
+  attendance.outTime = currentTimeString;
+  attendance.note = `Punch OUT via ${method} | Total: ${attendance.totalHoursDisplay}`;
+  await attendance.save();
+  attendanceService.recordPunch(emp._id.toString(), 'OUT');
+  return {
+    type: 'out',
+    message: 'Punch OUT successful',
+    attendance,
+    total_hours: attendance.totalHours,
+    regular_hours: attendance.regularHours,
+    overtime_hours: attendance.overtimeHours
+  };
+};
+
+const updateAttendanceTotals = async (attendance, emp) => {
+  const shiftCfg = await attendanceService.getShiftConfig();
+  let shiftHours = 8;
+  if (emp.shift) {
+    const match = String(emp.shift).match(/(\d+(?:\.\d+)?)/);
+    if (match) shiftHours = Math.max(Number(match[1]) || shiftHours, shiftHours);
+  }
+  shiftHours = shiftCfg.shiftHours > 0 ? shiftCfg.shiftHours : shiftHours;
+
+  const computed = attendanceService.computeTotalsFromPunchLogs(
+    attendance.punchLogs,
+    shiftHours,
+    { countOpenAsNow: true, dayMeta: { isWeekend: attendance.isWeekend, isHoliday: attendance.isHoliday } }
+  );
+
+  Object.assign(attendance, {
+    totalHours: computed.totalHours,
+    regularHours: computed.regularHours,
+    overtimeHours: computed.overtimeHours,
+    totalMinutes: computed.totalMinutes,
+    totalHoursDisplay: computed.totalHoursDisplay,
+    regularHoursDisplay: computed.regularHoursDisplay,
+    overtimeHoursDisplay: computed.overtimeHoursDisplay,
+    dayOtHours: computed.dayOtHours,
+    nightOtHours: computed.nightOtHours,
+    sundayOtHours: computed.sundayOtHours,
+    festivalOtHours: computed.festivalOtHours
+  });
+};
+
 export const addAttendance = async (req, res) => {
   try {
     const { date, status, inTime, outTime, note } = req.body || {};

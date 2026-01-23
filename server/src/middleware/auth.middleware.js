@@ -28,7 +28,7 @@ export const checkUserActive = async (req, res, next) => {
     }
     if (!user.isActive) {
       const admin = await User.findOne({ role: 'admin', isActive: true })
-      const adminName = admin ? admin.name : 'Administrator'
+      const adminName = admin ? admin.name : 'Developer'
       return res.status(403).json({ 
         success: false, 
         message: `Your credentials temporarily terminated. Please contact admin (${adminName})`,
