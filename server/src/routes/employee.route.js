@@ -22,15 +22,15 @@ router.post("/", authenticate, checkPermission, createEmployee);
 router.get("/", authenticate, checkPermission, getEmployees);
 router.get("/barcodes", authenticate, checkPermission, getBarcodes);
 router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
+router.get("/faces", getEmployeesForFaceRecognition); // Get employees with face data
+router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
+router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
+router.post("/attendance/face", faceAttendance); // Face attendance endpoint
 router.get("/:id", authenticate, getEmployeeById);
 router.get("/:id/profile", authenticate, getEmployeeProfile);
 router.put("/:id", authenticate, checkPermission, updateEmployee);
 router.delete("/:id", authenticate, checkPermission, deleteEmployee);
 router.post("/:id/attendance", authenticate, addAttendance);
-router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
-router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
-router.get("/faces", getEmployeesForFaceRecognition); // Get employees with face data
-router.post("/attendance/face", faceAttendance); // Face attendance endpoint
 router.get("/:id/attendance", authenticate, getAttendance);
 
 export default router;
