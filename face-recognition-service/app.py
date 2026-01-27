@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import cv2
 import numpy as np
 import base64
 from facenet_pytorch import MTCNN, InceptionResnetV1
@@ -19,7 +18,6 @@ resnet = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 def base64_to_image(base64_string):
     """Convert base64 string to PIL Image"""
     try:
-        # Remove data URL prefix if present
         if ',' in base64_string:
             base64_string = base64_string.split(',')[1]
         
