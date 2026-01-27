@@ -9,5 +9,4 @@ dist
 .README.md
 BarcodeScanner.jsx
 ANDROID_FACE_ATTENDANCE_API.md
-face-recognition-service/requirements.txt
 FACE_RECOGNITION_SETUP.md
