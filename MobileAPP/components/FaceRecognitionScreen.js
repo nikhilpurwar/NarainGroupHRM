@@ -25,6 +25,7 @@ export default function FaceRecognitionScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [cameraFacing, setCameraFacing] = useState('front'); // 'front' or 'back'
   const cameraRef = useRef(null);
 
   useEffect(() => {
@@ -35,6 +36,8 @@ export default function FaceRecognitionScreen() {
     getCameraPermissions();
     loadEmployees();
   }, []);
+
+  // Rest of your existing code remains the same...
 
   const loadEmployees = async () => {
     setIsLoading(true);
@@ -101,7 +104,7 @@ export default function FaceRecognitionScreen() {
           },
           body: JSON.stringify({
             image: `data:image/jpeg;base64,${photo.base64}`,
-            threshold: 0.6
+            threshold: 0.9
           }),
         });
         
@@ -173,6 +176,10 @@ export default function FaceRecognitionScreen() {
     }
   };
 
+  const toggleCameraFacing = () => {
+    setCameraFacing(current => (current === 'front' ? 'back' : 'front'));
+  };
+
   if (hasPermission === null) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -213,27 +220,48 @@ export default function FaceRecognitionScreen() {
         <CameraView
           ref={cameraRef}
           style={styles.scanner}
-          facing="front"
+          facing={cameraFacing} // Use state variable here
         />
         
         <View style={styles.overlay}>
-          <View style={[styles.faceFrame, recognizing && styles.faceFrameActive]}>
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
-            
-            {countdown > 0 && (
-              <View style={styles.countdownContainer}>
-                <Text style={styles.countdownText}>{countdown}</Text>
-              </View>
-            )}
-          </View>
+          {cameraFacing === 'front' && (
+            <View style={[styles.faceFrame, recognizing && styles.faceFrameActive]}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              
+              {countdown > 0 && (
+                <View style={styles.countdownContainer}>
+                  <Text style={styles.countdownText}>{countdown}</Text>
+                </View>
+              )}
+            </View>
+          )}
           
           <Text style={styles.instructionText}>
-            {recognizing ? (countdown > 0 ? 'Get ready...' : 'Recognizing...') : 'Position your face and tap to scan'}
+            {cameraFacing === 'front' 
+              ? (recognizing ? (countdown > 0 ? 'Get ready...' : 'Recognizing...') : 'Position your face and tap to scan')
+              : 'Back camera - Use for taking photos'
+            }
           </Text>
         </View>
+
+        {/* Flip Camera Button */}
+        <TouchableOpacity
+          style={styles.flipButton}
+          onPress={toggleCameraFacing}
+          disabled={recognizing}
+        >
+          <Ionicons 
+            name="camera-reverse" 
+            size={24} 
+            color="#fff" 
+          />
+          <Text style={styles.flipButtonText}>
+            {cameraFacing === 'front' ? 'Back' : 'Front'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {showSuccess && (
@@ -317,7 +345,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   faceFrame: {
     width: width * 0.6,
@@ -391,6 +419,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+  },
+  // Flip Camera Button Styles
+  flipButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flipButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 5,
   },
   bottomContainer: {
     padding: 20,
