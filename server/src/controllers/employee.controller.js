@@ -287,8 +287,13 @@ export const recognizeFace = async (req, res) => {
   try {
     const { image, threshold = 0.7 } = req.body;
     
-    if (!image) {
-      return res.status(400).json({ success: false, message: 'Image required' });
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({ success: false, message: 'Valid base64 image required' });
+    }
+
+    const numThreshold = Number(threshold);
+    if (isNaN(numThreshold) || numThreshold < 0 || numThreshold > 1) {
+      return res.status(400).json({ success: false, message: 'Threshold must be between 0 and 1' });
     }
 
     // Extract descriptor from input image
@@ -326,7 +331,7 @@ export const recognizeFace = async (req, res) => {
     }
 
     // Find best match
-    const bestMatch = faceRecognitionService.findBestMatch(inputDescriptor, knownDescriptors, threshold);
+    const bestMatch = faceRecognitionService.findBestMatch(inputDescriptor, knownDescriptors, numThreshold);
 
     if (bestMatch) {
       res.json({ 
@@ -372,8 +377,8 @@ export const getEmployeesForFaceRecognition = async (req, res) => {
 export const faceAttendance = async (req, res) => {
   try {
     const { employeeId } = req.body;
-    if (!employeeId) {
-      return res.status(400).json({ success: false, message: 'Employee ID is required' });
+    if (!employeeId || typeof employeeId !== 'string') {
+      return res.status(400).json({ success: false, message: 'Valid employee ID is required' });
     }
 
     const emp = await Employee.findById(employeeId)

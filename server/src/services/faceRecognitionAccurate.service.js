@@ -8,38 +8,39 @@ class FaceRecognitionService {
   }
 
   async extractFaceDescriptor(imageBuffer) {
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error('Invalid image buffer provided');
+    }
+    
     try {
       // Convert base64 to actual image data analysis
-      const base64Data = imageBuffer.toString('base64');
+      const base64String = imageBuffer.toString('base64');
       
       // Create descriptor from image characteristics
       const descriptor = new Array(128);
       
       // Analyze different parts of the base64 string for unique patterns
-      const chunks = Math.floor(base64Data.length / 128);
+      const chunks = Math.floor(base64String.length / 128);
       
+      // Optimized single-pass processing
       for (let i = 0; i < 128; i++) {
         const start = i * chunks;
-        const end = start + chunks;
-        const chunk = base64Data.slice(start, end);
+        const end = Math.min(start + chunks, base64String.length);
+        const chunk = base64String.slice(start, end);
         
         // Calculate variance in this chunk
-        let sum = 0;
-        for (let j = 0; j < chunk.length; j++) {
-          sum += chunk.charCodeAt(j);
-        }
-        
+        const sum = chunk.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         descriptor[i] = (sum / chunk.length) / 255; // Normalize
       }
       
       return descriptor;
     } catch (error) {
-      throw new Error('Failed to process image');
+      throw new Error(`Failed to process image: ${error.message}`);
     }
   }
 
   calculateSimilarity(desc1, desc2) {
-    if (desc1.length !== desc2.length) return 0;
+    if (!Array.isArray(desc1) || !Array.isArray(desc2) || desc1.length !== desc2.length) return 0;
     
     // Calculate cosine similarity for better accuracy
     let dotProduct = 0;
@@ -58,11 +59,15 @@ class FaceRecognitionService {
   }
 
   findBestMatch(targetDescriptor, knownDescriptors, threshold = 0.7) {
+    if (!Array.isArray(targetDescriptor) || targetDescriptor.length !== 128) {
+      throw new Error('Invalid target descriptor: must be 128-dimensional array');
+    }
+    
     let bestMatch = null;
     let bestSimilarity = 0;
 
     for (const known of knownDescriptors) {
-      if (!known.descriptor || known.descriptor.length !== targetDescriptor.length) {
+      if (!known.descriptor || !Array.isArray(known.descriptor) || known.descriptor.length !== 128) {
         continue;
       }
       

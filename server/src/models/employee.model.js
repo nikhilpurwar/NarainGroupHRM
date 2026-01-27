@@ -4,7 +4,13 @@ const employeeSchema = new mongoose.Schema({
     name: { type: String, required: true },
     fatherName: { type: String },
     motherName: { type: String },
-    email: { type: String },
+    email: { 
+        type: String,
+        validate: {
+            validator: function(v) { return !v || /^\S+@\S+\.\S+$/.test(v); },
+            message: 'Invalid email format'
+        }
+    },
     mobile: { type: String },
     address: { type: String },
     pincode: { type: String },
@@ -24,8 +30,14 @@ const employeeSchema = new mongoose.Schema({
     qrCode: { type: String }, // base64 image or svg
     // Face recognition fields
     faceEmbeddings: [{
-        embedding: [Number], // 128-d vector from FaceNet/ArcFace
-        confidence: Number,
+        embedding: {
+            type: [Number], 
+            validate: {
+                validator: function(v) { return Array.isArray(v) && v.length === 128; },
+                message: 'Face embedding must be a 128-dimensional vector'
+            }
+        },
+        confidence: { type: Number, min: 0, max: 1 },
         createdAt: { type: Date, default: Date.now }
     }],
     faceEnrolled: { type: Boolean, default: false },
