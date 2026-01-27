@@ -275,7 +275,7 @@ useEffect(() => {
     setCurrentPage(1);
   }, [nameSearch, department, subDepartment, designation, employees]);
 
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const indexOfLast = currentPage * pageSize;
@@ -506,8 +506,8 @@ useEffect(() => {
   return (
     <div>
       {showFilters && (
-        <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
-          <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
+        <div className="bg-white p-6 sticky top-[72px] z-30 rounded-b-xl shadow-lg mb-6 border border-gray-100">
+  <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
             {/* Search Input */}
             <div className="relative col-span-2">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -659,10 +659,11 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="bg-white py-4 rounded-xl shadow-md overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-md flex flex-col h-[70vh] min-h-0">
         {loading ? (
           <Spinner />
         ) : (
+          <div className="flex-1 overflow-auto">
           <table className="w-full min-w-7xl table-auto">
             <thead>
               <tr className="bg-gray-100 text-gray-800 text-left">
@@ -921,6 +922,7 @@ useEffect(() => {
               )}
             </tbody>
           </table>
+          </div>
         )}
 
      

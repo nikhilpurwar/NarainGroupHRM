@@ -14,18 +14,18 @@ const DEDUCTION_API = `${API_URL}/api/charges`
 const SHIFT_API = `${API_URL}/api/break-times`
 
 const Input = ({label,name,value,onChange,type = "text",error,required = false,prefix,suffix,}) => (
-  <div> <label className="block font-medium mb-1 text-gray-800">{label}
+  <div> 
+    <label className="block font-medium mb-1 text-gray-800">{label}
       {required && <span className="text-red-500 ml-1">*</span>}
     </label>
     <div className="relative">
-      {prefix && ( <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{prefix}</span>)}
+      {prefix && (<span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{prefix}</span>)}
       <input type={type} name={name} value={value} onChange={onChange} className={`w-full border p-3 rounded-lg ${ prefix ? "pl-12" : "" } ${error ? "border-red-500" : ""}`} />
-      {suffix && (<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"> {suffix}</span>
-      )} </div>
+      {suffix && (<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"> {suffix}</span>)}
+    </div>
     {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
   </div>
 );
-
 
 const Select = ({ label, name, value, onChange, options, error ,required=false, }) => (
     <div>
@@ -47,7 +47,6 @@ const Select = ({ label, name, value, onChange, options, error ,required=false, 
         {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
 )
-
 
 const defaultForm = {
     firstName: '',
@@ -119,7 +118,6 @@ const AddEditEmployee = () => {
             try {
                 const res = await axios.get(`${API}/${id}`)
                 const emp = res.data.data
-                // split name into first/last if possible
                 const [firstName, ...rest] = (emp.name || '').split(' ')
                 const lastName = rest.join(' ')
                 setForm((f) => ({
@@ -204,8 +202,6 @@ const AddEditEmployee = () => {
         }
     }, [isEdit])
 
-    // compute salaryPerHour on render if not provided
-
     const handleChange = (e) => {
         const { name, value, checked } = e.target
         if (name === 'deductions') {
@@ -226,23 +222,24 @@ const AddEditEmployee = () => {
             return
         }
         if (name === "mobile") {
-    const digitsOnly = value.replace(/\D/g, "");
-    const limitedTo10 = digitsOnly.slice(0, 10);
-
-    setForm((prev) => ({
-      ...prev,
-      mobile: limitedTo10,
-    }));
-    return;
-  }
+            const digitsOnly = value.replace(/\D/g, "");
+            const limitedTo10 = digitsOnly.slice(0, 10);
+            setForm((prev) => ({ ...prev, mobile: limitedTo10 }));
+            return;
+        }
         setForm({ ...form, [name]: value })
         setErrors((prev) => ({ ...prev, [name]: undefined }))
+    }
+
+    // Remove avatar
+    const handleRemoveAvatar = () => {
+        setForm(f => ({ ...f, avatar: null }))
+        setPreview(null)
     }
 
     // Persist draft to sessionStorage in real time for Add mode
     useEffect(() => {
         if (isEdit) return
-        // Avoid overwriting an existing draft with empty defaults on first mount
         if (!hasLoadedDraft) return
         try {
             const { avatar, ...rest } = form
@@ -272,13 +269,10 @@ const AddEditEmployee = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        // prevent multiple concurrent submissions
         if (submittingRef.current) return
-
         const err = validate()
         if (Object.keys(err).length) {
             setErrors(err)
-            // scroll to first error field
             const firstKey = Object.keys(err)[0]
             setTimeout(() => {
                 const el = document.querySelector(`[name="${firstKey}"]`)
@@ -290,7 +284,6 @@ const AddEditEmployee = () => {
             return
         }
 
-        // mark submitting immediately to avoid race on rapid clicks
         submittingRef.current = true
         setLoading(true)
 
@@ -322,8 +315,6 @@ const AddEditEmployee = () => {
                 payload.avatar = form.avatar
             }
 
-            // empId generation moved to backend; leave `payload.empId` as provided by user (or undefined)
-
             if (isEdit) {
                 await axios.put(`${API}/${id}`, payload)
                 toast.success('Employee updated')
@@ -331,9 +322,8 @@ const AddEditEmployee = () => {
                 await axios.post(API, payload)
                 toast.success('Employee added')
             }
-            // Refresh global employee list so tables update immediately
-            try { dispatch(fetchEmployees()) } catch (e) { /* ignore */ }
-            // clear draft on successful save
+
+            try { dispatch(fetchEmployees()) } catch (e) { }
             try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
             setFormError('')
             setErrors({})
@@ -341,11 +331,9 @@ const AddEditEmployee = () => {
         } catch (err) {
             console.error(err)
             const msg = err?.response?.data?.message || err?.message || 'Save failed'
-            // network/backend unreachable
             if (err.code === 'ECONNREFUSED' || (err.message && err.message.toLowerCase().includes('network'))) {
                 setFormError(`Cannot connect to backend (${API_URL}). Start the server and try again.`)
             } else if (err.response && err.response.data && err.response.data.errors) {
-                // server-side validation errors
                 setErrors(err.response.data.errors)
                 setFormError('Please fix the validation errors below.')
             } else {
@@ -360,11 +348,6 @@ const AddEditEmployee = () => {
 
     return (
         <div className="p-6 bg-white">
-            {/* <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold">{isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
-                <button className="text-sm text-gray-600" onClick={() => navigate(-1)}>✕</button>
-            </div> */}
-            {/* Back Button */}
             <button
                 onClick={() => navigate(-1)}
                 className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
@@ -375,13 +358,6 @@ const AddEditEmployee = () => {
 
             <form onSubmit={handleSubmit} className="space-y-8">
 
-                {/* ERROR BANNER */}
-                {/* {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-                        {formError}
-                    </div>
-                )} */}
-
                 {/* PERSONAL INFO */}
                 <div className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">
                     <h3 className="text-white bg-gray-900 font-semibold text-lg rounded-t-xl p-4">
@@ -390,40 +366,69 @@ const AddEditEmployee = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         {/* AVATAR */}
-                        <div className="row-span-2">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                                Profile Image
-                            </h3>
+                        {/* AVATAR */}
+<div className="row-span-2">
+    <h3 className="text-lg font-semibold mb-4 text-gray-900">
+        Profile Image
+    </h3>
+<div className="flex items-center justify-center gap-6">
+        {preview ? (
+            <img
+                src={preview}
+                alt="Profile Preview"
+                className="w-30 h-30 rounded-full border-2 border-gray-300 shadow-sm object-cover"
+            />
+        ) : (
+            <div className="w-30 h-30 flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400">
+                <span className="text-sm">No Image</span>
+            </div>
+        )}
 
-                            <div className="flex items-center justify-center gap-6">
-                                {preview ? (
-                                    <img
-                                        src={preview}
-                                        alt="Profile Preview"
-                                        className="w-30 h-30 rounded-full border-2 border-gray-300 shadow-sm object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-30 h-30 flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400">
-                                        <span className="text-sm">No Image</span>
-                                    </div>
-                                )}
+        <div className="flex flex-col gap-2">
+            <label
+                htmlFor="avatar"
+                className="cursor-pointer px-4 py-2 bg-gray-900 text-white rounded-md shadow hover:bg-gray-700 transition text-center"
+            >
+                Upload Image
+            </label>
 
-                                <label
-                                    htmlFor="avatar"
-                                    className="cursor-pointer px-4 py-2 bg-gray-900 text-white rounded-md shadow hover:bg-gray-700 transition"
-                                >
-                                    Upload Image
-                                </label>
-                                <input
-                                    id="avatar"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleChange}
-                                    name="avatar"
-                                    className="hidden"
-                                />
-                            </div>
+            {preview && (
+                <button
+                    type="button"
+                    onClick={async () => {
+                        if (isEdit && id) {
+                            // remove from backend
+                            try {
+                                await axios.put(`${API}/${id}`, { avatar: null });
+                                // toast.success('Avatar removed');
+                            } catch (err) {
+                                console.error(err);
+                                toast.error('Failed to remove avatar from server');
+                                return; // stop clearing preview if failed
+                            }
+                        }
+                        // remove locally
+                        setForm(f => ({ ...f, avatar: null }));
+                        setPreview(null);
+                    }}
+                    className="px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition text-sm"
+                >
+                    Remove Image
+                </button>
+            )}
+        </div>
+
+        <input
+            id="avatar"
+            type="file"
+            accept="image/*"
+            onChange={handleChange}
+            name="avatar"
+            className="hidden"
+        />
+</div>
                         </div>
+
                         <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} required />
                         <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} required/>
                         <Input label="Mobile" name="mobile" value={form.mobile} onChange={handleChange} required error={errors.mobile} prefix="+91" suffix={
