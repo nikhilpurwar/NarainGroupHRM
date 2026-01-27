@@ -25,14 +25,14 @@ router.post("/", authenticate, checkPermission, createEmployee);
 router.get("/", authenticate, checkPermission, getEmployees);
 router.get("/barcodes", authenticate, checkPermission, getBarcodes);
 router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
-router.get("/faces", getEmployeesForFaceRecognition); // Get employees with face data
+router.get("/face-recognition", getEmployeesForFaceRecognition); // Get employees with face data
 router.get("/face/test", testFaceService); // Test face service
 router.post("/face/test", testFaceService); // Test face service
-router.post("/face/enroll", enrollFace); // Enroll face embedding
-router.post("/face/recognize", recognizeFace); // Recognize face from embedding
+router.post("/enroll-face", enrollFace); // Enroll face embedding
+router.post("/recognize-face", recognizeFace); // Recognize face from embedding
+router.post("/face-attendance", faceAttendance); // Face attendance endpoint
 router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
 router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
-router.post("/attendance/face", faceAttendance); // Face attendance endpoint
 router.get("/:id", authenticate, getEmployeeById);
 router.get("/:id/profile", authenticate, getEmployeeProfile);
 router.put("/:id", authenticate, checkPermission, updateEmployee);

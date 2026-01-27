@@ -39,24 +39,11 @@ export default function FaceRecognitionScreen() {
   const loadEmployees = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/faces');
+      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-recognition');
       const result = await response.json();
-      // console.log('API Response:', result);
-      
-      // console.log('Full API Response:', JSON.stringify(result, null, 2));
       
       if (result.success) {
-        // Handle different possible response structures
-        let employeeList = [];
-        if (result.employees) {
-          employeeList = result.employees;
-        } else if (result.data) {
-          employeeList = result.data;
-        } else if (Array.isArray(result)) {
-          employeeList = result;
-        }
-        
-        // console.log('Final employee list:', employeeList);
+        let employeeList = result.data || [];
         setEmployees(employeeList);
         await AsyncStorage.setItem('employeeFaces', JSON.stringify(employeeList));
       } else {
@@ -68,7 +55,6 @@ export default function FaceRecognitionScreen() {
       if (cached) {
         const cachedEmployees = JSON.parse(cached);
         setEmployees(cachedEmployees);
-        // console.log('Cached employees loaded:', cachedEmployees.length);
       } else {
         setEmployees([]);
       }
@@ -108,14 +94,14 @@ export default function FaceRecognitionScreen() {
         });
         
         // Send image to face recognition API
-        const recognitionResponse = await fetch('https://naraingrouphrm.onrender.com/api/employees/face/recognize', {
+        const recognitionResponse = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             image: `data:image/jpeg;base64,${photo.base64}`,
-            threshold: 0.7
+            threshold: 0.6
           }),
         });
         
@@ -150,14 +136,13 @@ export default function FaceRecognitionScreen() {
       const now = new Date();
       const tzOffsetMinutes = -now.getTimezoneOffset();
       
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/attendance/face', {
+      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           employeeId,
-          date: now.toISOString().split('T')[0],
           clientTs: now.getTime(),
           tzOffsetMinutes: tzOffsetMinutes
         }),
