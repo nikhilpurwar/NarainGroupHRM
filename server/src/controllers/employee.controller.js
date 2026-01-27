@@ -6,7 +6,7 @@ import Advance from "../models/advance.model.js";
 import MonthlySummary from "../models/monthlySummary.model.js";
 import MonthlySalaryModel from "../models/salary.model/monthlySalary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
-import faceRecognitionService from "../services/faceRecognitionFlexible.service.js";
+import faceRecognitionService from "../services/faceRecognitionAccurate.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
 import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
@@ -285,7 +285,7 @@ export const enrollFace = async (req, res) => {
 
 export const recognizeFace = async (req, res) => {
   try {
-    const { image, threshold = 0.8 } = req.body;
+    const { image, threshold = 0.7 } = req.body;
     
     if (!image) {
       return res.status(400).json({ success: false, message: 'Image required' });
@@ -337,7 +337,7 @@ export const recognizeFace = async (req, res) => {
           name: bestMatch.name,
           empId: bestMatch.empId,
           confidence: bestMatch.confidence,
-          distance: bestMatch.distance
+          similarity: bestMatch.similarity
         }
       });
     } else {

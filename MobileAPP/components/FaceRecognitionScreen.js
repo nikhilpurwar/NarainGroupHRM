@@ -104,7 +104,7 @@ export default function FaceRecognitionScreen() {
           },
           body: JSON.stringify({
             image: `data:image/jpeg;base64,${photo.base64}`,
-            threshold: 0.9
+            threshold: 0.7
           }),
         });
         
