@@ -63,7 +63,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-black/80 via-gray-900/80 to-gray-800/80 px-4"
+      className="w-full h-[100vh] fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-black/80 via-gray-900/30 to-gray-800/10 px-4"
       onClick={onClose}
     >
       <div
@@ -77,7 +77,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">Employee ID/Email</label>
+            <label className="block text-sm font-medium text-black mb-1">Employee ID/Email</label>
             <input
               type="text"
               className={`text-gray-900 w-full rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white/90 border ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
@@ -88,7 +88,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">Old Password</label>
+            <label className="block text-sm font-medium text-black mb-1">Old Password</label>
             <div className="relative">
               <input
                 type={showOld ? 'text' : 'password'}
@@ -107,7 +107,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">New Password</label>
+            <label className="block text-sm font-medium text-black mb-1">New Password</label>
             <div className="relative">
               <input
                 type={showNew ? 'text' : 'password'}
@@ -126,7 +126,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">Confirm Password</label>
+            <label className="block text-sm font-medium text-black mb-1">Confirm Password</label>
             <div className="relative">
               <input
                 type={showConfirm ? 'text' : 'password'}
@@ -164,7 +164,7 @@ const ChangePassword = ({ isOpen, onClose, initialEmail = '' }) => {
           <button
             type="button"
             onClick={onClose}
-            className="w-full mt-2 text-center text-xs text-gray-200 hover:text-white hover:underline"
+            className="w-full mt-2 text-center text-xs text-black hover:text-white hover:underline"
           >
             Close
           </button>

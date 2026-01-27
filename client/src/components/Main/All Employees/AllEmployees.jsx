@@ -60,8 +60,11 @@ const handleDelete = async (id) => {
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
+    <div className="p-6 bg-gray-100 sticky min-h-screen">
+      <div className="flex justify-between items-center p-4 text-white bg-gray-900 
+                rounded-t-xl font-semibold text-xl
+                sticky top-0 z-40">
+
         Our Employees
         <div className="flex items-center gap-3">
           <button
@@ -86,7 +89,7 @@ const handleDelete = async (id) => {
       <div className="mb-6">
         <EmployeeTable
           employees={employees}
-          rowsPerPage={8}
+          // rowsPerPage={5}
           loading={loading}
           onEdit={(emp) => navigate(`/employee/${emp._id}/edit`)}
           onDelete={handleDelete}

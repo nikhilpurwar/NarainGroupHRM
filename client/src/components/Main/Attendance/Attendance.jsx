@@ -446,7 +446,7 @@ const Attendance = () => {
       )}
 
       {/* Header */}
-      <div className="px-6 py-4 mx-6 mt-6 rounded-t-xl bg-gray-900 text-white flex justify-between items-center">
+      <div className="px-6 py-4 mx-6 mt-6 rounded-t-xl sticky top-0 z-40 bg-gray-900 text-white flex justify-between items-center">
         <h1 className="font-semibold">
           {viewMode === "report"
             ? `Attendance - ${report?.employee?.name}`
