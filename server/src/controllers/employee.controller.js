@@ -6,6 +6,7 @@ import Advance from "../models/advance.model.js";
 import MonthlySummary from "../models/monthlySummary.model.js";
 import MonthlySalaryModel from "../models/salary.model/monthlySalary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
+import * as faceService from "../services/faceRecognition.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
 import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
@@ -118,6 +119,27 @@ export const createEmployee = async (req, res) => {
 
     const emp = await Employee.create(req.body);
 
+    // Auto-enroll face if avatar provided
+    if (req.body.avatar) {
+      try {
+        console.log('Attempting face enrollment for new employee...');
+        const result = await faceService.extractEmbedding(req.body.avatar);
+        console.log('Face service result:', result);
+        if (result.success) {
+          emp.faceEmbeddings.push({
+            embedding: result.embedding,
+            confidence: 0.9
+          });
+          emp.faceEnrolled = true;
+          console.log('Face enrolled successfully');
+        } else {
+          console.log('Face enrollment failed:', result.message);
+        }
+      } catch (error) {
+        console.error('Auto face enrollment failed:', error.message);
+      }
+    }
+
     // generate barcode and QR based on empId (fallback to _id)
     try {
       const codeText = emp.empId || emp._id.toString();
@@ -199,11 +221,155 @@ export const getEmployeeById = async (req, res) => {
   }
 };
 
+export const testFaceService = async (req, res) => {
+  try {
+    const health = await faceService.healthCheck();
+    console.log('Face service health:', health);
+    
+    if (req.body && req.body.avatar) {
+      const result = await faceService.extractEmbedding(req.body.avatar);
+      console.log('Face extraction result:', result);
+      return res.json({ health, extraction: result });
+    }
+    
+    res.json({ health });
+  } catch (error) {
+    console.error('Test face service error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const enrollFace = async (req, res) => {
+  try {
+    const { employeeId, image } = req.body;
+    
+    if (!employeeId || !image) {
+      return res.status(400).json({ success: false, message: 'Employee ID and image required' });
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (employee.status !== 'active') {
+      return res.status(403).json({ success: false, message: 'Employee is inactive' });
+    }
+
+    // Extract embedding using face recognition service
+    const result = await faceService.extractEmbedding(image);
+    
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // Add new embedding
+    employee.faceEmbeddings.push({
+      embedding: result.embedding,
+      confidence: 0.9
+    });
+
+    // Keep only last 5 embeddings for efficiency
+    if (employee.faceEmbeddings.length > 5) {
+      employee.faceEmbeddings = employee.faceEmbeddings.slice(-5);
+    }
+
+    employee.faceEnrolled = true;
+    await employee.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Face enrolled successfully',
+      embeddingCount: employee.faceEmbeddings.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const recognizeFace = async (req, res) => {
+  try {
+    const { image, threshold = 0.85 } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'Image required' });
+    }
+
+    // Extract embedding from input image
+    const result = await faceService.extractEmbedding(image);
+    
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    const inputEmbedding = result.embedding;
+
+    // Get all employees with face embeddings
+    const employees = await Employee.find({ 
+      faceEnrolled: true, 
+      status: 'active',
+      'faceEmbeddings.0': { $exists: true }
+    }).select('_id name empId faceEmbeddings').lean();
+
+    let bestMatch = null;
+    let bestSimilarity = 0;
+
+    // Calculate cosine similarity for each employee
+    for (const emp of employees) {
+      for (const faceData of emp.faceEmbeddings) {
+        const similarity = cosineSimilarity(inputEmbedding, faceData.embedding);
+        if (similarity > bestSimilarity && similarity >= threshold) {
+          bestSimilarity = similarity;
+          bestMatch = {
+            employeeId: emp._id,
+            name: emp.name,
+            empId: emp.empId,
+            similarity
+          };
+        }
+      }
+    }
+
+    if (bestMatch) {
+      res.json({ 
+        success: true, 
+        recognized: true,
+        employee: bestMatch
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        recognized: false,
+        message: 'No matching face found'
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Cosine similarity calculation
+const cosineSimilarity = (vecA, vecB) => {
+  if (vecA.length !== vecB.length) return 0;
+  
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+};
+
 export const getEmployeesForFaceRecognition = async (req, res) => {
   try {
     const employees = await Employee.find(
-      { status: 'active', avatar: { $exists: true, $ne: null } },
-      { _id: 1, name: 1, empId: 1, avatar: 1 }
+      { status: 'active', faceEnrolled: true },
+      { _id: 1, name: 1, empId: 1, avatar: 1, faceEmbeddings: 1 }
     ).lean();
 
     return res.json({
@@ -1160,6 +1326,30 @@ export const updateEmployee = async (req, res) => {
     }
 
     Object.assign(emp, req.body);
+    
+    console.log('Update request body has avatar:', !!req.body.avatar);
+    
+    // Auto-enroll face if avatar updated
+    if (req.body.avatar) {
+      try {
+        console.log('Attempting face enrollment for updated employee...');
+        const result = await faceService.extractEmbedding(req.body.avatar);
+        console.log('Face service result:', result);
+        if (result.success) {
+          emp.faceEmbeddings = [{
+            embedding: result.embedding,
+            confidence: 0.9
+          }];
+          emp.faceEnrolled = true;
+          console.log('Face enrolled successfully');
+        } else {
+          console.log('Face enrollment failed:', result.message);
+        }
+      } catch (error) {
+        console.error('Auto face enrollment failed:', error.message);
+      }
+    }
+    
     // if empId changed or missing, regenerate barcode/QR
     if (req.body.empId && req.body.empId !== prevEmpId) {
       try {

@@ -17,6 +17,9 @@ import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
 import { io as clientIO } from "socket.io-client"
 
+import FaceEnrollment from "../../FaceRecognition/FaceEnrollment"
+import FaceRecognitionAttendance from "../../FaceRecognition/FaceRecognitionAttendance"
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
 
@@ -666,6 +669,10 @@ const Attendance = () => {
         employees={employees}
         onSubmit={handleManualAttendanceSubmit}
       />
+
+      <FaceEnrollment />
+      <FaceRecognitionAttendance />
+
     </div>
   )
 }

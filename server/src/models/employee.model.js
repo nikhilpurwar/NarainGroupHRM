@@ -22,7 +22,13 @@ const employeeSchema = new mongoose.Schema({
     avatar: { type: String }, // store base64 data URL or file path
     barcode: { type: String }, // base64 image or svg
     qrCode: { type: String }, // base64 image or svg
-    // Attendance moved to separate collection `Attendance` linked by employee id
+    // Face recognition fields
+    faceEmbeddings: [{
+        embedding: [Number], // 128-d vector from FaceNet/ArcFace
+        confidence: Number,
+        createdAt: { type: Date, default: Date.now }
+    }],
+    faceEnrolled: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Ensure unique empId at the database level. Use sparse to allow documents
