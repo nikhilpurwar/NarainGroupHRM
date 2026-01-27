@@ -52,6 +52,11 @@ class FaceRecognitionService {
     let bestDistance = Infinity;
 
     for (const known of knownDescriptors) {
+      // Skip if descriptor lengths don't match
+      if (!known.descriptor || known.descriptor.length !== targetDescriptor.length) {
+        continue;
+      }
+      
       const distance = this.calculateDistance(targetDescriptor, known.descriptor);
       if (distance < bestDistance && distance < threshold) {
         bestDistance = distance;

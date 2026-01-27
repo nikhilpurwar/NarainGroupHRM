@@ -302,17 +302,27 @@ export const recognizeFace = async (req, res) => {
       'faceEmbeddings.0': { $exists: true }
     }).select('_id name empId faceEmbeddings').lean();
 
-    // Prepare known descriptors for comparison
+    // Prepare known descriptors for comparison - filter valid ones only
     const knownDescriptors = [];
     for (const emp of employees) {
       for (const faceData of emp.faceEmbeddings) {
-        knownDescriptors.push({
-          employeeId: emp._id,
-          name: emp.name,
-          empId: emp.empId,
-          descriptor: faceData.embedding
-        });
+        if (faceData.embedding && Array.isArray(faceData.embedding) && faceData.embedding.length === 128) {
+          knownDescriptors.push({
+            employeeId: emp._id,
+            name: emp.name,
+            empId: emp.empId,
+            descriptor: faceData.embedding
+          });
+        }
       }
+    }
+
+    if (knownDescriptors.length === 0) {
+      return res.json({ 
+        success: true, 
+        recognized: false,
+        message: 'No valid face embeddings found'
+      });
     }
 
     // Find best match
