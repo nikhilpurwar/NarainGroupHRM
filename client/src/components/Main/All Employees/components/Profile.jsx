@@ -441,7 +441,7 @@ const Profile = () => {
 
                 {/* Documents Tab */}
                 {activeTab === 'documents' && (
-                  <div className="p-6">
+                  <div className="p-6  bg-gray-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4">
@@ -450,7 +450,7 @@ const Profile = () => {
                         </h3>
                         <div className="space-y-4">
                           {emp.barcode && (
-                            <div className="bg-gray-50 p-4 rounded-lg border">
+                            <div className="bg-white p-4 rounded-lg border">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-medium text-gray-700">Barcode</span>
                                 <button onClick={handleDownloadBarcode} className="p-1 hover:bg-gray-200 rounded">
@@ -469,7 +469,7 @@ const Profile = () => {
                           QR Code
                         </h3>
                         {emp.qrCode ? (
-                          <div className="bg-gray-50 p-4 rounded-lg border flex flex-col items-center">
+                          <div className="bg-white p-4 rounded-lg border flex flex-col items-center">
                             <img src={emp.qrCode} alt="QR Code" className="w-48 h-48" />
                             <p className="text-sm text-gray-500 mt-2">Scan for employee details</p>
                           </div>
