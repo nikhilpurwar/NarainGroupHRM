@@ -1,8 +1,8 @@
-setuptools>=65.0.0
-torch==2.6.0
-torchvision==0.21.0
-facenet-pytorch==2.6.0
 flask==2.3.3
 flask-cors==4.0.0
 numpy>=1.26.0
-Pillow==10.2.0
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+facenet-pytorch==2.5.2
+Pillow==9.5.0
+--find-links https://download.pytorch.org/whl/torch_stable.html
