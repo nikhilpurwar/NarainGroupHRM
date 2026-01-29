@@ -15,7 +15,7 @@ const FestivalList = ({ holidays }) => {
         {/* VIEW MORE */}
         <button
           onClick={() => navigate("/festival")}
-          className="flex items-center gap-2 bg-white text-black rounded px-3 py-1 text-sm hover:bg-white-200"
+          className="flex items-center gap-2 bg-white text-black rounded px-2 py-1 text-sm hover:bg-white-200"
         >
           <Eye size={16} />
           View more
@@ -38,7 +38,7 @@ const FestivalList = ({ holidays }) => {
             holidays.map((item, index) => (
               <tr
                 key={item._id}
-                className="border-b hover:bg-gray-100 transition"
+                className="border-t hover:bg-gray-100 transition"
               >
                 <td className="px-4 py-3">{index + 1}</td>
                 <td className="px-4 py-3">{item.name}</td>

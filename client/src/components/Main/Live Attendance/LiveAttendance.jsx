@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
@@ -19,6 +19,7 @@ const LiveAttendance = () => {
   const attendanceIso = useSelector(s => s.attendance.attendanceIso)
   const loading = useSelector(s => s.employees.status === 'loading' || s.attendance.status === 'loading')
   const navigate = useNavigate();
+    const [error, setError] = useState(null);
 
   useEffect(() => {
     // ensure cached data is available; will fetch in background if stale
@@ -89,6 +90,14 @@ const LiveAttendance = () => {
     const att = attendanceMap[key];
     return !att || att.status === 'absent';
   });
+
+    if (loading)
+    return (
+      <div className="p-6 text-center">
+        <Spinner />
+      </div>
+    );
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="h-full bg-white p-6 overflow-x-auto">
