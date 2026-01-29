@@ -125,11 +125,9 @@ export const createEmployee = async (req, res) => {
         console.log('Attempting face enrollment for new employee...');
         const imageBuffer = Buffer.from(req.body.avatar.split(',')[1], 'base64');
         const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        emp.faceEmbeddings.push({
-          embedding: descriptor,
-          confidence: 0.9
-        });
+        emp.faceTemplate = descriptor;
         emp.faceEnrolled = true;
+        emp.faceEnrollmentDate = new Date();
         console.log('Face enrolled successfully');
       } catch (error) {
         console.error('Auto face enrollment failed:', error.message);
@@ -240,10 +238,10 @@ export const testFaceService = async (req, res) => {
 
 export const enrollFace = async (req, res) => {
   try {
-    const { employeeId, image } = req.body;
+    const { employeeId, images } = req.body;
     
-    if (!employeeId || !image) {
-      return res.status(400).json({ success: false, message: 'Employee ID and image required' });
+    if (!employeeId || !images || !Array.isArray(images) || images.length < 5) {
+      return res.status(400).json({ success: false, message: 'Employee ID and at least 5 images required' });
     }
 
     const employee = await Employee.findById(employeeId);
@@ -255,28 +253,35 @@ export const enrollFace = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Employee is inactive' });
     }
 
-    // Extract descriptor using face recognition service
-    const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
-    const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-
-    // Add new embedding
-    employee.faceEmbeddings.push({
-      embedding: descriptor,
-      confidence: 0.9
-    });
-
-    // Keep only last 5 embeddings for efficiency
-    if (employee.faceEmbeddings.length > 5) {
-      employee.faceEmbeddings = employee.faceEmbeddings.slice(-5);
+    // Extract embeddings from all images
+    const embeddings = [];
+    for (const image of images) {
+      try {
+        const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
+        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+        embeddings.push(descriptor);
+      } catch (err) {
+        console.error('Failed to process image:', err.message);
+      }
     }
 
+    if (embeddings.length < 5) {
+      return res.status(400).json({ success: false, message: 'At least 5 valid face images required' });
+    }
+
+    // Fuse embeddings into ONE STRONG TEMPLATE
+    const faceTemplate = faceRecognitionService.fuseEmbeddings(embeddings);
+
+    employee.faceTemplate = faceTemplate;
     employee.faceEnrolled = true;
+    employee.faceEnrollmentDate = new Date();
+    employee.embeddingVersion = 'v1';
     await employee.save();
 
     res.json({ 
       success: true, 
-      message: 'Face enrolled successfully',
-      embeddingCount: employee.faceEmbeddings.length
+      message: 'Face template created successfully',
+      imagesProcessed: embeddings.length
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -285,7 +290,7 @@ export const enrollFace = async (req, res) => {
 
 export const recognizeFace = async (req, res) => {
   try {
-    const { image, threshold = 0.7 } = req.body;
+    const { image, threshold = 0.80 } = req.body;
     
     if (!image || typeof image !== 'string') {
       return res.status(400).json({ success: false, message: 'Valid base64 image required' });
@@ -296,62 +301,61 @@ export const recognizeFace = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Threshold must be between 0 and 1' });
     }
 
-    // Extract descriptor from input image
+    // Extract embedding from live image
     const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
-    const inputDescriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+    const liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
 
-    // Get all employees with face embeddings
+    // Get all employees with face templates
     const employees = await Employee.find({ 
       faceEnrolled: true, 
       status: 'active',
-      'faceEmbeddings.0': { $exists: true }
-    }).select('_id name empId faceEmbeddings').lean();
+      faceTemplate: { $exists: true, $ne: null }
+    }).select('_id name empId faceTemplate').lean();
 
-    // Prepare known descriptors for comparison - filter valid ones only
-    const knownDescriptors = [];
-    for (const emp of employees) {
-      for (const faceData of emp.faceEmbeddings) {
-        if (faceData.embedding && Array.isArray(faceData.embedding) && faceData.embedding.length === 128) {
-          knownDescriptors.push({
-            employeeId: emp._id,
-            name: emp.name,
-            empId: emp.empId,
-            descriptor: faceData.embedding
-          });
-        }
-      }
-    }
-
-    if (knownDescriptors.length === 0) {
+    if (employees.length === 0) {
       return res.json({ 
         success: true, 
         recognized: false,
-        message: 'No valid face embeddings found'
+        message: 'No enrolled employees found'
       });
     }
 
-    // Find best match
-    const bestMatch = faceRecognitionService.findBestMatch(inputDescriptor, knownDescriptors, numThreshold);
+    // Find best match using cosine similarity
+    let bestMatch = null;
+    let bestSimilarity = 0;
 
-    if (bestMatch) {
-      res.json({ 
-        success: true, 
-        recognized: true,
-        employee: {
-          employeeId: bestMatch.employeeId,
-          name: bestMatch.name,
-          empId: bestMatch.empId,
-          confidence: bestMatch.confidence,
-          similarity: bestMatch.similarity
-        }
-      });
-    } else {
-      res.json({ 
+    for (const emp of employees) {
+      if (!emp.faceTemplate || !Array.isArray(emp.faceTemplate) || emp.faceTemplate.length !== 128) {
+        continue;
+      }
+
+      const similarity = faceRecognitionService.calculateSimilarity(liveEmbedding, emp.faceTemplate);
+      
+      if (similarity >= numThreshold && similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = {
+          employeeId: emp._id,
+          name: emp.name,
+          empId: emp.empId,
+          confidence: similarity,
+          similarity: similarity
+        };
+      }
+    }
+
+    if (!bestMatch) {
+      return res.json({ 
         success: true, 
         recognized: false,
         message: 'No matching face found'
       });
     }
+
+    res.json({ 
+      success: true, 
+      recognized: true,
+      employee: bestMatch
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -362,7 +366,7 @@ export const getEmployeesForFaceRecognition = async (req, res) => {
   try {
     const employees = await Employee.find(
       { status: 'active', faceEnrolled: true },
-      { _id: 1, name: 1, empId: 1, avatar: 1, faceEmbeddings: 1 }
+      { _id: 1, name: 1, empId: 1, avatar: 1, faceTemplate: 1 }
     ).lean();
 
     return res.json({
@@ -1328,11 +1332,9 @@ export const updateEmployee = async (req, res) => {
         console.log('Attempting face enrollment for updated employee...');
         const imageBuffer = Buffer.from(req.body.avatar.split(',')[1], 'base64');
         const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        emp.faceEmbeddings = [{
-          embedding: descriptor,
-          confidence: 0.9
-        }];
+        emp.faceTemplate = descriptor;
         emp.faceEnrolled = true;
+        emp.faceEnrollmentDate = new Date();
         console.log('Face enrolled successfully');
       } catch (error) {
         console.error('Auto face enrollment failed:', error.message);

@@ -58,6 +58,53 @@ class FaceRecognitionService {
     return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
   }
 
+  euclideanDistance(desc1, desc2) {
+    if (!Array.isArray(desc1) || !Array.isArray(desc2) || desc1.length !== desc2.length) return 1;
+    
+    let sum = 0;
+    for (let i = 0; i < desc1.length; i++) {
+      const diff = desc1[i] - desc2[i];
+      sum += diff * diff;
+    }
+    
+    return Math.sqrt(sum);
+  }
+
+  fuseEmbeddings(embeddings) {
+    if (!Array.isArray(embeddings) || embeddings.length === 0) {
+      throw new Error('No embeddings to fuse');
+    }
+
+    const dim = embeddings[0].length;
+    const fused = new Array(dim).fill(0);
+
+    // Average all embeddings
+    for (const emb of embeddings) {
+      for (let i = 0; i < dim; i++) {
+        fused[i] += emb[i];
+      }
+    }
+
+    for (let i = 0; i < dim; i++) {
+      fused[i] /= embeddings.length;
+    }
+
+    // L2 Normalization
+    let norm = 0;
+    for (let i = 0; i < dim; i++) {
+      norm += fused[i] * fused[i];
+    }
+    norm = Math.sqrt(norm);
+
+    if (norm > 0) {
+      for (let i = 0; i < dim; i++) {
+        fused[i] /= norm;
+      }
+    }
+
+    return fused;
+  }
+
   findBestMatch(targetDescriptor, knownDescriptors, threshold = 0.7) {
     if (!Array.isArray(targetDescriptor) || targetDescriptor.length !== 128) {
       throw new Error('Invalid target descriptor: must be 128-dimensional array');

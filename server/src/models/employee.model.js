@@ -28,19 +28,17 @@ const employeeSchema = new mongoose.Schema({
     avatar: { type: String }, // store base64 data URL or file path
     barcode: { type: String }, // base64 image or svg
     qrCode: { type: String }, // base64 image or svg
-    // Face recognition fields
-    faceEmbeddings: [{
-        embedding: {
-            type: [Number], 
-            validate: {
-                validator: function(v) { return Array.isArray(v) && v.length === 128; },
-                message: 'Face embedding must be a 128-dimensional vector'
-            }
-        },
-        confidence: { type: Number, min: 0, max: 1 },
-        createdAt: { type: Date, default: Date.now }
-    }],
+    // Face recognition fields - ONE STRONG TEMPLATE
+    faceTemplate: {
+        type: [Number],
+        validate: {
+            validator: function(v) { return !v || (Array.isArray(v) && v.length === 128); },
+            message: 'Face template must be a 128-dimensional vector'
+        }
+    },
     faceEnrolled: { type: Boolean, default: false },
+    faceEnrollmentDate: { type: Date },
+    embeddingVersion: { type: String, default: 'v1' },
 }, { timestamps: true });
 
 // Ensure unique empId at the database level. Use sparse to allow documents

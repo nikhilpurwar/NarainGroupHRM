@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
-export default function FaceRecognitionScreen() {
+export default function FaceRecognitionScreen({ onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -26,7 +26,23 @@ export default function FaceRecognitionScreen() {
   const [successMessage, setSuccessMessage] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [cameraFacing, setCameraFacing] = useState('front'); // 'front' or 'back'
+  const [enrollmentMode, setEnrollmentMode] = useState(false);
+  const [capturedImages, setCapturedImages] = useState([]);
+  const [currentAngle, setCurrentAngle] = useState(0);
+  const [livenessCheck, setLivenessCheck] = useState(true);
+  const [livenessFrames, setLivenessFrames] = useState([]);
+  const [livenessInstructions, setLivenessInstructions] = useState('');
+  const [blinkDetected, setBlinkDetected] = useState(false);
+  const [headMovement, setHeadMovement] = useState(false);
   const cameraRef = useRef(null);
+  const frameInterval = useRef(null);
+
+  const captureAngles = [
+    { name: 'straight', instruction: 'Look straight at camera' },
+    { name: 'left', instruction: 'Turn head slightly left' },
+    { name: 'right', instruction: 'Turn head slightly right' },
+    { name: 'smile', instruction: 'Smile naturally' }
+  ];
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -42,7 +58,13 @@ export default function FaceRecognitionScreen() {
   const loadEmployees = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-recognition');
+      const token = await AsyncStorage.getItem('authToken');
+      
+      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-recognition', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const result = await response.json();
       
       if (result.success) {
@@ -56,8 +78,14 @@ export default function FaceRecognitionScreen() {
       console.log('API Error:', error);
       const cached = await AsyncStorage.getItem('employeeFaces');
       if (cached) {
-        const cachedEmployees = JSON.parse(cached);
-        setEmployees(cachedEmployees);
+        try {
+          const cachedEmployees = JSON.parse(cached);
+          setEmployees(cachedEmployees);
+        } catch (parseError) {
+          console.error('Cache parsing failed:', parseError);
+          await AsyncStorage.removeItem('employeeFaces');
+          setEmployees([]);
+        }
       } else {
         setEmployees([]);
       }
@@ -67,7 +95,12 @@ export default function FaceRecognitionScreen() {
   };
 
   const startFaceRecognition = () => {
-    if (recognizing) return;
+    if (recognizing || cameraFacing !== 'front') {
+      if (cameraFacing !== 'front') {
+        Alert.alert('Camera Error', 'Please switch to front camera for face recognition');
+      }
+      return;
+    }
     
     setRecognizing(true);
     setCountdown(3);
@@ -88,66 +121,130 @@ export default function FaceRecognitionScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      // Capture image from camera
-      if (cameraRef.current) {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: true,
-          skipProcessing: true,
-        });
-        
-        // Send image to face recognition API
-        const recognitionResponse = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image: `data:image/jpeg;base64,${photo.base64}`,
-            threshold: 0.7
-          }),
-        });
-        
-        const recognitionResult = await recognitionResponse.json();
-        
-        console.log('Recognition API Response:', recognitionResult);
-        
-        if (recognitionResult.success && recognitionResult.recognized) {
-          // Face recognized, mark attendance
-          await markAttendance(recognitionResult.employee.employeeId);
-        } else {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          console.log('Recognition failed:', recognitionResult.message);
-          Alert.alert('Recognition Failed', recognitionResult.message || 'Face not recognized. Please try again or contact admin.');
-          setRecognizing(false);
-        }
+      if (livenessCheck) {
+        await performLivenessDetection();
       } else {
-        Alert.alert('Error', 'Camera not available.');
-        setRecognizing(false);
+        await captureAndRecognize();
       }
     } catch (error) {
-      console.error('Face recognition error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', `Face recognition failed: ${error.message}`);
       setRecognizing(false);
     }
   };
 
-  const markAttendance = async (employeeId) => {
-    try {
-      const now = new Date();
-      const tzOffsetMinutes = -now.getTimezoneOffset();
+  const performLivenessDetection = async () => {
+    setLivenessFrames([]);
+    setBlinkDetected(false);
+    setHeadMovement(false);
+    
+    const instructions = [
+      'Look straight at camera',
+      'Blink naturally',
+      'Turn head slightly left',
+      'Turn head slightly right',
+      'Smile naturally'
+    ];
+    
+    for (let i = 0; i < instructions.length; i++) {
+      setLivenessInstructions(instructions[i]);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-attendance', {
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.6,
+          base64: true,
+          skipProcessing: true,
+        });
+        
+        setLivenessFrames(prev => [...prev, photo.base64]);
+      }
+    }
+    
+    setLivenessInstructions('Processing...');
+    await processLivenessAndRecognize();
+  };
+
+  const processLivenessAndRecognize = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/face/liveness', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          frames: livenessFrames
+        }),
+      });
+
+      const livenessResult = await response.json();
+      
+      if (livenessResult.success && livenessResult.isLive) {
+        setBlinkDetected(livenessResult.checks.blinkDetected);
+        setHeadMovement(livenessResult.checks.headMovement);
+        await captureAndRecognize();
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Liveness Check Failed', 'Please ensure you are a real person and try again.');
+        setRecognizing(false);
+      }
+    } catch (error) {
+      console.error('Liveness check error:', error);
+      await captureAndRecognize(); // Fallback to recognition without liveness
+    }
+  };
+
+  const captureAndRecognize = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.85,
+        base64: true,
+        skipProcessing: true,
+      });
+      
+      const token = await AsyncStorage.getItem('authToken');
+      
+      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          image: `data:image/jpeg;base64,${photo.base64}`,
+          threshold: 0.80
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.recognized) {
+        await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('No Match Found', 'Face not recognized. Please try again or contact admin.');
+        setRecognizing(false);
+      }
+    }
+  };
+
+  const markAttendance = async (employeeId, employeeName, confidence) => {
+    try {
+      const now = new Date();
+      const tzOffsetMinutes = -now.getTimezoneOffset();
+      const token = await AsyncStorage.getItem('authToken');
+      
+      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
           employeeId,
           clientTs: now.getTime(),
-          tzOffsetMinutes: tzOffsetMinutes
+          tzOffsetMinutes: tzOffsetMinutes,
+          confidence: confidence
         }),
       });
 
@@ -156,7 +253,7 @@ export default function FaceRecognitionScreen() {
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         const punchType = result.type.toUpperCase();
-        const message = `${punchType} - ${result.employee_name}\nTime: ${result.time}`;
+        const message = `${punchType} - ${result.employee_name}\nTime: ${result.time}\nMatch: ${(confidence * 100).toFixed(1)}%`;
         setSuccessMessage(message);
         setShowSuccess(true);
         
@@ -196,7 +293,10 @@ export default function FaceRecognitionScreen() {
         <Text style={styles.errorText}>Camera Access Required</Text>
         <TouchableOpacity
           style={styles.permissionButton}
-          onPress={() => Camera.requestCameraPermissionsAsync()}
+          onPress={async () => {
+            const { status } = await Camera.requestCameraPermissionsAsync();
+            setHasPermission(status === 'granted');
+          }}
         >
           <Text style={styles.permissionButtonText}>Request Permission</Text>
         </TouchableOpacity>
@@ -210,6 +310,9 @@ export default function FaceRecognitionScreen() {
       
       <View style={styles.header}>
         <View style={styles.headerContent}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
           <Ionicons name="person" size={28} color="#fff" />
           <Text style={styles.title}>Face Recognition</Text>
         </View>
@@ -241,10 +344,25 @@ export default function FaceRecognitionScreen() {
           
           <Text style={styles.instructionText}>
             {cameraFacing === 'front' 
-              ? (recognizing ? (countdown > 0 ? 'Get ready...' : 'Recognizing...') : 'Position your face and tap to scan')
+              ? (recognizing 
+                  ? (countdown > 0 
+                      ? 'Get ready...' 
+                      : (livenessInstructions || 'Recognizing...'))
+                  : 'Position your face and tap to scan')
               : 'Back camera - Use for taking photos'
             }
           </Text>
+          
+          {recognizing && livenessCheck && (
+            <View style={styles.livenessIndicators}>
+              <View style={[styles.indicator, blinkDetected && styles.indicatorActive]}>
+                <Text style={styles.indicatorText}>👁️ Blink</Text>
+              </View>
+              <View style={[styles.indicator, headMovement && styles.indicatorActive]}>
+                <Text style={styles.indicatorText}>↔️ Movement</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Flip Camera Button */}
@@ -275,6 +393,16 @@ export default function FaceRecognitionScreen() {
       )}
 
       <View style={styles.bottomContainer}>
+        <View style={styles.controlButtons}>
+          <TouchableOpacity
+            style={[styles.modeButton, livenessCheck && styles.modeButtonActive]}
+            onPress={() => setLivenessCheck(!livenessCheck)}
+          >
+            <Ionicons name={livenessCheck ? 'shield-checkmark' : 'shield-outline'} size={20} color={livenessCheck ? '#fff' : '#007AFF'} />
+            <Text style={[styles.modeButtonText, livenessCheck && styles.modeButtonTextActive]}>Liveness</Text>
+          </TouchableOpacity>
+        </View>
+        
         <TouchableOpacity
           style={[styles.scanButton, recognizing && styles.scanButtonDisabled]}
           onPress={startFaceRecognition}
@@ -292,6 +420,7 @@ export default function FaceRecognitionScreen() {
         
         <Text style={styles.infoText}>
           Face recognition ready • {employees.length} employees enrolled
+          {livenessCheck && ' • Liveness detection enabled'}
         </Text>
       </View>
     </SafeAreaView>
@@ -317,7 +446,12 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     fontSize: 24,
@@ -518,5 +652,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  controlButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    backgroundColor: '#fff',
+  },
+  modeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  modeButtonText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  modeButtonTextActive: {
+    color: '#fff',
+  },
+  livenessIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 15,
+  },
+  indicator: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  indicatorActive: {
+    backgroundColor: 'rgba(76,175,80,0.8)',
+    borderColor: '#4CAF50',
+  },
+  indicatorText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

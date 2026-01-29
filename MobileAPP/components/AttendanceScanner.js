@@ -14,12 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, Camera } from 'expo-camera';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import FaceRecognitionScreen from './FaceRecognitionScreen';
+import ApiService from '../services/ApiService';
 
 const { width, height } = Dimensions.get('window');
 
-export default function AttendanceScanner() {
-  const [mode, setMode] = useState('barcode'); // 'barcode' or 'face'
+export default function AttendanceScanner({ onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,8 +73,10 @@ export default function AttendanceScanner() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await ApiService.getAuthToken()}`
         },
         body: JSON.stringify({
+          code: barcodeCode,
           date: now.toISOString().split('T')[0],
           clientTs: now.getTime(),
           tzOffsetMinutes: tzOffsetMinutes
@@ -144,11 +145,6 @@ export default function AttendanceScanner() {
     setShowSuccess(false);
   };
 
-  const toggleMode = () => {
-    setMode(current => current === 'barcode' ? 'face' : 'barcode');
-    resetScanner();
-  };
-
   if (hasPermission === null) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -176,17 +172,6 @@ export default function AttendanceScanner() {
     );
   }
 
-  if (mode === 'face') {
-    return (
-      <View style={styles.container}>
-        <FaceRecognitionScreen />
-        <TouchableOpacity style={styles.floatingButton} onPress={toggleMode}>
-          <Ionicons name="qr-code" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
@@ -194,8 +179,11 @@ export default function AttendanceScanner() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
           <Ionicons name="scan" size={28} color="#fff" />
-          <Text style={styles.title}>Attendance Scanner</Text>
+          <Text style={styles.title}>Barcode Scanner</Text>
           <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
             <Ionicons 
               name={flashMode === 'off' ? 'flash-off' : 'flash'} 
@@ -314,11 +302,6 @@ export default function AttendanceScanner() {
           </View>
         )}
       </View>
-      
-      {/* Floating Mode Switch Button */}
-      <TouchableOpacity style={styles.floatingButton} onPress={toggleMode}>
-        <Ionicons name="person" size={24} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -342,7 +325,12 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     fontSize: 24,
