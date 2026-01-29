@@ -309,11 +309,17 @@ const AddEditEmployee = () => {
                 status: form.status,
             }
 
-            if (form.avatar && form.avatar instanceof File) {
+            // Handle avatar: only include if changed
+            if (form.avatar instanceof File) {
                 payload.avatar = await toBase64(form.avatar)
-            } else if (form.avatar) {
+            } else if (isEdit && form.avatar === null && preview === null) {
+                // Avatar was removed in edit mode
+                payload.avatar = null
+            } else if (!isEdit && form.avatar) {
+                // New employee with existing avatar string
                 payload.avatar = form.avatar
             }
+            // If editing and avatar unchanged (string), don't include it
 
             if (isEdit) {
                 await axios.put(`${API}/${id}`, payload)
@@ -395,18 +401,7 @@ const AddEditEmployee = () => {
             {preview && (
                 <button
                     type="button"
-                    onClick={async () => {
-                        if (isEdit && id) {
-                            // remove from backend
-                            try {
-                                await axios.put(`${API}/${id}`, { avatar: null });
-                                // toast.success('Avatar removed');
-                            } catch (err) {
-                                console.error(err);
-                                toast.error('Failed to remove avatar from server');
-                                return; // stop clearing preview if failed
-                            }
-                        }
+                    onClick={() => {
                         // remove locally
                         setForm(f => ({ ...f, avatar: null }));
                         setPreview(null);

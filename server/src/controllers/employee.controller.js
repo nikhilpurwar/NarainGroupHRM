@@ -119,21 +119,6 @@ export const createEmployee = async (req, res) => {
 
     const emp = await Employee.create(req.body);
 
-    // Auto-enroll face if avatar provided
-    if (req.body.avatar) {
-      try {
-        console.log('Attempting face enrollment for new employee...');
-        const imageBuffer = Buffer.from(req.body.avatar.split(',')[1], 'base64');
-        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        emp.faceTemplate = descriptor;
-        emp.faceEnrolled = true;
-        emp.faceEnrollmentDate = new Date();
-        console.log('Face enrolled successfully');
-      } catch (error) {
-        console.error('Auto face enrollment failed:', error.message);
-      }
-    }
-
     // generate barcode and QR based on empId (fallback to _id)
     try {
       const codeText = emp.empId || emp._id.toString();
@@ -143,10 +128,11 @@ export const createEmployee = async (req, res) => {
       ]);
       emp.barcode = barcodeDataUrl;
       emp.qrCode = qrDataUrl;
-      await emp.save();
     } catch (genErr) {
       console.error("Code generation failed:", genErr.message);
     }
+
+    await emp.save();
 
     // Recalculate salary for current and previous month
     salaryRecalcService.recalculateCurrentAndPreviousMonth().catch(err =>
@@ -240,8 +226,8 @@ export const enrollFace = async (req, res) => {
   try {
     const { employeeId, images } = req.body;
     
-    if (!employeeId || !images || !Array.isArray(images) || images.length < 5) {
-      return res.status(400).json({ success: false, message: 'Employee ID and at least 5 images required' });
+    if (!employeeId || !images || !Array.isArray(images) || images.length < 10) {
+      return res.status(400).json({ success: false, message: 'Employee ID and at least 10 images required for better accuracy' });
     }
 
     const employee = await Employee.findById(employeeId);
@@ -253,7 +239,7 @@ export const enrollFace = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Employee is inactive' });
     }
 
-    // Extract embeddings from all images
+    // Extract embeddings from all images (5-7 from mobile app)
     const embeddings = [];
     for (const image of images) {
       try {
@@ -265,8 +251,20 @@ export const enrollFace = async (req, res) => {
       }
     }
 
-    if (embeddings.length < 5) {
-      return res.status(400).json({ success: false, message: 'At least 5 valid face images required' });
+    // Also include profile picture if available
+    if (employee.avatar && typeof employee.avatar === 'string' && employee.avatar.includes('base64')) {
+      try {
+        const imageBuffer = Buffer.from(employee.avatar.split(',')[1], 'base64');
+        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+        embeddings.push(descriptor);
+        console.log('Profile picture included in face enrollment');
+      } catch (err) {
+        console.error('Failed to process profile picture:', err.message);
+      }
+    }
+
+    if (embeddings.length < 10) {
+      return res.status(400).json({ success: false, message: 'At least 10 valid face images required for better accuracy' });
     }
 
     // Fuse embeddings into ONE STRONG TEMPLATE
@@ -290,7 +288,7 @@ export const enrollFace = async (req, res) => {
 
 export const recognizeFace = async (req, res) => {
   try {
-    const { image, threshold = 0.80 } = req.body;
+    const { image, threshold = 0.85 } = req.body;
     
     if (!image || typeof image !== 'string') {
       return res.status(400).json({ success: false, message: 'Valid base64 image required' });
@@ -1322,22 +1320,18 @@ export const updateEmployee = async (req, res) => {
       req.body.email = newEmail;
     }
 
-    Object.assign(emp, req.body);
+    // Assign other fields from request body first
+    const { avatar, ...otherFields } = req.body;
+    Object.assign(emp, otherFields);
     
-    console.log('Update request body has avatar:', !!req.body.avatar);
-    
-    // Auto-enroll face if avatar updated
-    if (req.body.avatar) {
-      try {
-        console.log('Attempting face enrollment for updated employee...');
-        const imageBuffer = Buffer.from(req.body.avatar.split(',')[1], 'base64');
-        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        emp.faceTemplate = descriptor;
-        emp.faceEnrolled = true;
-        emp.faceEnrollmentDate = new Date();
-        console.log('Face enrolled successfully');
-      } catch (error) {
-        console.error('Auto face enrollment failed:', error.message);
+    // Handle avatar separately
+    if (req.body.hasOwnProperty('avatar')) {
+      if (req.body.avatar === null) {
+        // Remove avatar
+        emp.avatar = null;
+      } else if (typeof req.body.avatar === 'string') {
+        // Update avatar (base64 string for profile display only)
+        emp.avatar = req.body.avatar;
       }
     }
     

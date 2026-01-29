@@ -12,13 +12,16 @@ const FaceEnrollmentScreen = ({ employee, onBack }) => {
   const cameraRef = useRef(null);
 
   const captureSteps = [
+    { instruction: 'Follow Instructions', angle: 'center' },
     { instruction: 'Look straight at camera', angle: 'center' },
+    { instruction: 'Good', angle: 'center' },
     { instruction: 'Turn head slightly left', angle: 'left' },
     { instruction: 'Turn head slightly right', angle: 'right' },
     { instruction: 'Look up slightly', angle: 'up' },
     { instruction: 'Look down slightly', angle: 'down' },
     { instruction: 'Smile naturally', angle: 'smile' },
     { instruction: 'Neutral expression', angle: 'neutral' },
+    { instruction: 'Thank you', angle: 'center' },
   ];
 
   React.useEffect(() => {

@@ -32,7 +32,9 @@ const employeeSchema = new mongoose.Schema({
     faceTemplate: {
         type: [Number],
         validate: {
-            validator: function(v) { return !v || (Array.isArray(v) && v.length === 128); },
+            validator: function(v) { 
+                return !v || v.length === 0 || (Array.isArray(v) && v.length === 128); 
+            },
             message: 'Face template must be a 128-dimensional vector'
         }
     },
