@@ -17,6 +17,10 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
     const [isVisible, setIsVisible] = useState(true);
     const lastScrollY = useRef(0);
     const dropdownRef = useRef(null);
+    const [employeeLoaded, setEmployeeLoaded] = useState(false);
+
+    
+    const [gender, setGender] = useState(""); 
 
     const navigate = useNavigate()
 
@@ -125,11 +129,14 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
                 const employees = Array.isArray(data.data) ? data.data : []
                 const emp = employees.find(e => e.empId === userEmail || e.email === userEmail)
                 if (emp) {
-                    setEmployeeId(emp._id || "")
+                    setEmployeeId(emp._id || "");
+                    setGender(emp.gender || ""); 
                     if (emp.avatar) {
                         setAvatarUrl(emp.avatar)
                     }
+                    
                 }
+                setEmployeeLoaded(true); 
             } catch (e) {
                 console.error('Failed to fetch employee avatar', e)
             }
@@ -170,24 +177,35 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
         return { key: 'evening', text: 'Good Evening' };
     };
 
-    useEffect(() => {
-        if (!userName) return;
+useEffect(() => {
+    if (!userName || !employeeLoaded) return;
 
-        const { key, text } = getGreetingByTime();
-        const sessionKey = `greeted_${key}`;
+    const { key, text } = getGreetingByTime();
+    const sessionKey = `greeted_${key}`;
 
-        // already greeted in this time slot
-        if (sessionStorage.getItem(sessionKey)) return;
+    if (sessionStorage.getItem(sessionKey)) return;
 
-        const firstName = userName.split(" ")[0];
-        setGreeting(`${text}, ${firstName} Sir`);
+    const firstName = userName.split(" ")[0];
 
-        sessionStorage.setItem(sessionKey, 'true');
+    const normalizedGender = gender
+        ?.toString()
+        .trim()
+        .toLowerCase();
 
-        // auto hide greeting after 6 seconds
-        const timer = setTimeout(() => setGreeting(""), 6000);
-        return () => clearTimeout(timer);
-    }, [userName]);
+    let honorific = "";
+    if (normalizedGender === "male") honorific = " Sir";
+    else if (normalizedGender === "female") honorific = " Ma’am";
+    // other / empty → nothing
+
+    setGreeting(`${text}, ${firstName}${honorific}`);
+
+    sessionStorage.setItem(sessionKey, "true");
+
+    const timer = setTimeout(() => setGreeting(""), 6000);
+    return () => clearTimeout(timer);
+}, [userName, gender, employeeLoaded]);
+
+
 
     return (
         <div style={{ width: window.innerWidth < 768 ? '100vw' : (isSidebarHovered ? 'calc(100vw - 256px)' : isSidebarCollapsed ? 'calc(100vw - 84px)' : 'calc(100vw - 256px)'), left: window.innerWidth < 768 ? '0' : (isSidebarHovered ? '256px' : isSidebarCollapsed ? '84px' : '256px') }} className={`bg-gray-900 text-white border-b shadow-sm transition-all duration-300 fixed top-0 z-50 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>

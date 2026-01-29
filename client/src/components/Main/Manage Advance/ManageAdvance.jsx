@@ -8,7 +8,8 @@ import { MdDeleteOutline } from "react-icons/md";
 
 import AddEditAdvance from "./components/AddEditAdvance";
 import ViewAdvance from "./components/ViewAdvance";
-
+  import { useLocation } from "react-router-dom";
+import Spinner from "../../utility/Spinner";
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 
 const DEFAULT_AVATAR =
@@ -29,6 +30,20 @@ const ManageAdvance = () => {
   /* Pagination */
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [error,setError] = useState(null)
+
+  useEffect(() => {
+    if (location.state?.employeeId && advances.length) {
+      const empAdvance = advances.find(
+        a => a.employee?.empId === location.state.employeeId
+      );
+
+      if (empAdvance) {
+        setSelectedAdvance(empAdvance);
+        setShowView(true);
+      }
+    }
+  }, [location.state, advances]);
 
   /* ================= FETCH ADVANCES ================= */
   const fetchAdvances = async () => {
@@ -157,8 +172,7 @@ const onEdit = (advance) => {
         {/* Knob */}
         <span
           className={`
-                   absolute top-[4px] left-[4px]
-          w-3 h-3 rounded-full
+                   absolute top-[4px] left-[4px] w-3 h-3 rounded-full
           bg-gradient-to-b from-white via-gray-100 to-gray-300
           shadow-[0_2px_4px_rgba(0,0,0,0.4)]
           transition-transform duration-300
@@ -267,6 +281,14 @@ const onEdit = (advance) => {
       </div>
     );
   };
+
+     if (loading)
+    return (
+      <div className="p-6 text-center">
+        <Spinner />
+      </div>
+    );
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   /* ================= UI ================= */
   return (

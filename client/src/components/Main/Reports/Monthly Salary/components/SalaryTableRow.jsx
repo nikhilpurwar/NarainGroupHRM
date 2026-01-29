@@ -209,7 +209,22 @@ const SalaryTableRow = memo(({
       <td className="px-4 py-3 text-sm text-gray-900 bg-gray-50">₹{item.basicPF?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-blue-700 bg-blue-50">₹{item.otPF?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.insurance?.toLocaleString() || '0'}</td>
-      <td className="px-4 py-3 text-sm text-gray-900 cursor-pointer" onClick={()=>navigate("/advance")}>₹{item.advance?.toLocaleString() || '0'}</td>
+    <td className="px-4 py-3 text-sm text-gray-900 cursor-pointer hover:text-blue-600"
+     onClick={() => {
+    if (!item.advance || item.advance === 0) {
+      navigate("/advance");
+    } else {
+      navigate("/advance", {
+        state: {
+          employeeId: item.employeeId || item.empId,
+        },
+      });
+    }
+  }}
+>
+  ₹{item.advance?.toLocaleString() || '0'}
+</td>
+
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.loanPending?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">₹{item.loanReceived?.toLocaleString() || '0'}</td>
       <td className="px-4 py-3 text-sm text-gray-900">

@@ -404,7 +404,7 @@ useEffect(() => {
         type="button"
         title={isActive ? "Set Inactive" : "Set Active"}
         className={`
-                relative w-12 h-6 rounded-full
+                relative w-9 h-5 rounded-full
                 transition-all duration-300 ease-out
                 focus:outline-none
                 flex items-center
@@ -418,11 +418,11 @@ useEffect(() => {
         {/* Toggle Knob */}
         <span
           className={`
-                    absolute top-[3.5px] left-[4.3px] w-4 h-4 rounded-full
+                    absolute top-[4px] left-[4px] w-3 h-3 rounded-full
                     bg-gradient-to-b from-white via-gray-100 to-gray-300
                     shadow-[0_2px_5px_rgba(0,0,0,0.45)]
                     transition-transform duration-300 ease-out
-                    ${isActive ? "translate-x-6" : "translate-x-0"}
+                    ${isActive ? "translate-x-4" : "translate-x-0"}
                 `}
         />
 
@@ -506,8 +506,8 @@ useEffect(() => {
   return (
     <div>
       {showFilters && (
-        <div className="bg-white p-6 sticky top-[72px] z-30 rounded-b-xl shadow-lg mb-6 border border-gray-100">
-  <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
+        <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
+          <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
             {/* Search Input */}
             <div className="relative col-span-2">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -659,12 +659,11 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-md flex flex-col h-[70vh] min-h-0">
+      <div className=" bg-white py-4 rounded-xl shadow-md  overflow-x-auto">
         {loading ? (
           <Spinner />
         ) : (
-          <div className="flex-1 overflow-auto">
-          <table className="w-full min-w-7xl table-auto">
+          <table className="w-full table-auto">
             <thead>
               <tr className="bg-gray-100 text-gray-800 text-left">
                 <th className="px-4 py-3">#</th>
@@ -922,16 +921,15 @@ useEffect(() => {
               )}
             </tbody>
           </table>
-          </div>
         )}
 
      
-   { /* DeleteConfirmationModal */}
+            { /* DeleteConfirmationModal */}
      <DeleteEmployeeConfirmationModal />
 
 
         {filtered.length > 0 && (
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6 pb- px-6">
+          <div className="flex flex-col md:flex-row sticky left-0 md:items-center md:justify-between gap-3 mt-6 pb- px-6">
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
                 Showing {filtered.length === 0 ? 0 : indexOfFirst + 1} to{" "}
