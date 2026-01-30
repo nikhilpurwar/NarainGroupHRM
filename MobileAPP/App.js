@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +10,7 @@ import FaceRecognitionScreen from './components/FaceRecognitionScreen';
 import FaceEnrollmentList from './components/FaceEnrollmentList';
 import FaceEnrollmentScreen from './components/FaceEnrollmentScreen';
 import ApiService from './services/ApiService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -25,7 +27,7 @@ export default function App() {
     try {
       const token = await AsyncStorage.getItem('authToken');
       const userData = await AsyncStorage.getItem('user');
-      
+
       if (token && userData) {
         setUser(JSON.parse(userData));
         setIsAuthenticated(true);
@@ -77,6 +79,20 @@ export default function App() {
         return <FaceEnrollmentList onBack={() => navigateToScreen('home')} onSelectEmployee={(emp) => navigateToScreen('faceEnrollment', emp)} />;
       case 'faceEnrollment':
         return <FaceEnrollmentScreen employee={selectedEmployee} onBack={() => navigateToScreen('faceEnrollmentList')} />;
+      case 'profileView':
+        return (
+          <View style={styles.wipContainer}>
+            <Ionicons name="construct-outline" size={80} color="#999" />
+            <Text style={styles.wipTitle}>Work in Progress</Text>
+            <Text style={styles.wipSubtitle}>
+              This feature is under development.
+            </Text>
+            <TouchableOpacity onPress={() => navigateToScreen('home')}>
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
       default:
         return <HomeScreen onNavigate={navigateToScreen} user={user} onLogout={handleLogout} />;
     }
@@ -89,3 +105,32 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  wipContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 30
+  },
+  wipTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 20,
+    color: '#333'
+  },
+  wipSubtitle: {
+    fontSize: 16,
+    marginTop: 8,
+    color: '#777',
+    textAlign: 'center'
+  },
+  backText: {
+    marginTop: 25,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF'
+  }
+
+});

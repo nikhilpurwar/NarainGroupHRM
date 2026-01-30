@@ -111,7 +111,7 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
+      <LinearGradient colors={theme.colors.gradientDark} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   avatarContainer: { position: 'relative', marginRight: theme.spacing.md },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.background },
   avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' },
-  enrolledBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.colors.surface },
+  enrolledBadge: { position: 'absolute', top: 16, left: 60, width: 20, height: 20, borderRadius: 10, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.colors.surface },
   employeeInfo: { flex: 1 },
   employeeName: { fontSize: 16, fontWeight: '700', color: theme.colors.text, marginBottom: 4 },
   employeeId: { fontSize: 14, color: theme.colors.textSecondary },

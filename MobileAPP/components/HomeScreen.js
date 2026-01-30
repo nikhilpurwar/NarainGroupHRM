@@ -11,9 +11,10 @@ export default function HomeScreen({ onNavigate, user, onLogout }) {
   const insets = useSafeAreaInsets();
 
   const features = [
-    { id: 'barcode', title: 'QR Scanner', subtitle: 'Quick scan', icon: 'qr-code', gradient: ['#8B5CF6', '#7C3AED'] },
+    { id: 'barcode', title: 'Barcode', subtitle: 'Quick scan', icon: 'barcode', gradient: ['#F59E0B', '#D97706'] },
     { id: 'faceRecognition', title: 'Face Scan', subtitle: 'AI recognition', icon: 'scan-circle', gradient: ['#EC4899', '#DB2777'] },
-    { id: 'faceEnrollmentList', title: 'Enroll Face', subtitle: 'Register new', icon: 'person-add', gradient: ['#10B981', '#059669'] },
+    { id: 'profileView', title: 'Profile', subtitle: 'Employee Profile', icon: 'qr-code', gradient: ['#8B5CF6', '#7C3AED'] },
+    { id: 'faceEnrollmentList', title: 'Enroll Face', subtitle: 'Register new', icon: 'scan', gradient: ['#10B981', '#059669'] },
   ];
 
   return (

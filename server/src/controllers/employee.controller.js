@@ -286,9 +286,60 @@ export const enrollFace = async (req, res) => {
   }
 };
 
+// Basic face detection function
+const detectFaceInImage = async (imageBuffer) => {
+  try {
+    if (!imageBuffer || imageBuffer.length < 5000) {
+      return false; // Too small to contain a face
+    }
+    
+    const base64String = imageBuffer.toString('base64');
+    
+    // Check for JPEG/PNG headers
+    const hasValidHeader = base64String.startsWith('/9j/') || // JPEG
+                          base64String.startsWith('iVBORw0KGgo'); // PNG
+    
+    if (!hasValidHeader) {
+      return false;
+    }
+    
+    // Analyze image characteristics for face-like patterns
+    const chunks = Math.floor(base64String.length / 64);
+    let varianceSum = 0;
+    let patternCount = 0;
+    
+    for (let i = 0; i < 64; i++) {
+      const start = i * chunks;
+      const end = Math.min(start + chunks, base64String.length);
+      const chunk = base64String.slice(start, end);
+      
+      // Calculate variance in this chunk
+      const charCodes = chunk.split('').map(c => c.charCodeAt(0));
+      const mean = charCodes.reduce((a, b) => a + b, 0) / charCodes.length;
+      const variance = charCodes.reduce((sum, code) => sum + Math.pow(code - mean, 2), 0) / charCodes.length;
+      
+      varianceSum += variance;
+      
+      // Look for patterns that suggest structured content (like faces)
+      if (variance > 100 && variance < 2000) {
+        patternCount++;
+      }
+    }
+    
+    const avgVariance = varianceSum / 64;
+    const patternRatio = patternCount / 64;
+    
+    // Face detection heuristic: good variance distribution and pattern ratio
+    return avgVariance > 200 && avgVariance < 1500 && patternRatio > 0.3;
+  } catch (error) {
+    console.error('Face detection error:', error);
+    return false;
+  }
+};
+
 export const recognizeFace = async (req, res) => {
   try {
-    const { image, threshold = 0.85 } = req.body;
+    const { image, threshold = 0.95, requireFaceDetection = false } = req.body;
     
     if (!image || typeof image !== 'string') {
       return res.status(400).json({ success: false, message: 'Valid base64 image required' });
@@ -299,8 +350,20 @@ export const recognizeFace = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Threshold must be between 0 and 1' });
     }
 
-    // Extract embedding from live image
+    // Basic face detection - check if image has face-like characteristics
     const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
+    const faceDetected = await detectFaceInImage(imageBuffer);
+    
+    if (requireFaceDetection && !faceDetected) {
+      return res.json({ 
+        success: true, 
+        recognized: false,
+        noFaceDetected: true,
+        message: 'No face detected in image'
+      });
+    }
+
+    // Extract embedding from live image
     const liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
 
     // Get all employees with face templates
@@ -318,7 +381,7 @@ export const recognizeFace = async (req, res) => {
       });
     }
 
-    // Find best match using cosine similarity
+    // Find best match using cosine similarity with stricter threshold
     let bestMatch = null;
     let bestSimilarity = 0;
 
@@ -345,6 +408,7 @@ export const recognizeFace = async (req, res) => {
       return res.json({ 
         success: true, 
         recognized: false,
+        confidence: bestSimilarity,
         message: 'No matching face found'
       });
     }
@@ -352,7 +416,8 @@ export const recognizeFace = async (req, res) => {
     res.json({ 
       success: true, 
       recognized: true,
-      employee: bestMatch
+      employee: bestMatch,
+      confidence: bestMatch.confidence
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

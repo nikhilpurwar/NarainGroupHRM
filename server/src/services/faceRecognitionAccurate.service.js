@@ -55,7 +55,17 @@ class FaceRecognitionService {
     
     if (norm1 === 0 || norm2 === 0) return 0;
     
-    return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    const similarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    
+    // Apply additional quality checks
+    const euclideanDist = this.euclideanDistance(desc1, desc2);
+    
+    // Penalize if euclidean distance is too high (dissimilar faces)
+    if (euclideanDist > 1.2) {
+      return Math.max(0, similarity - 0.2);
+    }
+    
+    return Math.max(0, Math.min(1, similarity));
   }
 
   euclideanDistance(desc1, desc2) {
@@ -105,7 +115,7 @@ class FaceRecognitionService {
     return fused;
   }
 
-  findBestMatch(targetDescriptor, knownDescriptors, threshold = 0.7) {
+  findBestMatch(targetDescriptor, knownDescriptors, threshold = 0.95) {
     if (!Array.isArray(targetDescriptor) || targetDescriptor.length !== 128) {
       throw new Error('Invalid target descriptor: must be 128-dimensional array');
     }
@@ -120,13 +130,21 @@ class FaceRecognitionService {
       
       const similarity = this.calculateSimilarity(targetDescriptor, known.descriptor);
       
-      if (similarity > bestSimilarity && similarity >= threshold) {
-        bestSimilarity = similarity;
-        bestMatch = {
-          ...known,
-          similarity,
-          confidence: similarity
-        };
+      // Apply stricter matching criteria
+      if (similarity >= threshold && similarity > bestSimilarity) {
+        // Additional validation: check euclidean distance
+        const euclideanDist = this.euclideanDistance(targetDescriptor, known.descriptor);
+        
+        // Only accept if both cosine similarity is high AND euclidean distance is reasonable
+        if (euclideanDist < 1.0) {
+          bestSimilarity = similarity;
+          bestMatch = {
+            ...known,
+            similarity,
+            confidence: similarity,
+            euclideanDistance: euclideanDist
+          };
+        }
       }
     }
 

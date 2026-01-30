@@ -57,19 +57,19 @@ const FaceEnrollmentScreen = ({ employee, onBack }) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({ 
-        quality: 0.85, 
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.85,
         base64: false,
         exif: false
       });
-      
+
       // Resize image to reduce payload size
       const manipResult = await manipulateAsync(
         photo.uri,
         [{ resize: { width: 640 } }],
         { compress: 0.7, format: SaveFormat.JPEG, base64: true }
       );
-      
+
       const newImages = [...capturedImages, manipResult.base64];
       setCapturedImages(newImages);
 
@@ -146,7 +146,7 @@ const FaceEnrollmentScreen = ({ employee, onBack }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
+      <LinearGradient colors={theme.colors.gradientDark} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -215,15 +215,15 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2, fontWeight: '500' },
   cameraContainer: { flex: 1, overflow: 'hidden' },
   camera: { flex: 1 },
-overlay: {
-  ...StyleSheet.absoluteFillObject,
-  paddingHorizontal: theme.spacing.lg,
-  paddingTop: 80,                 // added
-  justifyContent: 'flex-start',   // corrected
-  alignItems: 'center',
-  backgroundColor: 'rgba(0,0,0,0.3)',
-  gap: 20,                        // added (RN 0.71+ supports gap)
-},  faceFrame: { width: width * 0.7, height: width * 0.9, position: 'relative' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 80,                 // added
+    justifyContent: 'flex-start',   // corrected
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    gap: 20,                        // added (RN 0.71+ supports gap)
+  }, faceFrame: { width: width * 0.7, height: width * 0.9, position: 'relative' },
   corner: { position: 'absolute', width: 40, height: 40 },
   cornerTL: { top: 0, left: 0, borderTopWidth: 5, borderLeftWidth: 5, borderTopLeftRadius: 16 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 5, borderRightWidth: 5, borderTopRightRadius: 16 },

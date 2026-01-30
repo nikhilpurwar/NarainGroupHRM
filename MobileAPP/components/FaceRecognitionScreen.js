@@ -56,12 +56,23 @@ export default function FaceRecognitionScreen({ onBack }) {
       }
     } catch (error) {
       const cached = await AsyncStorage.getItem('employeeFaces');
-      if (cached) setEmployees(JSON.parse(cached));
+      if (cached) {
+        try {
+          setEmployees(JSON.parse(cached));
+        } catch (parseError) {
+          console.warn('Failed to parse cached employee data:', parseError);
+          await AsyncStorage.removeItem('employeeFaces');
+        }
+      }
     }
   };
 
   const startFaceRecognition = () => {
-    if (recognizing || cameraFacing !== 'front') return;
+    if (recognizing) return;
+    if (cameraFacing !== 'front') {
+      Alert.alert('Camera Position', 'Please use front camera for face recognition.');
+      return;
+    }
     setRecognizing(true);
     setCountdown(3);
     
@@ -85,19 +96,31 @@ export default function FaceRecognitionScreen({ onBack }) {
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, base64: true });
         const token = await AsyncStorage.getItem('authToken');
         
+        // Basic image quality validation
+        if (!photo.base64 || photo.base64.length < 1000) {
+          throw new Error('Image quality too low');
+        }
+
         const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ image: `data:image/jpeg;base64,${photo.base64}`, threshold: 0.80 }),
+          body: JSON.stringify({ 
+            image: `data:image/jpeg;base64,${photo.base64}`, 
+            threshold: 0.95, // Increased threshold for better accuracy
+            requireFaceDetection: true // Add server-side face detection requirement
+          }),
         });
 
         const result = await response.json();
         
-        if (result.success && result.recognized) {
+        if (result.success && result.recognized && result.confidence >= 0.95) {
           await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
         } else {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          Alert.alert('No Match', 'Face not recognized. Please try again.');
+          const message = result.noFaceDetected ? 
+            'No face detected in image. Please position your face properly.' :
+            `Face not recognized (${result.confidence ? (result.confidence * 100).toFixed(1) + '%' : 'low'} match). Please try again.`;
+          Alert.alert('Recognition Failed', message);
           setRecognizing(false);
         }
       }
@@ -169,7 +192,7 @@ export default function FaceRecognitionScreen({ onBack }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
+      <LinearGradient colors={theme.colors.gradientDark} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -231,7 +254,7 @@ export default function FaceRecognitionScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   centerContent: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
-  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, ...theme.shadows.lg },
+  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg },
   headerContent: { flexDirection: 'row', alignItems: 'center' },
   backButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
   headerTextContainer: { flex: 1, marginLeft: theme.spacing.md },

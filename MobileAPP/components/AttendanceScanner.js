@@ -107,12 +107,12 @@ export default function AttendanceScanner({ onBack }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
+      <LinearGradient colors={theme.colors.gradientDark} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.title}>QR Scanner</Text>
+          <Text style={styles.title}>Barcode Scanner</Text>
         </View>
       </LinearGradient>
 
@@ -127,7 +127,7 @@ export default function AttendanceScanner({ onBack }) {
             <View style={[styles.corner, styles.cornerBR]} />
             {scanActive && !scanned && <Animated.View style={[styles.scanLine, { opacity: fadeAnim }]} />}
           </View>
-          <Text style={styles.instructionText}>Align QR code within frame</Text>
+          <Text style={styles.instructionText}>Align Barcode code within frame</Text>
         </View>
       </View>
 
@@ -141,7 +141,7 @@ export default function AttendanceScanner({ onBack }) {
         </View>
       )}
 
-      <View style={styles.bottomContainer}>
+      <View style={[styles.bottomContainer, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
         {scanned && !showSuccess ? (
           <View style={styles.scanResult}>
             <Text style={styles.resultTitle}>Scanned: {scannedData}</Text>
@@ -150,7 +150,7 @@ export default function AttendanceScanner({ onBack }) {
             </TouchableOpacity>
           </View>
         ) : (
-          <Text style={styles.infoText}>Position QR code in frame • Auto-scan enabled</Text>
+          <Text style={styles.infoText}>Position Barcode code in frame • Auto-scan enabled</Text>
         )}
       </View>
 
@@ -169,7 +169,7 @@ export default function AttendanceScanner({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   centerContent: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
-  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, ...theme.shadows.lg },
+  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg },
   headerContent: { flexDirection: 'row', alignItems: 'center' },
   backButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', flex: 1, marginLeft: theme.spacing.md },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   floatingControls: {
   position: 'absolute',
   bottom: 94,
-  right: theme.spacing.lg,
+  right: 12,
   backgroundColor: 'rgba(0,0,0,0.85)',
   borderRadius: 28,          // keep one value
   elevation: 12,
