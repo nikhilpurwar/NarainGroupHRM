@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees, fetchEmployees } from '../../../store/employeesSlice'
 import { FaBarcode } from "react-icons/fa";
 import { useState } from "react";
+import Spinner from "../../utility/Spinner";
 
 
 const AllEmployees = () => {
@@ -21,6 +22,7 @@ const AllEmployees = () => {
   const [employees, setEmployees] = useState([]);
   const [searchParams] = useSearchParams();
   const departmentFromUrl = searchParams.get("department");
+  const [error,setError] = useState(null)
 
   useEffect(() => {
     dispatch(ensureEmployees())
@@ -42,6 +44,7 @@ const handleDelete = async (id) => {
     toast.success("Employee deleted");
   } catch (err) {
     console.error(err);
+    setError(err)
     toast.error("Delete failed");
   }
 };
@@ -58,6 +61,14 @@ const handleDelete = async (id) => {
       toast.error("Failed to update status");
     }
   };
+
+  if (loading)
+      return (
+        <div className="p-6 text-center">
+          <Spinner />
+        </div>
+      );
+    if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">

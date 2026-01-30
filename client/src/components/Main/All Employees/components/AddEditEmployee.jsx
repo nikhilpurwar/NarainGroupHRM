@@ -7,6 +7,7 @@ import { useHierarchy } from '../../../../context/HierarchyContext'
 import { useDispatch } from 'react-redux'
 import { fetchEmployees } from '../../../../store/employeesSlice'
 import { Loader } from 'lucide-react'
+import { FaFilePdf } from "react-icons/fa";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -69,6 +70,9 @@ const defaultForm = {
     empId: '',
     status: 'active',
     avatar: null,
+       vehicleNumber: '',
+  vehicleName: '',
+  vehicleDocument: null,
 }
 
 const AddEditEmployee = () => {
@@ -100,6 +104,12 @@ const AddEditEmployee = () => {
     const filteredDesignations = form.subDepartment
         ? getDesignationsBySubDepartment(form.subDepartment)
         : []
+
+         const selectedSubDept = filteredSubDepts.find(
+  s => s._id === form.subDepartment
+)
+
+const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
 
     useEffect(() => {
         // fetch employees for "reportsTo" dropdown
@@ -142,6 +152,8 @@ const AddEditEmployee = () => {
                     empId: emp.empId || '',
                     status: emp.status || 'active',
                     avatar: emp.avatar || null,
+                    vehicleNumber: isDriver ? form.vehicleNumber : '',
+                    vehicleName: isDriver ? form.vehicleName : '',
                 }))
                 if (emp.avatar) setPreview(emp.avatar)
             } catch (err) {
@@ -154,6 +166,9 @@ const AddEditEmployee = () => {
                 }
                 toast.error(formError || 'Failed to load employee')
             }
+            if (isDriver && form.vehicleDocument instanceof File) {
+  payload.vehicleDocument = await toBase64(form.vehicleDocument)
+}
         }
         fetchEmployee()
     }, [id, isEdit])
@@ -227,15 +242,25 @@ const AddEditEmployee = () => {
             setForm((prev) => ({ ...prev, mobile: limitedTo10 }));
             return;
         }
+         if (name === 'vehicleDocument') {
+  const file = e.target.files[0]
+  if (file && file.type === 'application/pdf') {
+    setForm(prev => ({ ...prev, vehicleDocument: file }))
+  } else {
+    toast.error('Only PDF files are allowed')
+  }
+  return
+}
+
         setForm({ ...form, [name]: value })
         setErrors((prev) => ({ ...prev, [name]: undefined }))
     }
 
     // Remove avatar
-    const handleRemoveAvatar = () => {
-        setForm(f => ({ ...f, avatar: null }))
-        setPreview(null)
-    }
+    // const handleRemoveAvatar = () => {
+    //     setForm(f => ({ ...f, avatar: null }))
+    //     setPreview(null)
+    // }
 
     // Persist draft to sessionStorage in real time for Add mode
     useEffect(() => {
@@ -521,6 +546,97 @@ const AddEditEmployee = () => {
                         />
                     </div>
                 </div>
+
+                 {isDriver && (
+      <div className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">
+                    <h3 className="text-white bg-gray-900 font-semibold text-lg rounded-t-xl p-4">
+                        Vehicle Info
+                    </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+  
+ <div className="md:col-span-3 bg-gray-100 rounded-lg">
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Input
+        label="Vehicle Number"
+        name="vehicleNumber"
+        value={form.vehicleNumber}
+        onChange={handleChange}
+        required
+      />
+
+      <Input
+        label="Vehicle Name"
+        name="vehicleName"
+        value={form.vehicleName}
+        onChange={handleChange}
+        required
+      />
+
+<div>
+  <label className="block font-medium mb-1 text-gray-800">
+    Vehicle Document (PDF)
+    <span className="text-red-500 ml-1">*</span>
+  </label>
+
+  <div className="border-2 border-dashed border-gray-300 rounded-xl p-2 text-center hover:border-gray-600 transition-all bg-gray-50">
+
+    <input
+      type="file"
+      accept="application/pdf"
+      name="vehicleDocument"
+      id="vehicleDocument"
+      onChange={handleChange}
+      className="hidden"
+    />
+
+    <label
+      htmlFor="vehicleDocument"
+      className="cursor-pointer justify-between inline-flex flex-row items-center gap-45"
+    >
+      <div className="flex flex-row items-center">
+
+     <FaFilePdf className="text-red-600 text-xl mr-2" />
+
+
+      <p className="text-xs text-gray-500">
+        Only PDF • Max 5MB
+      </p>
+      </div>
+       <span className="px-3.5 py-1.5 bg-gray-900 text-white rounded-md text-sm hover:bg-gray-700 transition">
+        Upload PDF
+      </span>
+    </label>
+
+{form.vehicleDocument && (
+            <div className="mt-2 flex justify-between items-center bg-gray-100 px-3 py-1 rounded">
+              <span className="text-xs truncate">
+                {form.vehicleDocument.name}
+              </span>
+              <button
+                type="button"
+                className="text-red-600 text-xs"
+                onClick={() =>
+                  setForm(f => ({ ...f, vehicleDocument: null }))
+                }
+              >
+                Remove
+              </button>
+            </div>
+          )}
+  </div>
+  {errors.vehicleDocument && (
+    <p className="text-red-500 text-sm mt-1">
+      {errors.vehicleDocument}
+    </p>
+  )}
+</div>
+
+
+  </div>
+</div>
+          </div>
+             </div> )}
 
                 {/* SALARY */}
                 <div className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">

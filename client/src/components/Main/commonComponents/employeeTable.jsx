@@ -506,7 +506,7 @@ useEffect(() => {
   return (
     <div>
       {showFilters && (
-        <div className="bg-white p-6 rounded-b-xl shadow-lg mb-6 border border-gray-100">
+        <div className="bg-white p-6 rounded-b-xl sticky shadow-lg mb-6 border border-gray-100">
           <div className="grid grid-cols-2 md:grid-cols-9 gap-4 mb-4">
             {/* Search Input */}
             <div className="relative col-span-2">
