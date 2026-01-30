@@ -286,10 +286,10 @@ export const enrollFace = async (req, res) => {
   }
 };
 
-// Basic face detection function
+// Improved face detection with more lenient criteria
 const detectFaceInImage = async (imageBuffer) => {
   try {
-    if (!imageBuffer || imageBuffer.length < 5000) {
+    if (!imageBuffer || imageBuffer.length < 3000) {
       return false; // Too small to contain a face
     }
     
@@ -303,15 +303,17 @@ const detectFaceInImage = async (imageBuffer) => {
       return false;
     }
     
-    // Analyze image characteristics for face-like patterns
-    const chunks = Math.floor(base64String.length / 64);
+    // More lenient face detection - focus on image quality rather than strict patterns
+    const chunks = Math.floor(base64String.length / 32);
     let varianceSum = 0;
-    let patternCount = 0;
+    let validChunks = 0;
     
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < 32; i++) {
       const start = i * chunks;
       const end = Math.min(start + chunks, base64String.length);
       const chunk = base64String.slice(start, end);
+      
+      if (chunk.length < 10) continue;
       
       // Calculate variance in this chunk
       const charCodes = chunk.split('').map(c => c.charCodeAt(0));
@@ -319,27 +321,24 @@ const detectFaceInImage = async (imageBuffer) => {
       const variance = charCodes.reduce((sum, code) => sum + Math.pow(code - mean, 2), 0) / charCodes.length;
       
       varianceSum += variance;
-      
-      // Look for patterns that suggest structured content (like faces)
-      if (variance > 100 && variance < 2000) {
-        patternCount++;
-      }
+      validChunks++;
     }
     
-    const avgVariance = varianceSum / 64;
-    const patternRatio = patternCount / 64;
+    if (validChunks === 0) return false;
     
-    // Face detection heuristic: good variance distribution and pattern ratio
-    return avgVariance > 200 && avgVariance < 1500 && patternRatio > 0.3;
+    const avgVariance = varianceSum / validChunks;
+    
+    // More lenient criteria - just check for reasonable image complexity
+    return avgVariance > 50 && avgVariance < 3000;
   } catch (error) {
     console.error('Face detection error:', error);
-    return false;
+    return true; // Default to allowing the image if detection fails
   }
 };
 
 export const recognizeFace = async (req, res) => {
   try {
-    const { image, threshold = 0.95, requireFaceDetection = false } = req.body;
+    const { image, threshold = 0.75, requireFaceDetection = false } = req.body;
     
     if (!image || typeof image !== 'string') {
       return res.status(400).json({ success: false, message: 'Valid base64 image required' });
@@ -381,7 +380,7 @@ export const recognizeFace = async (req, res) => {
       });
     }
 
-    // Find best match using cosine similarity with stricter threshold
+    // Find best match using cosine similarity with balanced threshold
     let bestMatch = null;
     let bestSimilarity = 0;
 

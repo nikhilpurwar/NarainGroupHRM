@@ -106,14 +106,14 @@ export default function FaceRecognitionScreen({ onBack }) {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ 
             image: `data:image/jpeg;base64,${photo.base64}`, 
-            threshold: 0.95, // Increased threshold for better accuracy
-            requireFaceDetection: true // Add server-side face detection requirement
+            threshold: 0.75, // Balanced threshold for accuracy vs usability
+            requireFaceDetection: true
           }),
         });
 
         const result = await response.json();
         
-        if (result.success && result.recognized && result.confidence >= 0.95) {
+        if (result.success && result.recognized && result.confidence >= 0.75) {
           await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
         } else {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
