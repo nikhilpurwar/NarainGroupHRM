@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Image, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../theme';
+
+const { width } = Dimensions.get('window');
 
 const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
+  const insets = useSafeAreaInsets();
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -20,9 +27,9 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
+
       const token = await AsyncStorage.getItem('authToken');
-      
+
       const response = await fetch('https://naraingrouphrm.onrender.com/api/employees', {
         method: 'GET',
         headers: {
@@ -31,17 +38,17 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
         },
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && Array.isArray(data.data)) {
-        const activeEmployees = data.data.filter(emp => 
+        const activeEmployees = data.data.filter(emp =>
           emp.status && emp.status.toLowerCase() === 'active'
         );
         setEmployees(activeEmployees);
@@ -51,8 +58,8 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      const errorMessage = error.name === 'AbortError' 
-        ? 'Request timeout. Please check your connection.' 
+      const errorMessage = error.name === 'AbortError'
+        ? 'Request timeout. Please check your connection.'
         : `Network error: ${error.message}`;
       Alert.alert('Error', errorMessage);
     } finally {
@@ -65,7 +72,7 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
       setFilteredEmployees(employees);
     } else {
       const search = searchText.toLowerCase();
-      const filtered = employees.filter(emp => 
+      const filtered = employees.filter(emp =>
         (emp.name && emp.name.toLowerCase().includes(search)) ||
         (emp.empId && emp.empId.toLowerCase().includes(search))
       );
@@ -74,60 +81,87 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
   };
 
   const renderEmployee = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.employeeItem}
+    <TouchableOpacity
+      style={styles.employeeCard}
       onPress={() => onSelectEmployee(item)}
+      activeOpacity={0.8}
     >
+      <View style={styles.avatarContainer}>
+        {item.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Ionicons name="person" size={32} color={theme.colors.textSecondary} />
+          </View>
+        )}
+      </View>
       <View style={styles.employeeInfo}>
-        <Text style={styles.employeeName}>{item.name}</Text>
-        <Text style={styles.employeeId}>ID: {item.empId}</Text>
+        <Text style={styles.employeeName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.employeeId}>EMP ID: {item.empId}</Text>
       </View>
       {item.faceEnrolled && (
         <View style={styles.enrolledBadge}>
-          <Text style={styles.enrolledText}>✓</Text>
+          <Ionicons name="checkmark" size={14} color="#fff" />
         </View>
       )}
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Select Employee</Text>
-      </View>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Select Employee</Text>
+        </View>
+      </LinearGradient>
 
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search by name or ID..."
-        value={searchText}
-        onChangeText={setSearchText}
-      />
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={theme.colors.textSecondary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name or ID..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchText('')} style={styles.clearButton}>
+            <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading employees...</Text>
         </View>
       ) : filteredEmployees.length === 0 ? (
         <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={80} color={theme.colors.textSecondary} />
           <Text style={styles.emptyText}>
             {employees.length === 0 ? 'No active employees found' : 'No matching employees'}
           </Text>
         </View>
       ) : (
         <>
-          <Text style={styles.countText}>
-            {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} found
-          </Text>
+          <View style={styles.countContainer}>
+            <Ionicons name="people" size={16} color={theme.colors.primary} />
+            <Text style={styles.countText}>
+              {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
           <FlatList
             data={filteredEmployees}
             renderItem={renderEmployee}
             keyExtractor={(item) => item._id}
-            style={styles.list}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
           />
         </>
       )}
@@ -136,112 +170,30 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 50,
-    backgroundColor: '#007AFF',
-  },
-  backButton: {
-    marginRight: 20,
-  },
-  backText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  title: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  searchInput: {
-    margin: 20,
-    padding: 15,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  countText: {
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    fontSize: 14,
-    color: '#666',
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  employeeItem: {
-    backgroundColor: 'white',
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  employeeInfo: {
-    flex: 1,
-  },
-  employeeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  employeeId: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  enrolledBadge: {
-    backgroundColor: '#4CAF50',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  enrolledText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg },
+  headerContent: { flexDirection: 'row', alignItems: 'center' },
+  backButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm, marginRight: theme.spacing.md },
+  title: { fontSize: 22, fontWeight: '800', color: '#fff', flex: 1 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.md, marginHorizontal: theme.spacing.lg, marginTop: theme.spacing.lg, paddingHorizontal: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.border, ...theme.shadows.sm },
+  searchIcon: { marginRight: theme.spacing.sm },
+  searchInput: { flex: 1, height: 50, fontSize: 16, color: theme.colors.text },
+  clearButton: { padding: theme.spacing.sm },
+  countContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md },
+  countText: { fontSize: 14, color: theme.colors.textSecondary, marginLeft: theme.spacing.sm, fontWeight: '600' },
+  listContent: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg },
+  employeeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg, padding: theme.spacing.md, marginBottom: theme.spacing.md, ...theme.shadows.md, borderWidth: 1, borderColor: theme.colors.border },
+  avatarContainer: { position: 'relative', marginRight: theme.spacing.md },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.background },
+  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' },
+  enrolledBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.colors.surface },
+  employeeInfo: { flex: 1 },
+  employeeName: { fontSize: 16, fontWeight: '700', color: theme.colors.text, marginBottom: 4 },
+  employeeId: { fontSize: 14, color: theme.colors.textSecondary },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: theme.spacing.md, fontSize: 16, color: theme.colors.textSecondary },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },
+  emptyText: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.md },
 });
 
 export default FaceEnrollmentList;

@@ -157,7 +157,7 @@ export const createEmployee = async (req, res) => {
 export const getEmployees = async (req, res) => {
   try {
     const emps = await Employee.find()
-      .select('name empId fatherName mobile salary status headDepartment subDepartment designation avatar createdAt gender')
+      // .select('name empId fatherName mobile salary status headDepartment subDepartment designation avatar createdAt gender')
       .populate('headDepartment', 'name')
       .populate('subDepartment', 'name')
       .populate('designation', 'name')

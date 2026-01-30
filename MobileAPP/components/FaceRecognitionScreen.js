@@ -1,107 +1,67 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  Dimensions,
-  ActivityIndicator,
-  StatusBar
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Dimensions, ActivityIndicator, StatusBar, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../theme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function FaceRecognitionScreen({ onBack }) {
+  const insets = useSafeAreaInsets();
   const [hasPermission, setHasPermission] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [recognizing, setRecognizing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const [cameraFacing, setCameraFacing] = useState('front'); // 'front' or 'back'
-  const [enrollmentMode, setEnrollmentMode] = useState(false);
-  const [capturedImages, setCapturedImages] = useState([]);
-  const [currentAngle, setCurrentAngle] = useState(0);
-  const [livenessCheck, setLivenessCheck] = useState(true);
-  const [livenessFrames, setLivenessFrames] = useState([]);
-  const [livenessInstructions, setLivenessInstructions] = useState('');
-  const [blinkDetected, setBlinkDetected] = useState(false);
-  const [headMovement, setHeadMovement] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('front');
+  const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef(null);
-  const frameInterval = useRef(null);
-
-  const captureAngles = [
-    { name: 'straight', instruction: 'Look straight at camera' },
-    { name: 'left', instruction: 'Turn head slightly left' },
-    { name: 'right', instruction: 'Turn head slightly right' },
-    { name: 'smile', instruction: 'Smile naturally' }
-  ];
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const getCameraPermissions = async () => {
+    (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-    };
-    getCameraPermissions();
+    })();
     loadEmployees();
   }, []);
 
-  // Rest of your existing code remains the same...
+  useEffect(() => {
+    if (recognizing) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [recognizing]);
 
   const loadEmployees = async () => {
-    setIsLoading(true);
     try {
       const token = await AsyncStorage.getItem('authToken');
-      
       const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-recognition', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
       if (result.success) {
-        let employeeList = result.data || [];
-        setEmployees(employeeList);
-        await AsyncStorage.setItem('employeeFaces', JSON.stringify(employeeList));
-      } else {
-        setEmployees([]);
+        setEmployees(result.data || []);
+        await AsyncStorage.setItem('employeeFaces', JSON.stringify(result.data || []));
       }
     } catch (error) {
-      console.log('API Error:', error);
       const cached = await AsyncStorage.getItem('employeeFaces');
-      if (cached) {
-        try {
-          const cachedEmployees = JSON.parse(cached);
-          setEmployees(cachedEmployees);
-        } catch (parseError) {
-          console.error('Cache parsing failed:', parseError);
-          await AsyncStorage.removeItem('employeeFaces');
-          setEmployees([]);
-        }
-      } else {
-        setEmployees([]);
-      }
-    } finally {
-      setIsLoading(false);
+      if (cached) setEmployees(JSON.parse(cached));
     }
   };
 
   const startFaceRecognition = () => {
-    if (recognizing || cameraFacing !== 'front') {
-      if (cameraFacing !== 'front') {
-        Alert.alert('Camera Error', 'Please switch to front camera for face recognition');
-      }
-      return;
-    }
-    
+    if (recognizing || cameraFacing !== 'front') return;
     setRecognizing(true);
     setCountdown(3);
     
@@ -121,130 +81,46 @@ export default function FaceRecognitionScreen({ onBack }) {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      if (livenessCheck) {
-        await performLivenessDetection();
-      } else {
-        await captureAndRecognize();
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, base64: true });
+        const token = await AsyncStorage.getItem('authToken');
+        
+        const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ image: `data:image/jpeg;base64,${photo.base64}`, threshold: 0.80 }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.recognized) {
+          await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
+        } else {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert('No Match', 'Face not recognized. Please try again.');
+          setRecognizing(false);
+        }
       }
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', `Face recognition failed: ${error.message}`);
+      Alert.alert('Error', `Recognition failed: ${error.message}`);
       setRecognizing(false);
-    }
-  };
-
-  const performLivenessDetection = async () => {
-    setLivenessFrames([]);
-    setBlinkDetected(false);
-    setHeadMovement(false);
-    
-    const instructions = [
-      'Look straight at camera',
-      'Blink naturally',
-      'Turn head slightly left',
-      'Turn head slightly right',
-      'Smile naturally'
-    ];
-    
-    for (let i = 0; i < instructions.length; i++) {
-      setLivenessInstructions(instructions[i]);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (cameraRef.current) {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.6,
-          base64: true,
-          skipProcessing: true,
-        });
-        
-        setLivenessFrames(prev => [...prev, photo.base64]);
-      }
-    }
-    
-    setLivenessInstructions('Processing...');
-    await processLivenessAndRecognize();
-  };
-
-  const processLivenessAndRecognize = async () => {
-    try {
-      const response = await fetch('http://localhost:5001/api/face/liveness', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          frames: livenessFrames
-        }),
-      });
-
-      const livenessResult = await response.json();
-      
-      if (livenessResult.success && livenessResult.isLive) {
-        setBlinkDetected(livenessResult.checks.blinkDetected);
-        setHeadMovement(livenessResult.checks.headMovement);
-        await captureAndRecognize();
-      } else {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Liveness Check Failed', 'Please ensure you are a real person and try again.');
-        setRecognizing(false);
-      }
-    } catch (error) {
-      console.error('Liveness check error:', error);
-      await captureAndRecognize(); // Fallback to recognition without liveness
-    }
-  };
-
-  const captureAndRecognize = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.85,
-        base64: true,
-        skipProcessing: true,
-      });
-      
-      const token = await AsyncStorage.getItem('authToken');
-      
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/recognize-face', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          image: `data:image/jpeg;base64,${photo.base64}`,
-          threshold: 0.80
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success && result.recognized) {
-        await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
-      } else {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('No Match Found', 'Face not recognized. Please try again or contact admin.');
-        setRecognizing(false);
-      }
     }
   };
 
   const markAttendance = async (employeeId, employeeName, confidence) => {
     try {
       const now = new Date();
-      const tzOffsetMinutes = -now.getTimezoneOffset();
       const token = await AsyncStorage.getItem('authToken');
       
       const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/face-attendance', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           employeeId,
           clientTs: now.getTime(),
-          tzOffsetMinutes: tzOffsetMinutes,
-          confidence: confidence
+          tzOffsetMinutes: -now.getTimezoneOffset(),
+          confidence
         }),
       });
 
@@ -252,15 +128,11 @@ export default function FaceRecognitionScreen({ onBack }) {
       
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const punchType = result.type.toUpperCase();
-        const message = `${punchType} - ${result.employee_name}\nTime: ${result.time}\nMatch: ${(confidence * 100).toFixed(1)}%`;
-        setSuccessMessage(message);
-        setShowSuccess(true);
-        
-        setTimeout(() => {
-          setShowSuccess(false);
-          setRecognizing(false);
-        }, 3000);
+        Alert.alert(
+          'Success',
+          `${result.type.toUpperCase()} - ${result.employee_name}\nTime: ${result.time}\nMatch: ${(confidence * 100).toFixed(1)}%`,
+          [{ text: 'OK', onPress: () => setRecognizing(false) }]
+        );
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Error', result.message);
@@ -273,14 +145,10 @@ export default function FaceRecognitionScreen({ onBack }) {
     }
   };
 
-  const toggleCameraFacing = () => {
-    setCameraFacing(current => (current === 'front' ? 'back' : 'front'));
-  };
-
   if (hasPermission === null) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.messageText}>Requesting camera permission...</Text>
       </View>
     );
@@ -289,15 +157,9 @@ export default function FaceRecognitionScreen({ onBack }) {
   if (hasPermission === false) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Ionicons name="camera-off" size={80} color="#FF3B30" />
+        <Ionicons name="camera-off" size={80} color={theme.colors.error} />
         <Text style={styles.errorText}>Camera Access Required</Text>
-        <TouchableOpacity
-          style={styles.permissionButton}
-          onPress={async () => {
-            const { status } = await Camera.requestCameraPermissionsAsync();
-            setHasPermission(status === 'granted');
-          }}
-        >
+        <TouchableOpacity style={styles.permissionButton} onPress={() => Camera.requestCameraPermissionsAsync()}>
           <Text style={styles.permissionButtonText}>Request Permission</Text>
         </TouchableOpacity>
       </View>
@@ -305,402 +167,98 @@ export default function FaceRecognitionScreen({ onBack }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
-      
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <LinearGradient colors={theme.colors.gradient} style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Ionicons name="person" size={28} color="#fff" />
-          <Text style={styles.title}>Face Recognition</Text>
-        </View>
-        <Text style={styles.subtitle}>Position your face and tap to scan</Text>
-      </View>
-
-      <View style={styles.scannerContainer}>
-        <CameraView
-          ref={cameraRef}
-          style={styles.scanner}
-          facing={cameraFacing} // Use state variable here
-        />
-        
-        <View style={styles.overlay}>
-          {cameraFacing === 'front' && (
-            <View style={[styles.faceFrame, recognizing && styles.faceFrameActive]}>
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerTR]} />
-              <View style={[styles.corner, styles.cornerBL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
-              
-              {countdown > 0 && (
-                <View style={styles.countdownContainer}>
-                  <Text style={styles.countdownText}>{countdown}</Text>
-                </View>
-              )}
-            </View>
-          )}
-          
-          <Text style={styles.instructionText}>
-            {cameraFacing === 'front' 
-              ? (recognizing 
-                  ? (countdown > 0 
-                      ? 'Get ready...' 
-                      : (livenessInstructions || 'Recognizing...'))
-                  : 'Position your face and tap to scan')
-              : 'Back camera - Use for taking photos'
-            }
-          </Text>
-          
-          {recognizing && livenessCheck && (
-            <View style={styles.livenessIndicators}>
-              <View style={[styles.indicator, blinkDetected && styles.indicatorActive]}>
-                <Text style={styles.indicatorText}>👁️ Blink</Text>
-              </View>
-              <View style={[styles.indicator, headMovement && styles.indicatorActive]}>
-                <Text style={styles.indicatorText}>↔️ Movement</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Flip Camera Button */}
-        <TouchableOpacity
-          style={styles.flipButton}
-          onPress={toggleCameraFacing}
-          disabled={recognizing}
-        >
-          <Ionicons 
-            name="camera-reverse" 
-            size={24} 
-            color="#fff" 
-          />
-          <Text style={styles.flipButtonText}>
-            {cameraFacing === 'front' ? 'Back' : 'Front'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {showSuccess && (
-        <View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
-            <Text style={styles.successTitle}>Attendance Marked</Text>
-            <Text style={styles.successMessage}>{successMessage}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.title}>Face Recognition</Text>
+            <Text style={styles.subtitle}>{employees.length} employees enrolled</Text>
           </View>
         </View>
-      )}
+      </LinearGradient>
 
-      <View style={styles.bottomContainer}>
-        <View style={styles.controlButtons}>
-          <TouchableOpacity
-            style={[styles.modeButton, livenessCheck && styles.modeButtonActive]}
-            onPress={() => setLivenessCheck(!livenessCheck)}
-          >
-            <Ionicons name={livenessCheck ? 'shield-checkmark' : 'shield-outline'} size={20} color={livenessCheck ? '#fff' : '#007AFF'} />
-            <Text style={[styles.modeButtonText, livenessCheck && styles.modeButtonTextActive]}>Liveness</Text>
-          </TouchableOpacity>
+      <View style={styles.cameraContainer}>
+        <CameraView ref={cameraRef} style={styles.camera} facing={cameraFacing} onCameraReady={() => setCameraReady(true)} />
+        <View style={styles.overlay}>
+          <Animated.View style={[styles.faceFrame, { transform: [{ scale: pulseAnim }] }]}>
+            <View style={[styles.corner, styles.cornerTL, recognizing && styles.cornerActive]} />
+            <View style={[styles.corner, styles.cornerTR, recognizing && styles.cornerActive]} />
+            <View style={[styles.corner, styles.cornerBL, recognizing && styles.cornerActive]} />
+            <View style={[styles.corner, styles.cornerBR, recognizing && styles.cornerActive]} />
+            
+            {countdown > 0 && (
+              <View style={styles.countdownContainer}>
+                <Text style={styles.countdownText}>{countdown}</Text>
+              </View>
+            )}
+          </Animated.View>
+
+          <View style={styles.instructionBubble}>
+            <Ionicons name={recognizing ? 'scan' : 'person'} size={28} color={recognizing ? '#10B981' : '#3B82F6'} />
+            <Text style={styles.instructionText}>
+              {recognizing ? (countdown > 0 ? 'Get ready...' : 'Recognizing...') : 'Position your face and tap scan'}
+            </Text>
+          </View>
         </View>
-        
-        <TouchableOpacity
-          style={[styles.scanButton, recognizing && styles.scanButtonDisabled]}
-          onPress={startFaceRecognition}
-          disabled={recognizing}
-        >
-          {recognizing ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="scan" size={24} color="#fff" />
-          )}
-          <Text style={styles.scanButtonText}>
-            {recognizing ? 'Scanning...' : 'Scan Face'}
-          </Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.infoText}>
-          Face recognition ready • {employees.length} employees enrolled
-          {livenessCheck && ' • Liveness detection enabled'}
-        </Text>
       </View>
-    </SafeAreaView>
+
+      <View style={[styles.bottomContainer, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
+        <TouchableOpacity style={[styles.scanButton, (!cameraReady || recognizing) && styles.disabledButton]} onPress={startFaceRecognition} disabled={!cameraReady || recognizing} activeOpacity={0.8}>
+          <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.scanGradient}>
+            {recognizing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="scan" size={24} color="#fff" />
+                <Text style={styles.scanText}>Scan Face</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={styles.floatingButton} onPress={() => setCameraFacing(c => c === 'back' ? 'front' : 'back')}>
+        <Ionicons name="camera-reverse" size={24} color="#fff" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  header: {
-    backgroundColor: '#1a1a2e',
-    paddingTop: 10,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#fff',
-    marginLeft: 10,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#8e8e93',
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  scannerContainer: {
-    flex: 1,
-    margin: 20,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-  },
-  scanner: {
-    flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  faceFrame: {
-    width: width * 0.6,
-    height: width * 0.8,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    position: 'relative',
-    borderRadius: 120,
-  },
-  faceFrameActive: {
-    borderColor: '#4CAF50',
-  },
-  corner: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    borderColor: '#007AFF',
-  },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderTopLeftRadius: 12,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderTopRightRadius: 12,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderBottomLeftRadius: 12,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderBottomRightRadius: 12,
-  },
-  countdownContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -25 }, { translateY: -25 }],
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0,122,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  countdownText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  instructionText: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 40,
-    textAlign: 'center',
-    fontWeight: '500',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  // Flip Camera Button Styles
-  flipButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flipButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 5,
-  },
-  bottomContainer: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  scanButton: {
-    backgroundColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 15,
-  },
-  scanButtonDisabled: {
-    backgroundColor: '#8e8e93',
-  },
-  scanButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 10,
-  },
-  infoText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-  },
-  errorText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FF3B30',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  messageText: {
-    fontSize: 16,
-    color: '#8e8e93',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  permissionButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  permissionButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  successOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  successCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 30,
-    alignItems: 'center',
-    width: width * 0.85,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1a1a2e',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  controlButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 15,
-  },
-  modeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: '#fff',
-  },
-  modeButtonActive: {
-    backgroundColor: '#007AFF',
-  },
-  modeButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  modeButtonTextActive: {
-    color: '#fff',
-  },
-  livenessIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-    gap: 15,
-  },
-  indicator: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  indicatorActive: {
-    backgroundColor: 'rgba(76,175,80,0.8)',
-    borderColor: '#4CAF50',
-  },
-  indicatorText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  centerContent: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
+  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, ...theme.shadows.lg },
+  headerContent: { flexDirection: 'row', alignItems: 'center' },
+  backButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
+  headerTextContainer: { flex: 1, marginLeft: theme.spacing.md },
+  title: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2, fontWeight: '500' },
+  cameraContainer: { flex: 1, overflow: 'hidden' },
+  camera: { flex: 1 },
+  overlay: { ...StyleSheet.absoluteFillObject, paddingTop: 80, justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
+  faceFrame: { width: width * 0.7, height: width * 0.9, position: 'relative' },
+  corner: { position: 'absolute', width: 40, height: 40, borderColor: '#3B82F6' },
+  cornerActive: { borderColor: '#10B981' },
+  cornerTL: { top: 0, left: 0, borderTopWidth: 5, borderLeftWidth: 5, borderTopLeftRadius: 16 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: 5, borderRightWidth: 5, borderTopRightRadius: 16 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: 5, borderLeftWidth: 5, borderBottomLeftRadius: 16 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: 5, borderRightWidth: 5, borderBottomRightRadius: 16 },
+  countdownContainer: { position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -30 }, { translateY: -30 }], width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(59,130,246,0.9)', justifyContent: 'center', alignItems: 'center' },
+  countdownText: { color: '#fff', fontSize: 28, fontWeight: '800' },
+  instructionBubble: { backgroundColor: 'rgba(0, 0, 0, 0.29)', marginBottom:100, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.borderRadius.xl, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, ...theme.shadows.lg },
+  instructionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  bottomContainer: { display:'flex', alignItems:'center'},
+  scanButton: { width:200, marginBottom:20, borderRadius: theme.borderRadius.md, overflow: 'hidden', ...theme.shadows.glow },
+  disabledButton: { opacity: 0.5 },
+  scanGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing.md, gap: theme.spacing.sm },
+  scanText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  errorText: { fontSize: 20, fontWeight: '700', color: theme.colors.error, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md },
+  messageText: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.md },
+  permissionButton: { backgroundColor: theme.colors.primary, paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md, borderRadius: theme.borderRadius.md, marginTop: theme.spacing.lg, ...theme.shadows.glow },
+  permissionButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  floatingButton: { position: 'absolute', top: 150, right: theme.spacing.lg, ...theme.shadows.glow },
 });

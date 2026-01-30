@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen from './components/HomeScreen';
 import LoginScreen from './components/LoginScreen';
@@ -59,10 +60,10 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <>
+      <SafeAreaProvider>
         <LoginScreen onLogin={handleLogin} />
-        <StatusBar style="auto" />
-      </>
+        <StatusBar style="light" />
+      </SafeAreaProvider>
     );
   }
 
@@ -82,9 +83,9 @@ export default function App() {
   };
 
   return (
-    <>
+    <SafeAreaProvider>
       {renderScreen()}
-      <StatusBar style="auto" />
-    </>
+      <StatusBar style="light" />
+    </SafeAreaProvider>
   );
 }
