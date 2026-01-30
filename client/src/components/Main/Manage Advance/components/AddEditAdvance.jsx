@@ -116,34 +116,38 @@ const inputRef = useRef(null)
   }
 
   /* ================= SUBMIT ================= */
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!validate()) return
+const handleSubmit = async (e) => {
+  e.preventDefault()
 
-    try {
-      setLoading(true)
-
-      const fd = new FormData()
-      Object.entries(form).forEach(([k, v]) => {
-        if (v !== null && v !== "") fd.append(k, v)
-      })
-
-      if (isEdit) {
-        await axios.put(`${API}/api/advance/${data._id}`, fd)
-        toast.success("Advance updated successfully")
-      } else {
-        await axios.post(`${API}/api/advance`, fd)
-        toast.success("Advance added successfully")
-      }
-
-      onSuccess?.()
-      onClose()
-    } catch {
-      toast.error("Operation failed")
-    } finally {
-      setLoading(false)
-    }
+  if (isEdit && !data?._id) {
+    toast.error("Invalid record for update")
+    return
   }
+
+  const fd = new FormData()
+  Object.entries(form).forEach(([k, v]) => {
+    if (v !== null && v !== "") fd.append(k, v)
+  })
+
+  try {
+    setLoading(true)
+
+    if (isEdit) {
+      await axios.put(`${API}/api/advance/${data._id}`, fd)
+      toast.success("Advance updated successfully")
+    } else {
+      await axios.post(`${API}/api/advance`, fd)
+      toast.success("Advance added successfully")
+    }
+
+    onSuccess?.()
+    onClose()
+  } catch (err) {
+    toast.error("Operation failed")
+  } finally {
+    setLoading(false)
+  }
+}
 useEffect(() => {
   const handleClickOutside = (e) => {
     if (
@@ -171,19 +175,23 @@ const filteredEmployees = useMemo(() => {
 }, [employees, search])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-      <div className="card-hover bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 main-scroll">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 rounded-xl">
 
-        {/* HEADER */}
-        <div className="flex justify-between items-center pb-3 sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-semibold">
-            {isEdit ? "Edit Advance / Loan" : "Add Advance / Loan"}
-          </h2>
-          <button onClick={onClose}>
-            <IoCloseSharp size={24} />
-          </button>
-        </div>
+ <div className="card-hover bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
 
+  
+  {/* HEADER */}
+  <div className="flex justify-between items-center px-4 py-3 sticky top-0 bg-white z-10 rounded-xl">
+   <h2 className="text-lg font-semibold">
+        {isEdit ? "Edit Advance / Loan" : "Add Advance / Loan"}
+      </h2>
+      <button onClick={onClose}>
+        <IoCloseSharp size={24} />
+      </button>
+    </div>
+
+    {/* SCROLLABLE FORM */}
+    <div className="overflow-y-auto main-scroll p-4 flex-1 rounded-xl">
         {/* FORM */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
@@ -268,30 +276,51 @@ const filteredEmployees = useMemo(() => {
           </div>
 
           {/* TYPE */}
-          <div>
-             <label className="text-sm font-medium">
-              Type
-              <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-6 mt-1">
-              <label className="flex gap-2 items-center">
-                <input
-                  type="radio"
-                  checked={form.type === "loan"}
-                  onChange={() => setForm({ ...form, type: "loan" })}
-                />
-                Loan
-              </label>
-              <label className="flex gap-2 items-center">
-                <input
-                  type="radio"
-                  checked={form.type === "advance"}
-                  onChange={() => setForm({ ...form, type: "advance" })}
-                />
-                Advance
-              </label>
-            </div>
-          </div>
+         <div>
+  <label className="text-sm font-medium">
+    Type
+    <span className="text-red-500">*</span>
+  </label>
+
+  <div className="flex gap-6 mt-1">
+    <label className="flex gap-2 items-center">
+      <input
+        type="radio"
+        name="type"
+        value="loan"
+        checked={form.type === "loan"}
+        onChange={() => {
+          if (!isEdit) {
+            setForm({ ...form, type: "loan" })
+          }
+        }}
+      />
+      Loan
+    </label>
+
+    <label className="flex gap-2 items-center">
+      <input
+        type="radio"
+        name="type"
+        value="advance"
+        checked={form.type === "advance"}
+        onChange={() => {
+          if (!isEdit) {
+            setForm({ ...form, type: "advance" })
+          }
+        }}
+      />
+      Advance
+    </label>
+  </div>
+
+  {isEdit && (
+    <p className="text-xs text-gray-500 mt-1">
+      Type cannot be changed after creation
+    </p>
+  )}
+</div>
+
 
           {/* AMOUNT */}
           <div>
@@ -340,9 +369,9 @@ const filteredEmployees = useMemo(() => {
                   value={installmentAmount}
                   className="relative w-full border rounded px-3 py-2 bg-gray-100"
                 />
-                <p className="absolute top-1/2 right-0 text-xs text-gray-500">
+                {/* <p className="absolute top-1/2 right-0 text-xs text-gray-500">
                   / month
-                </p>
+                </p> */}
               </div>
 
               {/* TEXT ABOUT */}
@@ -417,6 +446,7 @@ const filteredEmployees = useMemo(() => {
                
           </button>
         </form>
+        </div>
       </div>
     </div>
   )

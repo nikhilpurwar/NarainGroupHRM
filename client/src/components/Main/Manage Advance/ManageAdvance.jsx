@@ -422,9 +422,12 @@ const onEdit = (advance) => {
                       <div className="text-green-600 font-medium">₹{a.deduction || 0}</div>
                     </td>
 
-                    <td className="p-4">
-                      <div className="text-red-600 font-medium">₹{a.balance || 0}</div>
-                    </td>
+                 <td className="p-4">
+  <div className="text-red-600 font-medium">
+    ₹{Math.max((a.amount || 0) - (a.deduction || 0), 0)}
+  </div>
+</td>
+
 
                     <td className="p-4 text-gray-700">
                       {a.instalment || a.totalInstalment || "-"}

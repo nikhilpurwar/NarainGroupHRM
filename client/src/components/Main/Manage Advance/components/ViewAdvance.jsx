@@ -26,12 +26,17 @@ const ViewAdvance = ({ data, onClose }) => {
   if (!data) return null;
 
   // 计算相关数据
-  const deduction = data.deduction || 0;
-  const balance = data.balance || data.amount;
-  const paidPercentage = ((deduction / data.amount) * 100).toFixed(1);
+
+const amount = Number(data.amount || 0);
+const deduction = Number(data.deduction || 0);
+const balance = Math.max(amount - deduction, 0);
+  // const paidPercentage = ((deduction / data.amount) * 100).toFixed(1);
   const remainingInstallments = data.instalment 
     ? data.instalment - (data.paidInstallments || 0)
     : 0;
+
+  const paidPercentage =amount > 0 ? ((deduction / amount) * 100).toFixed(1) : 0;
+  const safePercentage = Math.min(100, paidPercentage);
 
   // 格式化日期
   const formatDate = (dateString) => {
@@ -256,9 +261,13 @@ const ViewAdvance = ({ data, onClose }) => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-center">
                     <p className="text-sm text-gray-500 mb-1">Monthly Installment</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      ₹{((data.amount || 0) / (data.instalment || 1)).toFixed(2)}
-                    </p>
+             <p className="text-2xl font-bold text-gray-900">
+  ₹{(
+    Math.max((data.amount || 0) - (data.deduction || 0), 0) /
+    (remainingInstallments || 1)
+  ).toFixed(2)}
+</p>
+
                   </div>
                 </div>
 
