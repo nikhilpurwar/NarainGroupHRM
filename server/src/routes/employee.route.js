@@ -22,7 +22,7 @@ import { uploadVehiclePdf } from "../middleware/uploadVehiclePdf.js";
 
 const router = express.Router();
 
-router.post("/", authenticate, checkPermission, createEmployee);
+router.post("/", authenticate, checkPermission, uploadVehiclePdf.single("vehicleDocument"), createEmployee);
 router.get("/", authenticate, checkPermission, getEmployees);
 router.get("/barcodes", authenticate, checkPermission, getBarcodes);
 router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
@@ -36,11 +36,9 @@ router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
 router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
 router.get("/:id", authenticate, getEmployeeById);
 router.get("/:id/profile", authenticate, getEmployeeProfile);
-router.put("/:id", authenticate, checkPermission, updateEmployee);
+router.put("/:id", authenticate, checkPermission, uploadVehiclePdf.single("vehicleDocument"), updateEmployee);
 router.delete("/:id", authenticate, checkPermission, deleteEmployee);
 router.post("/:id/attendance", authenticate, addAttendance);
 router.get("/:id/attendance", authenticate, getAttendance);
-router.post("/",uploadVehiclePdf.single("vehicleDocument"),createEmployee);
-router.put("/:id",uploadVehiclePdf.single("vehicleDocument"),updateEmployee);
 
 export default router;

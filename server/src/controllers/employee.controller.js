@@ -14,6 +14,7 @@ import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 import { getIO } from "../utils/socket.util.js";
 import { updateMonthlySummary } from "./attendance.controller.js";
+import { uploadToCloudinary } from "../middleware/uploadVehiclePdf.js";
 
 // attendanceIso logic moved to attendance.service.getAttendanceIsoForTimestamp (async)
 
@@ -66,6 +67,29 @@ const isWeekendForEmployee = async (emp, dateObj) => {
 
 export const createEmployee = async (req, res) => {
   try {
+    // Initialize req.body if undefined (FormData handling)
+    if (!req.body) {
+      req.body = {};
+    }
+
+    // Handle deductions array from FormData
+    if (req.body['deductions[]']) {
+      req.body.deductions = Array.isArray(req.body['deductions[]']) 
+        ? req.body['deductions[]'] 
+        : [req.body['deductions[]']];
+      delete req.body['deductions[]'];
+    }
+
+    // Parse FormData fields if they exist as strings
+    if (typeof req.body.vehicleInfo === 'string') {
+      try {
+        req.body.vehicleInfo = JSON.parse(req.body.vehicleInfo);
+      } catch (e) {
+        console.warn('Failed to parse vehicleInfo JSON:', e.message);
+        req.body.vehicleInfo = null;
+      }
+    }
+
     // Ensure empId uniqueness: if provided, reject when duplicate.
     const preferredEmpId = req.body?.empId ? String(req.body.empId).trim() : null;
     if (preferredEmpId) {
@@ -108,7 +132,6 @@ export const createEmployee = async (req, res) => {
       req.body.empId = candidate;
     }
 
-    // create employee first
     // Ensure email uniqueness (case-insensitive) when provided
     if (req.body?.email) {
       const emailNorm = String(req.body.email).trim().toLowerCase();
@@ -116,18 +139,31 @@ export const createEmployee = async (req, res) => {
       if (emailExists) return res.status(409).json({ success: false, message: 'Email already exists, Please use different email Id' });
       req.body.email = emailNorm;
     }
-// Handle vehicle info + PDF
-if (req.body.isDriver === 'true' || req.body.isDriver === true) {
-  req.body.vehicleInfo = {
-    vehicleNumber: req.body.vehicleNumber || '',
-    vehicleName: req.body.vehicleName || '',
-    vehicleDocument: req.file
-      ? `/uploads/vehicleDocs/${req.file.filename}`
-      : null
-  };
-}
 
-
+    // Handle vehicle info + PDF upload
+    if (req.body.vehicleInfo) {
+      try {
+        const vehicleInfo = typeof req.body.vehicleInfo === 'string' 
+          ? JSON.parse(req.body.vehicleInfo) 
+          : req.body.vehicleInfo;
+        
+        let vehicleDocumentUrl = vehicleInfo?.vehicleDocument || null;
+        
+        // Upload to Cloudinary if file is present
+        if (req.file) {
+          const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+          vehicleDocumentUrl = result.secure_url;
+        }
+        
+        req.body.vehicleInfo = {
+          ...vehicleInfo,
+          vehicleDocument: vehicleDocumentUrl
+        };
+      } catch (e) {
+        console.error('Error processing vehicleInfo:', e.message);
+        req.body.vehicleInfo = null;
+      }
+    }
 
     const emp = await Employee.create(req.body);
 
@@ -153,6 +189,8 @@ if (req.body.isDriver === 'true' || req.body.isDriver === true) {
 
     res.status(201).json({ success: true, data: emp });
   } catch (err) {
+    console.error('CreateEmployee error:', err);
+    
     const { apiError: apiErr, handleMongooseError } = await import('../utils/error.util.js')
       .then(m => ({ apiError: m.apiError, handleMongooseError: m.handleMongooseError }))
       .catch(() => ({}));
@@ -1374,6 +1412,24 @@ export const getEmployeeProfile = async (req, res) => {
 
 export const updateEmployee = async (req, res) => {
   try {
+    // Handle deductions array from FormData
+    if (req.body['deductions[]']) {
+      req.body.deductions = Array.isArray(req.body['deductions[]']) 
+        ? req.body['deductions[]'] 
+        : [req.body['deductions[]']];
+      delete req.body['deductions[]'];
+    }
+
+    // Parse vehicleInfo JSON string from FormData
+    if (typeof req.body.vehicleInfo === 'string') {
+      try {
+        req.body.vehicleInfo = JSON.parse(req.body.vehicleInfo);
+      } catch (e) {
+        console.warn('Failed to parse vehicleInfo JSON:', e.message);
+        req.body.vehicleInfo = null;
+      }
+    }
+
     const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
     // Block modifications for inactive employees by non-admins
@@ -1396,17 +1452,14 @@ export const updateEmployee = async (req, res) => {
       req.body.email = newEmail;
     }
 
-    // Assign other fields from request body first
-    const { avatar, ...otherFields } = req.body;
-    Object.assign(emp, otherFields);
+    // Assign other fields from request body
+    Object.assign(emp, req.body);
     
-    // Handle avatar separately
-    if (req.body.hasOwnProperty('avatar')) {
-      if (req.body.avatar === null) {
-        // Remove avatar
+    // Handle avatar separately if provided
+    if (req.body.avatar !== undefined) {
+      if (req.body.avatar === null || req.body.avatar === 'null') {
         emp.avatar = null;
       } else if (typeof req.body.avatar === 'string') {
-        // Update avatar (base64 string for profile display only)
         emp.avatar = req.body.avatar;
       }
     }
@@ -1423,16 +1476,24 @@ export const updateEmployee = async (req, res) => {
     }
 
     // Update vehicle info + PDF
-if (req.body.isDriver === 'true' || req.body.isDriver === true) {
-  emp.vehicleInfo = {
-    ...emp.vehicleInfo,
-    vehicleNumber: req.body.vehicleNumber || emp.vehicleInfo?.vehicleNumber,
-    vehicleName: req.body.vehicleName || emp.vehicleInfo?.vehicleName,
-    vehicleDocument: req.file
-      ? `/uploads/vehicleDocs/${req.file.filename}`
-      : emp.vehicleInfo?.vehicleDocument
-  };
-}
+    if (req.body.vehicleInfo || req.file) {
+      const existingVehicleInfo = emp.vehicleInfo || {};
+      const newVehicleInfo = req.body.vehicleInfo || {};
+      
+      let vehicleDocumentUrl = existingVehicleInfo.vehicleDocument;
+      
+      // Upload to Cloudinary if new file is present
+      if (req.file) {
+        const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+        vehicleDocumentUrl = result.secure_url;
+      }
+      
+      emp.vehicleInfo = {
+        ...existingVehicleInfo,
+        ...newVehicleInfo,
+        vehicleDocument: vehicleDocumentUrl
+      };
+    }
 
     await emp.save();
     
