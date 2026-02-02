@@ -49,6 +49,7 @@ const Select = ({ label, name, value, onChange, options, error ,required=false, 
     </div>
 )
 
+
 const defaultForm = {
     firstName: '',
     lastName: '',
@@ -70,9 +71,11 @@ const defaultForm = {
     empId: '',
     status: 'active',
     avatar: null,
-       vehicleNumber: '',
-  vehicleName: '',
-  vehicleDocument: null,
+    vehicleNumber: '',
+    vehicleName: '',
+    vehicleDocument: null,
+    vehicleInsuranceExpiry: ''
+    
 }
 
 const AddEditEmployee = () => {
@@ -154,6 +157,9 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                     avatar: emp.avatar || null,
                      vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
   vehicleName: emp.vehicleInfo?.vehicleName || '',
+  vehicleInsuranceExpiry: emp.vehicleInfo?.insuranceExpiry
+  ? emp.vehicleInfo.insuranceExpiry.split('T')[0]
+  : '',
                 }))
                 if (emp.avatar) setPreview(emp.avatar)
             } catch (err) {
@@ -350,11 +356,12 @@ await axios.post(API, formData, {
                 status: form.status,
                 
                 ...(isDriver && {
-    vehicleInfo: {
-      vehicleNumber: form.vehicleNumber,
-      vehicleName: form.vehicleName,
-    }
-  }),
+  vehicleInfo: {
+    vehicleNumber: form.vehicleNumber,
+    vehicleName: form.vehicleName,
+    insuranceExpiry: form.vehicleInsuranceExpiry, // ✅ NEW
+  }
+}),
 }
 
             // Handle avatar: only include if changed
@@ -419,6 +426,28 @@ await axios.post(API, formData, {
             setLoading(false)
         }
     }
+
+// const getInsuranceStatus = (expiryDate) => {
+//   if (!expiryDate) return null
+
+//   const today = new Date()
+//   const expiry = new Date(expiryDate)
+
+//   const diffDays = Math.ceil(
+//     (expiry - today) / (1000 * 60 * 60 * 24)
+//   )
+
+//   if (diffDays < 0) return 'expired'
+//   if (diffDays <= 7) return 'warning' // expiring in 7 days
+//   return null
+// }
+// const insuranceAlertEmployees = employees.filter(emp => {
+//   const expiry = emp.vehicleInfo?.insuranceExpiry
+//   if (!expiry) return false
+
+//   return getInsuranceStatus(expiry)
+// })
+
 
     return (
         <div className="p-6 bg-white">
@@ -615,6 +644,14 @@ await axios.post(API, formData, {
         onChange={handleChange}
         required
       />
+      <Input
+  label="Insurance Expiry Date"
+  name="vehicleInsuranceExpiry"
+  type="date"
+  value={form.vehicleInsuranceExpiry}
+  onChange={handleChange}
+  required
+/>
 
 <div>
   <label className="block font-medium mb-1 text-gray-800">

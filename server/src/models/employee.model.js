@@ -32,6 +32,7 @@ const employeeSchema = new mongoose.Schema({
     vehicleNumber: { type: String },
     vehicleName: { type: String },
     vehicleDocument: { type: String }, // base64 PDF or file path
+    insuranceExpiry: Date, 
   },
     // Face recognition fields - ONE STRONG TEMPLATE
     faceTemplate: {

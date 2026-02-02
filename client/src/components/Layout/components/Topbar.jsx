@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { FaUserAlt, FaCaretDown, FaCaretUp } from "react-icons/fa";
 import ChangePassword from "../../Auth/ChangePassword";
+import { FaBell } from "react-icons/fa";
+import { IoIosNotificationsOutline } from "react-icons/io";
 
 const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleSidebar, scrollRef }) => {
     const [open, setOpen] = useState(false);
@@ -18,6 +20,37 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
     const lastScrollY = useRef(0);
     const dropdownRef = useRef(null);
     const [employeeLoaded, setEmployeeLoaded] = useState(false);
+    const [insuranceAlerts, setInsuranceAlerts] = useState([]);
+const [showNotifications, setShowNotifications] = useState(false);
+const [selectedNotification, setSelectedNotification] = useState(null)
+
+
+const getInsuranceStatus = (expiryDate) => {
+  if (!expiryDate) return null
+
+  const today = new Date()
+  const expiry = new Date(expiryDate)
+
+  const diffDays = Math.ceil(
+    (expiry - today) / (1000 * 60 * 60 * 24)
+  )
+
+  if (diffDays < 0) {
+    return { label: 'Expired', color: 'text-red-600' }
+  }
+
+  if (diffDays <= 15) {
+    return { label: 'Expiring Soon', color: 'text-orange-600' }
+  }
+
+  return null
+}
+// const insuranceAlertEmployees = emp.filter(emp => {
+//   const expiry = emp.vehicleInfo?.insuranceExpiry
+//   if (!expiry) return false
+
+//   return getInsuranceStatus(expiry)
+// })
 
     
     const [gender, setGender] = useState(""); 
@@ -205,6 +238,53 @@ useEffect(() => {
     return () => clearTimeout(timer);
 }, [userName, gender, employeeLoaded]);
 
+useEffect(() => {
+  const fetchInsuranceAlerts = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/employees`)
+      const list = res.data?.data || []
+
+      const alerts = list
+  .map(emp => {
+    const expiry = emp.vehicleInfo?.insuranceExpiry
+    const status = getInsuranceStatus(expiry)
+
+    if (!status) return null
+
+    return {
+      id: emp._id,
+      type: 'INSURANCE',
+      title: 'Vehicle Insurance',
+      message: `${emp.vehicleInfo?.vehicleName} insurance ${status.label.toLowerCase()}`,
+      emp,
+      expiry,
+      status
+    }
+  })
+  .filter(Boolean)
+
+setInsuranceAlerts(alerts)
+
+    } catch (err) {
+      console.error('Insurance fetch error', err)
+    }
+  }
+
+  fetchInsuranceAlerts()
+
+  const handleRefresh = () => {
+    fetchInsuranceAlerts()
+    setSelectedNotification(null)
+  }
+
+  window.addEventListener('storage', handleRefresh)
+
+  return () => {
+    window.removeEventListener('storage', handleRefresh)
+  }
+}, [])
+
+
 
 
     return (
@@ -244,9 +324,23 @@ useEffect(() => {
                         </div>
                     )}
                 </div>
-
+                 <div className="flex item-center pl-240 ">
+                    <button
+  onClick={() => setShowNotifications(prev => !prev)}
+  className="relative"
+>
+  <IoIosNotificationsOutline size={24} />
+  {insuranceAlerts.length > 0 && (
+    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1 rounded-full">
+      {insuranceAlerts.length}
+    </span>
+  )}
+</button> </div>
+   
                 {/* Right side with user menu */}
                 <div className="relative" ref={dropdownRef}>
+
+
                     <button
                         onClick={() => setOpen(!open)}
                         className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-gray-900 hover:to-indigo-800 transition-transform transition-shadow duration-150"
@@ -317,6 +411,116 @@ useEffect(() => {
                 onClose={() => setShowChangePassword(false)}
                 initialEmail={userEmail}
             />
+{showNotifications && (
+  <div className="absolute right-6 top-20 w-[420px] bg-white shadow-2xl border rounded-xl z-50 overflow-hidden">
+    
+    {/* Header */}
+    <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+      <h3 className="font-semibold text-gray-800">
+        Notifications
+      </h3>
+      <span className="text-xs text-gray-500">
+        {insuranceAlerts.length} alerts
+      </span>
+    </div>
+
+    {/* LIST VIEW */}
+    {!selectedNotification && (
+      <div className="max-h-[320px] overflow-y-auto">
+        {insuranceAlerts.length === 0 ? (
+          <div className="p-6 text-center text-gray-500 text-sm">
+            No notifications 🎉
+          </div>
+        ) : (
+          insuranceAlerts.map(notif => (
+            <button
+              key={notif.id}
+              onClick={() => setSelectedNotification(notif)}
+              className="w-full text-left px-4 py-3 border-b
+                         hover:bg-gray-50 transition"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {notif.title}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {notif.message}
+                  </p>
+                </div>
+
+                <span
+                  className={`text-xs font-semibold px-2 py-1 rounded-full
+                    ${
+                      notif.status.label === 'Expired'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-orange-100 text-orange-700'
+                    }`}
+                >
+                  {notif.status.label}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    )}
+
+    {/* DETAILS VIEW */}
+    {selectedNotification && (
+      <div className="p-4 text-sm text-gray-800">
+        <button
+          onClick={() => setSelectedNotification(null)}
+          className="text-xs text-blue-600 mb-3 hover:underline"
+        >
+          ← Back to notifications
+        </button>
+
+        <h4 className="font-semibold text-lg mb-2">
+          Vehicle Insurance Details
+        </h4>
+
+        <div className="space-y-2">
+          <p>
+            <strong>Employee ID:</strong>{' '}
+            {selectedNotification.emp.empId}
+          </p>
+
+          <p>
+            <strong>Vehicle:</strong>{' '}
+            {selectedNotification.emp.vehicleInfo?.vehicleName} (
+            {selectedNotification.emp.vehicleInfo?.vehicleNumber})
+          </p>
+
+          <p>
+            <strong>Expiry Date:</strong>{' '}
+            {new Date(selectedNotification.expiry).toLocaleDateString()}
+          </p>
+
+          <p>
+            <strong>Status:</strong>{' '}
+            <span className="font-semibold">
+              {selectedNotification.status.label}
+            </span>
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={() =>
+              navigate(`/profile/${selectedNotification.emp._id}`)
+            }
+            className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-gray-700"
+          >
+            View Employee Profile
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+
         </div>
     );
 };
