@@ -23,6 +23,7 @@ const EmployeeFormExample = ({ existingEmployee = null, onSave = () => {} }) => 
     reportsTo: '',
     salary: 0,
     workHours: '8',
+    vehicleDocument: null,
     // ... other fields
   })
 

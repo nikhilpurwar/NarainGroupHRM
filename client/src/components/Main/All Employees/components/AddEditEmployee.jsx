@@ -152,8 +152,8 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                     empId: emp.empId || '',
                     status: emp.status || 'active',
                     avatar: emp.avatar || null,
-                    vehicleNumber: isDriver ? form.vehicleNumber : '',
-                    vehicleName: isDriver ? form.vehicleName : '',
+                     vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
+  vehicleName: emp.vehicleInfo?.vehicleName || '',
                 }))
                 if (emp.avatar) setPreview(emp.avatar)
             } catch (err) {
@@ -167,7 +167,23 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                 toast.error(formError || 'Failed to load employee')
             }
             if (isDriver && form.vehicleDocument instanceof File) {
-  payload.vehicleDocument = await toBase64(form.vehicleDocument)
+ const formData = new FormData()
+
+Object.entries(payload).forEach(([key, value]) => {
+  if (typeof value === 'object') {
+    formData.append(key, JSON.stringify(value))
+  } else {
+    formData.append(key, value)
+  }
+})
+
+if (form.vehicleDocument) {
+  formData.append('vehicleDocument', form.vehicleDocument)
+}
+
+await axios.post(API, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
 }
         }
         fetchEmployee()
@@ -285,12 +301,12 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
         return err
     }
 
-    const toBase64 = (file) => new Promise((res, rej) => {
-        const reader = new FileReader()
-        reader.onload = () => res(reader.result)
-        reader.onerror = (e) => rej(e)
-        reader.readAsDataURL(file)
-    })
+    // const toBase64 = (file) => new Promise((res, rej) => {
+    //     const reader = new FileReader()
+    //     reader.onload = () => res(reader.result)
+    //     reader.onerror = (e) => rej(e)
+    //     reader.readAsDataURL(file)
+    // })
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -332,7 +348,14 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                 deductions: form.deductions,
                 empId: form.empId,
                 status: form.status,
-            }
+                
+                ...(isDriver && {
+    vehicleInfo: {
+      vehicleNumber: form.vehicleNumber,
+      vehicleName: form.vehicleName,
+    }
+  }),
+}
 
             // Handle avatar: only include if changed
             if (form.avatar instanceof File) {
@@ -345,6 +368,26 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                 payload.avatar = form.avatar
             }
             // If editing and avatar unchanged (string), don't include it
+            if (isDriver && form.vehicleDocument instanceof File) {
+ const formData = new FormData()
+
+Object.entries(payload).forEach(([key, value]) => {
+  if (typeof value === 'object') {
+    formData.append(key, JSON.stringify(value))
+  } else {
+    formData.append(key, value)
+  }
+})
+
+if (form.vehicleDocument) {
+  formData.append('vehicleDocument', form.vehicleDocument)
+}
+
+await axios.post(API, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
+
+}
 
             if (isEdit) {
                 await axios.put(`${API}/${id}`, payload)
@@ -579,7 +622,7 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
     <span className="text-red-500 ml-1">*</span>
   </label>
 
-  <div className="border-2 border-dashed border-gray-300 rounded-xl p-2 text-center hover:border-gray-600 transition-all bg-gray-50">
+  <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 text-center hover:border-gray-600 transition-all bg-gray-50">
 
     <input
       type="file"
@@ -590,47 +633,47 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
       className="hidden"
     />
 
-    <label
-      htmlFor="vehicleDocument"
-      className="cursor-pointer justify-between inline-flex flex-row items-center gap-45"
-    >
-      <div className="flex flex-row items-center">
+    {/* Show this only if no PDF is uploaded */}
+    {!form.vehicleDocument && (
+      <label
+        htmlFor="vehicleDocument"
+        className="cursor-pointer inline-flex items-center justify-between w-full gap-4"
+      >
+        <div className="flex items-center gap-2">
+          <FaFilePdf className="text-red-600 text-xl" />
+          <p className="text-xs text-gray-500">Only PDF • Max 5MB</p>
+        </div>
+        <span className="px-3.5 py-1.5 bg-gray-900 text-white rounded-xl text-sm hover:bg-gray-700 transition">
+          Upload PDF
+        </span>
+      </label>
+    )}
 
-     <FaFilePdf className="text-red-600 text-xl mr-2" />
-
-
-      <p className="text-xs text-gray-500">
-        Only PDF • Max 5MB
-      </p>
+    {/* Show uploaded PDF */}
+    {form.vehicleDocument && (
+      <div className="flex items-center justify-between bg-gray-50 px-3.5 py-1.5">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <FaFilePdf className="text-red-600 text-xl flex-shrink-0" />
+          <span className="text-sm text-gray-800 truncate">
+            {form.vehicleDocument.name}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="text-red-600 text-sm font-medium hover:text-red-800 transition"
+          onClick={() => setForm(f => ({ ...f, vehicleDocument: null }))}
+        >
+          Remove
+        </button>
       </div>
-       <span className="px-3.5 py-1.5 bg-gray-900 text-white rounded-md text-sm hover:bg-gray-700 transition">
-        Upload PDF
-      </span>
-    </label>
-
-{form.vehicleDocument && (
-            <div className="mt-2 flex justify-between items-center bg-gray-100 px-3 py-1 rounded">
-              <span className="text-xs truncate">
-                {form.vehicleDocument.name}
-              </span>
-              <button
-                type="button"
-                className="text-red-600 text-xs"
-                onClick={() =>
-                  setForm(f => ({ ...f, vehicleDocument: null }))
-                }
-              >
-                Remove
-              </button>
-            </div>
-          )}
+    )}
   </div>
+
   {errors.vehicleDocument && (
-    <p className="text-red-500 text-sm mt-1">
-      {errors.vehicleDocument}
-    </p>
+    <p className="text-red-500 text-sm mt-1">{errors.vehicleDocument}</p>
   )}
 </div>
+
 
 
   </div>

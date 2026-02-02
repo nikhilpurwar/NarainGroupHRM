@@ -147,7 +147,7 @@ const Attendance = () => {
       const res = await axios.get(API, { params })
       setReport(res.data?.data || null)
       setHolidays(res.data?.data?.holidays || [])
-      setViewMode("report")
+      // setViewMode("report")
     } catch (err) {
       console.error('fetchReport error', err)
       toast.error("Failed to load report")
@@ -380,7 +380,7 @@ const Attendance = () => {
             setReport(newReport)
           } else {
             // fallback: refetch full report
-            await fetchReport({ employeeId, month: filters.month, year: filters.year })
+            // await fetchReport({ employeeId, month: filters.month, year: filters.year })
           }
         } catch (e) {
           // if anything fails, fallback to refetch
@@ -429,18 +429,18 @@ const Attendance = () => {
   return (
     <div className="w-full min-h-screen flex flex-col">
 
-      {/* Back Button */}
-      {!isMobile && viewMode === "report" && (
-        <div className="p-6 pb-0">
-          <button
-            onClick={() => setViewMode("list")}
-            className="flex items-center gap-2 text-gray-600 hover:text-black cursor-pointer"
-          >
-            <MdKeyboardBackspace size={24} />
-            <span>Back to List</span>
-          </button>
-        </div>
-      )}
+  {/* Back Button
+  {!isMobile && viewMode === "report" && (
+    <div className="p-6 pb-0">
+      <button
+        onClick={() => setViewMode("list")}
+        className="flex items-center gap-2 text-gray-600 hover:text-black cursor-pointer"
+      >
+        <MdKeyboardBackspace size={24} />
+        <span>Back to List</span>
+      </button>
+    </div>
+  )} */}
 
       {/* Header */}
       <div className="px-6 py-4 mx-6 mt-6 rounded-t-xl top-0 z-40 bg-gray-900 text-white flex justify-between items-center">
@@ -495,7 +495,7 @@ const Attendance = () => {
             <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
-              className="flex items-center gap-1 text-center text-lg p-0.5 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
+              className="flex items-center justify-center gap-1 h-11 w-11 text-center text-lg p-0.5 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-100 cursor-pointer"
             >
               <IoMdAddCircle size={43} className="hover:scale-150 transition duration-300" />
               {/* Add Attendance */}

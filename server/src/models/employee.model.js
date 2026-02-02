@@ -28,6 +28,11 @@ const employeeSchema = new mongoose.Schema({
     avatar: { type: String }, // store base64 data URL or file path
     barcode: { type: String }, // base64 image or svg
     qrCode: { type: String }, // base64 image or svg
+    vehicleInfo: {
+    vehicleNumber: { type: String },
+    vehicleName: { type: String },
+    vehicleDocument: { type: String }, // base64 PDF or file path
+  },
     // Face recognition fields - ONE STRONG TEMPLATE
     faceTemplate: {
         type: [Number],
