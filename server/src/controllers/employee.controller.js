@@ -116,6 +116,18 @@ export const createEmployee = async (req, res) => {
       if (emailExists) return res.status(409).json({ success: false, message: 'Email already exists, Please use different email Id' });
       req.body.email = emailNorm;
     }
+// Handle vehicle info + PDF
+if (req.body.isDriver === 'true' || req.body.isDriver === true) {
+  req.body.vehicleInfo = {
+    vehicleNumber: req.body.vehicleNumber || '',
+    vehicleName: req.body.vehicleName || '',
+    vehicleDocument: req.file
+      ? `/uploads/vehicleDocs/${req.file.filename}`
+      : null
+  };
+}
+
+
 
     const emp = await Employee.create(req.body);
 
@@ -1409,6 +1421,19 @@ export const updateEmployee = async (req, res) => {
         console.error("Code regeneration failed:", genErr.message);
       }
     }
+
+    // Update vehicle info + PDF
+if (req.body.isDriver === 'true' || req.body.isDriver === true) {
+  emp.vehicleInfo = {
+    ...emp.vehicleInfo,
+    vehicleNumber: req.body.vehicleNumber || emp.vehicleInfo?.vehicleNumber,
+    vehicleName: req.body.vehicleName || emp.vehicleInfo?.vehicleName,
+    vehicleDocument: req.file
+      ? `/uploads/vehicleDocs/${req.file.filename}`
+      : emp.vehicleInfo?.vehicleDocument
+  };
+}
+
     await emp.save();
     
     // Recalculate salary when employee data changes

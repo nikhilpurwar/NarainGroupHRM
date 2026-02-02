@@ -4,6 +4,8 @@ import axios from 'axios'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import { Outlet } from 'react-router-dom'
+import { matchPath } from 'react-router-dom'
+
 
 const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
@@ -38,9 +40,9 @@ const Layout = () => {
   }
 
   const pathname = location.pathname
-  const match = Object.values(pageConfig).find(
-    cfg => pathname === cfg.path || pathname.startsWith(cfg.path)
-  )
+const match = Object.values(pageConfig).find(cfg =>
+  matchPath({ path: cfg.path, end: false }, pathname)
+)
 
   const currentTopbar = match
     ? { title: match.title, subtitle: match.subtitle }

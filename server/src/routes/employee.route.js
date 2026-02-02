@@ -18,6 +18,7 @@ import {
 } from "../controllers/employee.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/permission.middleware.js";
+import { uploadVehiclePdf } from "../middleware/uploadVehiclePdf.js";
 
 const router = express.Router();
 
@@ -39,5 +40,7 @@ router.put("/:id", authenticate, checkPermission, updateEmployee);
 router.delete("/:id", authenticate, checkPermission, deleteEmployee);
 router.post("/:id/attendance", authenticate, addAttendance);
 router.get("/:id/attendance", authenticate, getAttendance);
+router.post("/",uploadVehiclePdf.single("vehicleDocument"),createEmployee);
+router.put("/:id",uploadVehiclePdf.single("vehicleDocument"),updateEmployee);
 
 export default router;
