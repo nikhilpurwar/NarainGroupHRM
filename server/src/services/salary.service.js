@@ -673,7 +673,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
   allowFestivalOT: !!(rule && rule.allowFestivalOT),
 
     presentDays,
-    present: presentDays,
+    // present: presentDays,
 
     basicHours: +basicHours.toFixed(2),
     otHours: +otHours.toFixed(2),

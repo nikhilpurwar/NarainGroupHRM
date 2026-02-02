@@ -324,6 +324,27 @@ useEffect(() => {
                 map[id] = { present: 0, absent: 0 };
               }
             }
+            // Also try to enrich with MonthlySalary.presentDays when available (prefer presentDays)
+            try {
+              const salaryRes = await axios.get(`${apiUrl.replace('/api/attendance-report','')}/api/salary/monthly`, {
+                params: { month: monthKey, pageSize: 500, page: 1 },
+                headers,
+              });
+              if (salaryRes.data?.success && Array.isArray(salaryRes.data.data?.items)) {
+                const items = salaryRes.data.data.items;
+                for (const it of items) {
+                  const empId = it.id || it._id || it.empId || null;
+                  if (!empId) continue;
+                  const matchKey = String(it.id || it._id || it.empId);
+                  if (map[matchKey]) {
+                    const pd = (typeof it.presentDays !== 'undefined') ? it.presentDays : (typeof it.present !== 'undefined' ? it.present : null);
+                    if (pd !== null) map[matchKey].present = pd;
+                  }
+                }
+              }
+            } catch (e) {
+              // ignore salary fetch failures
+            }
             if (!mounted) return;
             setSummaryMap(map);
             return;
