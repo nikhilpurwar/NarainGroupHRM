@@ -151,12 +151,13 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
                     headDepartment: emp.headDepartment?._id || emp.headDepartment || '',
                     subDepartment: emp.subDepartment?._id || emp.subDepartment || '',
                     designation: emp.designation?._id || emp.designation || '',
-                    deductions: emp.deductions || [],
+                    deductions: Array.isArray(emp.deductions) ? emp.deductions : [],
                     empId: emp.empId || '',
                     status: emp.status || 'active',
                     avatar: emp.avatar || null,
-                     vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
+                    vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
   vehicleName: emp.vehicleInfo?.vehicleName || '',
+  vehicleDocument: emp.vehicleInfo?.vehicleDocument || null,
   vehicleInsuranceExpiry: emp.vehicleInfo?.insuranceExpiry
   ? emp.vehicleInfo.insuranceExpiry.split('T')[0]
   : '',
@@ -307,12 +308,12 @@ await axios.post(API, formData, {
         return err
     }
 
-    // const toBase64 = (file) => new Promise((res, rej) => {
-    //     const reader = new FileReader()
-    //     reader.onload = () => res(reader.result)
-    //     reader.onerror = (e) => rej(e)
-    //     reader.readAsDataURL(file)
-    // })
+    const toBase64 = (file) => new Promise((res, rej) => {
+        const reader = new FileReader()
+        reader.onload = () => res(reader.result)
+        reader.onerror = (e) => rej(e)
+        reader.readAsDataURL(file)
+    })
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -359,7 +360,11 @@ await axios.post(API, formData, {
   vehicleInfo: {
     vehicleNumber: form.vehicleNumber,
     vehicleName: form.vehicleName,
-    insuranceExpiry: form.vehicleInsuranceExpiry, // ✅ NEW
+    insuranceExpiry: form.vehicleInsuranceExpiry,
+    // Preserve existing vehicleDocument if not uploading a new file
+    ...(isEdit && form.vehicleDocument && typeof form.vehicleDocument === 'string' && {
+      vehicleDocument: form.vehicleDocument
+    })
   }
 }),
 }
@@ -374,35 +379,47 @@ await axios.post(API, formData, {
                 // New employee with existing avatar string
                 payload.avatar = form.avatar
             }
-            // If editing and avatar unchanged (string), don't include it
-            if (isDriver && form.vehicleDocument instanceof File) {
- const formData = new FormData()
-
-Object.entries(payload).forEach(([key, value]) => {
-  if (typeof value === 'object') {
-    formData.append(key, JSON.stringify(value))
-  } else {
-    formData.append(key, value)
-  }
-})
-
-if (form.vehicleDocument) {
-  formData.append('vehicleDocument', form.vehicleDocument)
-}
-
-await axios.post(API, formData, {
-  headers: { 'Content-Type': 'multipart/form-data' }
-})
-
-}
-
-            if (isEdit) {
-                await axios.put(`${API}/${id}`, payload)
-                toast.success('Employee updated')
+            
+            // Handle vehicle document for drivers - use FormData for file upload OR if driver has existing vehicle info
+            if (isDriver && (form.vehicleDocument instanceof File || (isEdit && form.vehicleDocument))) {
+                const formData = new FormData()
+                
+                Object.entries(payload).forEach(([key, value]) => {
+                    if (key === 'deductions' && Array.isArray(value)) {
+                        // Handle deductions array properly - append each item separately
+                        value.forEach(deduction => {
+                            formData.append('deductions[]', deduction)
+                        })
+                    } else if (typeof value === 'object' && value !== null) {
+                        formData.append(key, JSON.stringify(value))
+                    } else {
+                        formData.append(key, value)
+                    }
+                })
+                
+                // Only append file if it's a new file upload
+                if (form.vehicleDocument instanceof File) {
+                    formData.append('vehicleDocument', form.vehicleDocument)
+                }
+                
+                if (isEdit) {
+                    await axios.put(`${API}/${id}`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    })
+                } else {
+                    await axios.post(API, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    })
+                }
             } else {
-                await axios.post(API, payload)
-                toast.success('Employee added')
+                if (isEdit) {
+                    await axios.put(`${API}/${id}`, payload)
+                } else {
+                    await axios.post(API, payload)
+                }
             }
+            
+            toast.success(isEdit ? 'Employee updated' : 'Employee added')
 
             try { dispatch(fetchEmployees()) } catch (e) { }
             try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
@@ -670,8 +687,26 @@ await axios.post(API, formData, {
       className="hidden"
     />
 
-    {/* Show this only if no PDF is uploaded */}
-    {!form.vehicleDocument && (
+    {/* Show existing PDF in edit mode */}
+    {isEdit && form.vehicleDocument && typeof form.vehicleDocument === 'string' && (
+      <div className="flex items-center justify-between bg-blue-50 px-3.5 py-1.5 mb-2">
+        <div className="flex items-center gap-3">
+          <FaFilePdf className="text-red-600 text-xl flex-shrink-0" />
+          <span className="text-sm text-gray-800">Existing Document</span>
+        </div>
+        <a
+          href={form.vehicleDocument}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 text-sm font-medium hover:text-blue-800 transition"
+        >
+          View PDF
+        </a>
+      </div>
+    )}
+
+    {/* Show this only if no new PDF is uploaded */}
+    {!(form.vehicleDocument instanceof File) && (
       <label
         htmlFor="vehicleDocument"
         className="cursor-pointer inline-flex items-center justify-between w-full gap-4"
@@ -681,13 +716,13 @@ await axios.post(API, formData, {
           <p className="text-xs text-gray-500">Only PDF • Max 5MB</p>
         </div>
         <span className="px-3.5 py-1.5 bg-gray-900 text-white rounded-xl text-sm hover:bg-gray-700 transition">
-          Upload PDF
+          {isEdit && form.vehicleDocument ? 'Replace PDF' : 'Upload PDF'}
         </span>
       </label>
     )}
 
-    {/* Show uploaded PDF */}
-    {form.vehicleDocument && (
+    {/* Show newly uploaded PDF */}
+    {form.vehicleDocument instanceof File && (
       <div className="flex items-center justify-between bg-gray-50 px-3.5 py-1.5">
         <div className="flex items-center gap-3 overflow-hidden">
           <FaFilePdf className="text-red-600 text-xl flex-shrink-0" />
@@ -698,7 +733,7 @@ await axios.post(API, formData, {
         <button
           type="button"
           className="text-red-600 text-sm font-medium hover:text-red-800 transition"
-          onClick={() => setForm(f => ({ ...f, vehicleDocument: null }))}
+          onClick={() => setForm(f => ({ ...f, vehicleDocument: isEdit ? f.vehicleDocument : null }))}
         >
           Remove
         </button>

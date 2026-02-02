@@ -1,23 +1,32 @@
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { v2 as cloudinary } from 'cloudinary';
 
-// Folder where PDFs will be stored
-const UPLOAD_DIR = path.join(process.cwd(), "uploads/vehicleDocs");
-
-// Create folder if not exists
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `vehicle_${Date.now()}${ext}`;
-    cb(null, uniqueName);
-  }
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: 'dlqigmtmu',
+  api_key: '188838391927824',
+  api_secret: 'QChw4ahvV-oz7tGHiA-kH4c0J5g'
 });
+
+// Custom multer storage using direct Cloudinary SDK
+const storage = multer.memoryStorage();
+
+const uploadToCloudinary = async (buffer, originalname) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      {
+        folder: 'vehicle-documents',
+        resource_type: 'raw',
+        public_id: `vehicle_${Date.now()}_${originalname.split('.')[0]}`,
+        format: 'pdf'
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(buffer);
+  });
+};
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === "application/pdf") {
@@ -32,3 +41,5 @@ export const uploadVehiclePdf = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
+
+export { uploadToCloudinary };

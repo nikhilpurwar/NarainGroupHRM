@@ -17,9 +17,11 @@
     "axios": "^1.13.3",
     "bcrypt": "^5.1.0",
     "bwip-js": "^2.0.10",
+    "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "face-api.js": "^0.22.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.0",
     "mongodb": "^7.0.0",
@@ -27,10 +29,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.11",
     "qrcode": "^1.5.1",
-    "socket.io": "^4.7.2",
-    "face-api.js": "^0.22.2",
-    "canvas": "^2.11.2",
-    "@tensorflow/tfjs-node": "^4.10.0",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "socket.io": "^4.7.2"
   }
 }
