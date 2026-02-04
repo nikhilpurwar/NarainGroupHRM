@@ -7,6 +7,7 @@ import MonthlySummary from "../models/monthlySummary.model.js";
 import MonthlySalaryModel from "../models/salary.model/monthlySalary.model.js";
 import * as attendanceService from "../services/attendance.service.js";
 import faceRecognitionService from "../services/faceRecognitionAccurate.service.js";
+import * as aiClient from "../services/aiClient.service.js";
 import { apiError, handleMongooseError } from "../utils/error.util.js";
 import salaryRecalcService from "../services/salaryRecalculation.service.js";
 import { getSalaryRuleForSubDepartment } from "../services/salary.service.js";
@@ -15,6 +16,7 @@ import QRCode from "qrcode";
 import { getIO } from "../utils/socket.util.js";
 import { updateMonthlySummary } from "./attendance.controller.js";
 import { uploadToCloudinary } from "../middleware/uploadVehiclePdf.js";
+import path from 'path';
 
 // attendanceIso logic moved to attendance.service.getAttendanceIsoForTimestamp (async)
 
@@ -275,62 +277,62 @@ export const testFaceService = async (req, res) => {
 export const enrollFace = async (req, res) => {
   try {
     const { employeeId, images } = req.body;
-    
-    if (!employeeId || !images || !Array.isArray(images) || images.length < 10) {
-      return res.status(400).json({ success: false, message: 'Employee ID and at least 10 images required for better accuracy' });
+
+    if (!employeeId || !images || !Array.isArray(images) || images.length < 3) {
+      return res.status(400).json({ success: false, message: 'Employee ID and at least 3 images required for enrollment' });
     }
 
     const employee = await Employee.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
-    }
+    if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
+    if (employee.status !== 'active') return res.status(403).json({ success: false, message: 'Employee is inactive' });
 
-    if (employee.status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Employee is inactive' });
-    }
+    // Call AI service to create fused embedding
+    try {
+      const options = {
+        selectTop: req.body?.selectTop,
+        weights: req.body?.weights,
+        preview: req.body?.preview,
+        previewImages: req.body?.previewImages
+      };
+      const aiResp = await aiClient.enrollEmployee(employeeId, images, options);
+      if (!aiResp || !aiResp.embedding) {
+        return res.status(500).json({ success: false, message: 'AI service failed to produce embedding' });
+      }
 
-    // Extract embeddings from all images (5-7 from mobile app)
-    const embeddings = [];
-    for (const image of images) {
+      // Save normalized embedding returned by AI service
+      employee.faceTemplate = aiResp.embedding;
+      employee.faceEnrolled = true;
+      employee.faceEnrollmentDate = new Date();
+      employee.embeddingVersion = aiResp.version || 'v1';
+      await employee.save();
+
+      const respObj = { success: true, message: 'Face template created successfully', imagesProcessed: aiResp.imagesProcessed || images.length };
+      if (aiResp.selectedIndices) respObj.selectedIndices = aiResp.selectedIndices;
+      if (aiResp.selectedScores) respObj.selectedScores = aiResp.selectedScores;
+      return res.json(respObj);
+    } catch (aiErr) {
+      console.error('AI enroll error:', aiErr && aiErr.message ? aiErr.message : aiErr);
+      // Fallback to local service if available
       try {
-        const imageBuffer = Buffer.from(image.split(',')[1], 'base64');
-        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        embeddings.push(descriptor);
-      } catch (err) {
-        console.error('Failed to process image:', err.message);
+        const embeddings = [];
+        for (const image of images) {
+          const imageBuffer = Buffer.from(String(image).split(',')[1] || '', 'base64');
+          const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+          embeddings.push(descriptor);
+        }
+        if (embeddings.length === 0) return res.status(500).json({ success: false, message: 'No embeddings produced' });
+        const faceTemplate = faceRecognitionService.fuseEmbeddings(embeddings);
+        employee.faceTemplate = faceTemplate;
+        employee.faceEnrolled = true;
+        employee.faceEnrollmentDate = new Date();
+        employee.embeddingVersion = 'v1_local';
+        await employee.save();
+        return res.json({ success: true, message: 'Face template created (local fallback)', imagesProcessed: embeddings.length });
+      } catch (fallbackErr) {
+        console.error('Fallback enroll failed:', fallbackErr && fallbackErr.message ? fallbackErr.message : fallbackErr);
+        return res.status(500).json({ success: false, message: 'Enrollment failed' });
       }
     }
-
-    // Also include profile picture if available
-    if (employee.avatar && typeof employee.avatar === 'string' && employee.avatar.includes('base64')) {
-      try {
-        const imageBuffer = Buffer.from(employee.avatar.split(',')[1], 'base64');
-        const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-        embeddings.push(descriptor);
-        console.log('Profile picture included in face enrollment');
-      } catch (err) {
-        console.error('Failed to process profile picture:', err.message);
-      }
-    }
-
-    if (embeddings.length < 10) {
-      return res.status(400).json({ success: false, message: 'At least 10 valid face images required for better accuracy' });
-    }
-
-    // Fuse embeddings into ONE STRONG TEMPLATE
-    const faceTemplate = faceRecognitionService.fuseEmbeddings(embeddings);
-
-    employee.faceTemplate = faceTemplate;
-    employee.faceEnrolled = true;
-    employee.faceEnrollmentDate = new Date();
-    employee.embeddingVersion = 'v1';
-    await employee.save();
-
-    res.json({ 
-      success: true, 
-      message: 'Face template created successfully',
-      imagesProcessed: embeddings.length
-    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -412,10 +414,49 @@ export const recognizeFace = async (req, res) => {
       });
     }
 
-    // Extract embedding from live image
-    const liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+    // Try AI service first for recognition (fast vector search)
+    try {
+      const topK = 5;
+      const aiResp = await aiClient.recognizeImage(image, topK);
+      if (aiResp && Array.isArray(aiResp.matches) && aiResp.matches.length > 0) {
+        // Find first match above threshold
+        const filtered = aiResp.matches.filter(m => typeof m.score === 'number' && m.score >= numThreshold);
+        if (filtered.length === 0) {
+          return res.json({ success: true, recognized: false, confidence: aiResp.matches[0]?.score || 0, message: 'No matching face found' });
+        }
 
-    // Get all employees with face templates
+        // Best match is highest score
+        const best = filtered.sort((a,b) => b.score - a.score)[0];
+        // best.employeeId should match the id we stored during enroll (DB _id string)
+        const empDoc = await Employee.findById(best.employeeId).select('_id name empId').lean();
+        if (!empDoc) {
+          return res.json({ success: true, recognized: false, confidence: best.score, message: 'Matched employee not found in DB' });
+        }
+
+        return res.json({ success: true, recognized: true, employee: { employeeId: empDoc._id, name: empDoc.name, empId: empDoc.empId, confidence: best.score }, confidence: best.score });
+      }
+    } catch (aiErr) {
+      // If AI explicitly reported no face detected, return structured response so clients can show friendly UI
+      const aiDetail = aiErr?.response?.data?.detail || aiErr?.message || '';
+      if (typeof aiDetail === 'string' && aiDetail.toLowerCase().includes('no face')) {
+        return res.json({ success: true, recognized: false, noFaceDetected: true, message: 'No face detected in image. Please look at the camera and try again.' });
+      }
+      console.warn('AI recognize error, falling back to local:', aiErr && aiErr.message ? aiErr.message : aiErr);
+    }
+
+    // Fallback: extract embedding locally and compare against DB templates
+    let liveEmbedding;
+    try {
+      liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+    } catch (extractErr) {
+      const errMsg = extractErr && extractErr.message ? extractErr.message : String(extractErr);
+      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('no face')) {
+        return res.json({ success: true, recognized: false, noFaceDetected: true, message: 'No face detected in image. Please look at the camera and try again.' });
+      }
+      // unknown extraction error - bubble up
+      throw extractErr;
+    }
+
     const employees = await Employee.find({ 
       faceEnrolled: true, 
       status: 'active',
@@ -423,51 +464,24 @@ export const recognizeFace = async (req, res) => {
     }).select('_id name empId faceTemplate').lean();
 
     if (employees.length === 0) {
-      return res.json({ 
-        success: true, 
-        recognized: false,
-        message: 'No enrolled employees found'
-      });
+      return res.json({ success: true, recognized: false, message: 'No enrolled employees found' });
     }
 
-    // Find best match using cosine similarity with balanced threshold
+    // Find best match using local comparator
     let bestMatch = null;
     let bestSimilarity = 0;
-
     for (const emp of employees) {
-      if (!emp.faceTemplate || !Array.isArray(emp.faceTemplate) || emp.faceTemplate.length !== 128) {
-        continue;
-      }
-
+      if (!emp.faceTemplate || !Array.isArray(emp.faceTemplate)) continue;
       const similarity = faceRecognitionService.calculateSimilarity(liveEmbedding, emp.faceTemplate);
-      
       if (similarity >= numThreshold && similarity > bestSimilarity) {
         bestSimilarity = similarity;
-        bestMatch = {
-          employeeId: emp._id,
-          name: emp.name,
-          empId: emp.empId,
-          confidence: similarity,
-          similarity: similarity
-        };
+        bestMatch = { employeeId: emp._id, name: emp.name, empId: emp.empId, confidence: similarity };
       }
     }
 
-    if (!bestMatch) {
-      return res.json({ 
-        success: true, 
-        recognized: false,
-        confidence: bestSimilarity,
-        message: 'No matching face found'
-      });
-    }
+    if (!bestMatch) return res.json({ success: true, recognized: false, confidence: bestSimilarity, message: 'No matching face found' });
 
-    res.json({ 
-      success: true, 
-      recognized: true,
-      employee: bestMatch,
-      confidence: bestMatch.confidence
-    });
+    res.json({ success: true, recognized: true, employee: bestMatch, confidence: bestMatch.confidence });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -569,6 +583,119 @@ export const faceAttendance = async (req, res) => {
   } catch (err) {
     console.error('Face attendance error:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Receive feedback from mobile clients about recognition accuracy
+export const recognitionFeedback = async (req, res) => {
+  try {
+    const { employeeId, predictedId, correct, confidence } = req.body || {};
+    const feedback = {
+      timestamp: new Date().toISOString(),
+      employeeId: employeeId || null,
+      predictedId: predictedId || null,
+      correct: !!correct,
+      confidence: typeof confidence === 'number' ? confidence : null,
+      userAgent: req.headers['user-agent'] || null
+    };
+
+    const fs = await import('fs').then(m => m.promises);
+    const fbPath = path.join(process.cwd(), 'recognition_feedback.json');
+    let arr = [];
+    try {
+      const raw = await fs.readFile(fbPath, 'utf8');
+      arr = JSON.parse(raw || '[]');
+    } catch (e) {
+      arr = [];
+    }
+    arr.push(feedback);
+    await fs.writeFile(fbPath, JSON.stringify(arr, null, 2), 'utf8');
+
+    return res.json({ success: true, message: 'Feedback recorded' });
+  } catch (err) {
+    console.error('Feedback error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to record feedback' });
+  }
+};
+
+// Client confirms recognition as correct — use provided image to update employee's template
+export const confirmRecognition = async (req, res) => {
+  try {
+    const { employeeId, image, confidence } = req.body || {};
+    if (!employeeId || !image || typeof image !== 'string') return res.status(400).json({ success: false, message: 'employeeId and image required' });
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    // Extract embedding from image
+    try {
+      const imageBuffer = Buffer.from(String(image).split(',')[1] || '', 'base64');
+      const descriptor = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+
+      if (!descriptor || !Array.isArray(descriptor)) {
+        return res.status(400).json({ success: false, message: 'Failed to extract embedding from image' });
+      }
+
+      // Merge with existing template using Exponential Moving Average (EMA)
+      const oldTemplate = Array.isArray(employee.faceTemplate) ? employee.faceTemplate : null;
+      const oldCount = typeof employee.faceTemplateCount === 'number' ? employee.faceTemplateCount : (oldTemplate ? 1 : 0);
+
+      // alpha can be configured via env (e.g., 0.2). Lower alpha -> slower adaption
+      const alphaEnv = Number(process.env.TEMPLATE_UPDATE_ALPHA);
+      const alpha = (!Number.isNaN(alphaEnv) && alphaEnv > 0 && alphaEnv < 1) ? alphaEnv : 0.2;
+
+      let newTemplate;
+      if (!oldTemplate) {
+        newTemplate = descriptor;
+      } else {
+        const len = Math.max(oldTemplate.length, descriptor.length);
+        const oldArr = oldTemplate.slice(0, len).map(x => Number(x) || 0);
+        // pad descriptor if needed
+        const newArr = descriptor.slice(0, len).map(x => Number(x) || 0);
+        const merged = new Array(len);
+        for (let i = 0; i < len; i++) {
+          merged[i] = (alpha * newArr[i]) + ((1 - alpha) * oldArr[i]);
+        }
+        // normalize
+        const norm = Math.sqrt(merged.reduce((acc, v) => acc + v * v, 0));
+        if (norm > 0) {
+          for (let i = 0; i < len; i++) merged[i] = merged[i] / norm;
+        }
+        newTemplate = merged;
+      }
+
+      employee.faceTemplate = newTemplate;
+      employee.faceTemplateCount = (oldCount || 0) + 1;
+      employee.faceTemplateLastUpdated = new Date();
+      employee.embeddingVersion = employee.embeddingVersion || 'v1';
+
+      await employee.save();
+
+      // Record feedback entry too
+      try {
+        const fs = await import('fs').then(m => m.promises);
+        const fbPath = path.join(process.cwd(), 'recognition_feedback.json');
+        let arr = [];
+        try {
+          const raw = await fs.readFile(fbPath, 'utf8');
+          arr = JSON.parse(raw || '[]');
+        } catch (e) {
+          arr = [];
+        }
+        arr.push({ timestamp: new Date().toISOString(), employeeId, predictedId: employeeId, correct: true, confidence: typeof confidence === 'number' ? confidence : null, userAgent: req.headers['user-agent'] || null, action: 'confirm-recognition' });
+        await fs.writeFile(fbPath, JSON.stringify(arr, null, 2), 'utf8');
+      } catch (e) {
+        console.warn('Failed to write feedback after confirmRecognition:', e);
+      }
+
+      return res.json({ success: true, message: 'Template updated' });
+    } catch (e) {
+      console.error('confirmRecognition extraction error:', e);
+      return res.status(400).json({ success: false, message: 'Failed to extract embedding: ' + e.message });
+    }
+  } catch (err) {
+    console.error('confirmRecognition error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 

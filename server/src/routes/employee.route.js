@@ -15,6 +15,8 @@ import {
   enrollFace,
   recognizeFace,
   testFaceService,
+  recognitionFeedback,
+  confirmRecognition,
 } from "../controllers/employee.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/permission.middleware.js";
@@ -32,6 +34,8 @@ router.post("/face/test", testFaceService); // Test face service
 router.post("/enroll-face", enrollFace); // Enroll face embedding
 router.post("/recognize-face", recognizeFace); // Recognize face from embedding
 router.post("/face-attendance", faceAttendance); // Face attendance endpoint
+router.post("/recognition-feedback", recognitionFeedback); // Feedback from mobile about recognition accuracy
+router.post("/confirm-recognition", confirmRecognition); // Client-confirmed recognition -> update template
 router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
 router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
 router.get("/:id", authenticate, getEmployeeById);

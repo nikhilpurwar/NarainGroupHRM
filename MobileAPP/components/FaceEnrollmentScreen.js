@@ -7,6 +7,8 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/ApiService';
+import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -92,28 +94,33 @@ const FaceEnrollmentScreen = ({ employee, onBack }) => {
 
   const enrollFace = async (images) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees/enroll-face', {
+      // Minimal client-side checks
+      if (!images || images.length < 3) {
+        Alert.alert('Error', 'Please capture at least 3 images from different angles before enrolling.');
+        setCapturedImages([]);
+        setCurrentStep(0);
+        return;
+      }
+
+      const payload = { employeeId: employee._id, images: images.map(img => `data:image/jpeg;base64,${img}`) };
+
+      const { data } = await ApiService.makeAuthenticatedRequest(API_CONFIG.ENDPOINTS.ENROLL_FACE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ employeeId: employee._id, images: images.map(img => `data:image/jpeg;base64,${img}`) }),
+        body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error(`Server error (${response.status})`);
-      const result = await response.json();
-
-      if (result.success) {
+      if (data && data.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Success', `Face template created from ${result.imagesProcessed} images for ${employee.name}`, [{ text: 'OK', onPress: onBack }]);
+        Alert.alert('Success', `Face template created from ${data.imagesProcessed || images.length} images for ${employee.name}`, [{ text: 'OK', onPress: onBack }]);
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Error', result.message || 'Face enrollment failed');
+        Alert.alert('Error', (data && data.message) || 'Face enrollment failed');
         setCapturedImages([]);
         setCurrentStep(0);
       }
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Network error: ' + error.message);
+      Alert.alert('Error', 'Network error: ' + (error.message || error));
       setCapturedImages([]);
       setCurrentStep(0);
     }

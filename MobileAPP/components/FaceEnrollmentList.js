@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -26,11 +27,11 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
   const fetchEmployees = async () => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const token = await AsyncStorage.getItem('authToken');
 
-      const response = await fetch('https://naraingrouphrm.onrender.com/api/employees', {
+      const response = await fetch(await API_CONFIG.getUrl(API_CONFIG.ENDPOINTS.EMPLOYEES), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -58,10 +59,14 @@ const FaceEnrollmentList = ({ onBack, onSelectEmployee }) => {
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      const errorMessage = error.name === 'AbortError'
-        ? 'Request timeout. Please check your connection.'
-        : `Network error: ${error.message}`;
-      Alert.alert('Error', errorMessage);
+      if (error.name === 'AbortError') {
+        Alert.alert('Timeout', 'Server is taking too long to respond. Please try again.', [
+          { text: 'Retry', onPress: fetchEmployees },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+      } else {
+        Alert.alert('Error', `Network error: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }

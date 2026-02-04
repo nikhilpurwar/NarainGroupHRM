@@ -1,12 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Update this to your computer's IP address when testing on physical device
-// For emulator, use 10.0.2.2 (Android) or localhost (iOS)
-const API_BASE_URL = __DEV__ 
-  ? 'http://10.0.2.2:5100/api'  // Android emulator
-  // ? 'http://localhost:5100/api'  // iOS simulator
-  // ? 'http://YOUR_COMPUTER_IP:5100/api'  // Physical device
-  : 'https://naraingrouphrm.onrender.com/api';  // Production
+import API_CONFIG from '../config/apiConfig';
 
 class ApiService {
   static async getAuthToken() {
@@ -25,7 +18,8 @@ class ApiService {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const baseUrl = await API_CONFIG.getBaseUrl();
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers,
     });

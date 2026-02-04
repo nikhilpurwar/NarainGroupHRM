@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  face-ai:
+    build:
+      context: ./faceRecognitionPython
+      dockerfile: Dockerfile
+    image: narain-face-ai:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./faceRecognitionPython/embeddings.json:/app/embeddings.json
+      - ./faceRecognitionPython/app:/app/faceRecognitionPython/app:ro
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
