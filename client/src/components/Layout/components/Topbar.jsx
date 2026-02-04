@@ -6,6 +6,8 @@ import { FaUserAlt, FaCaretDown, FaCaretUp } from "react-icons/fa";
 import ChangePassword from "../../Auth/ChangePassword";
 import { FaBell } from "react-icons/fa";
 import { IoIosNotificationsOutline } from "react-icons/io";
+import Notification from "./Notification";
+
 
 const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleSidebar, scrollRef }) => {
     const [open, setOpen] = useState(false);
@@ -19,6 +21,7 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
     const [isVisible, setIsVisible] = useState(true);
     const lastScrollY = useRef(0);
     const dropdownRef = useRef(null);
+    const notificationRef = useRef(null)
     const [employeeLoaded, setEmployeeLoaded] = useState(false);
     const [insuranceAlerts, setInsuranceAlerts] = useState([]);
 const [showNotifications, setShowNotifications] = useState(false);
@@ -178,18 +181,36 @@ const getInsuranceStatus = (expiryDate) => {
         fetchEmployeeAvatar()
     }, [API_URL, userEmail])
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setOpen(false)
-            }
-        }
+useEffect(() => {
+  const handleClickOutside = (event) => {
 
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-        }
-    }, [])
+    // USER DROPDOWN
+    if (
+      open &&
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target)
+    ) {
+      setOpen(false)
+    }
+
+    // NOTIFICATION DROPDOWN
+    if (
+      showNotifications &&
+      notificationRef.current &&
+      !notificationRef.current.contains(event.target)
+    ) {
+      setShowNotifications(false)
+      setSelectedNotification(null)
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside)
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside)
+  }
+}, [open, showNotifications])
+
+
 
     const doLogout = () => {
         try {
@@ -255,10 +276,10 @@ useEffect(() => {
       id: emp._id,
       type: 'INSURANCE',
       title: 'Vehicle Insurance',
-      message: `${emp.vehicleInfo?.vehicleName} insurance ${status.label.toLowerCase()}`,
+      message: `${emp.vehicleInfo?.vehicleName} (${emp.vehicleNumber?.vehicleNumber}) insurance ${status.label.toLowerCase()}`,
       emp,
       expiry,
-      status
+      status,
     }
   })
   .filter(Boolean)
@@ -324,23 +345,25 @@ setInsuranceAlerts(alerts)
                         </div>
                     )}
                 </div>
-                 <div className="flex item-center pl-240 ">
+                 
+   
+                {/* Right side with user menu */}
+                <div className="relative flex items-center justify-center gap-5" >
+
+                    <div className="flex items-center">
                     <button
   onClick={() => setShowNotifications(prev => !prev)}
   className="relative"
 >
-  <IoIosNotificationsOutline size={24} />
+  <IoIosNotificationsOutline size={26} />
   {insuranceAlerts.length > 0 && (
     <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1 rounded-full">
       {insuranceAlerts.length}
     </span>
   )}
 </button> </div>
-   
-                {/* Right side with user menu */}
-                <div className="relative" ref={dropdownRef}>
 
-
+<div>
                     <button
                         onClick={() => setOpen(!open)}
                         className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-gray-900 hover:to-indigo-800 transition-transform transition-shadow duration-150"
@@ -370,7 +393,8 @@ setInsuranceAlerts(alerts)
 
                     {/* Dropdown menu */}
                     {open && (
-                        <div className="absolute right-0.5 top-15.5 w-52 bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50 transform origin-top-right animate-dropdown">
+                        <div className="absolute right-0.5 top-15.5 w-52 bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50 transform origin-top-right animate-dropdown"
+                        ref={dropdownRef}>
                             <div className="">
                                 {userRole && (
                                     <span className={`block w-full text-left px-4 py-2 text-sm font-semibold ${getRoleStyle(userRole).text} ${getRoleStyle(userRole).bg} rounded-t-xl`}>
@@ -404,6 +428,7 @@ setInsuranceAlerts(alerts)
                             </div>
                         </div>
                     )}
+</div>
                 </div>
             </div>
             <ChangePassword
@@ -411,114 +436,16 @@ setInsuranceAlerts(alerts)
                 onClose={() => setShowChangePassword(false)}
                 initialEmail={userEmail}
             />
-{showNotifications && (
-  <div className="absolute right-6 top-20 w-[420px] bg-white shadow-2xl border rounded-xl z-50 overflow-hidden">
-    
-    {/* Header */}
-    <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-      <h3 className="font-semibold text-gray-800">
-        Notifications
-      </h3>
-      <span className="text-xs text-gray-500">
-        {insuranceAlerts.length} alerts
-      </span>
-    </div>
+<Notification
+  showNotifications={showNotifications}
+  notificationRef={notificationRef}
+  insuranceAlerts={insuranceAlerts}
+  selectedNotification={selectedNotification}
+  setSelectedNotification={setSelectedNotification}
+  setInsuranceAlerts={setInsuranceAlerts}
+  navigate={navigate}
+/>
 
-    {/* LIST VIEW */}
-    {!selectedNotification && (
-      <div className="max-h-[320px] overflow-y-auto">
-        {insuranceAlerts.length === 0 ? (
-          <div className="p-6 text-center text-gray-500 text-sm">
-            No notifications 🎉
-          </div>
-        ) : (
-          insuranceAlerts.map(notif => (
-            <button
-              key={notif.id}
-              onClick={() => setSelectedNotification(notif)}
-              className="w-full text-left px-4 py-3 border-b
-                         hover:bg-gray-50 transition"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    {notif.title}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {notif.message}
-                  </p>
-                </div>
-
-                <span
-                  className={`text-xs font-semibold px-2 py-1 rounded-full
-                    ${
-                      notif.status.label === 'Expired'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-orange-100 text-orange-700'
-                    }`}
-                >
-                  {notif.status.label}
-                </span>
-              </div>
-            </button>
-          ))
-        )}
-      </div>
-    )}
-
-    {/* DETAILS VIEW */}
-    {selectedNotification && (
-      <div className="p-4 text-sm text-gray-800">
-        <button
-          onClick={() => setSelectedNotification(null)}
-          className="text-xs text-blue-600 mb-3 hover:underline"
-        >
-          ← Back to notifications
-        </button>
-
-        <h4 className="font-semibold text-lg mb-2">
-          Vehicle Insurance Details
-        </h4>
-
-        <div className="space-y-2">
-          <p>
-            <strong>Employee ID:</strong>{' '}
-            {selectedNotification.emp.empId}
-          </p>
-
-          <p>
-            <strong>Vehicle:</strong>{' '}
-            {selectedNotification.emp.vehicleInfo?.vehicleName} (
-            {selectedNotification.emp.vehicleInfo?.vehicleNumber})
-          </p>
-
-          <p>
-            <strong>Expiry Date:</strong>{' '}
-            {new Date(selectedNotification.expiry).toLocaleDateString()}
-          </p>
-
-          <p>
-            <strong>Status:</strong>{' '}
-            <span className="font-semibold">
-              {selectedNotification.status.label}
-            </span>
-          </p>
-        </div>
-
-        <div className="mt-4">
-          <button
-            onClick={() =>
-              navigate(`/profile/${selectedNotification.emp._id}`)
-            }
-            className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-gray-700"
-          >
-            View Employee Profile
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-)}
 
 
         </div>
