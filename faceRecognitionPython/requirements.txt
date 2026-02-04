@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+numpy
+pillow
+python-multipart
+# Optional/Recommended (install if you can build native deps):
+insightface
+onnxruntime
+faiss-cpu
+opencv-python
+# If insightface isn't available, this scaffold will fallback to a dummy/embedder for testing

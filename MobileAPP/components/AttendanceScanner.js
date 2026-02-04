@@ -6,6 +6,7 @@ import { CameraView, Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ApiService from '../services/ApiService';
+import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -52,7 +53,7 @@ export default function AttendanceScanner({ onBack }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`https://naraingrouphrm.onrender.com/api/employees/attendance/barcode?code=${barcodeCode}`, {
+      const response = await fetch(`${await API_CONFIG.getUrl(API_CONFIG.ENDPOINTS.ATTENDANCE_BARCODE)}?code=${barcodeCode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await ApiService.getAuthToken()}` },
         body: JSON.stringify({ code: barcodeCode, date: now.toISOString().split('T')[0], clientTs: now.getTime(), tzOffsetMinutes }),

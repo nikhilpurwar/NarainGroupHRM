@@ -8,7 +8,7 @@ import LoginScreen from './components/LoginScreen';
 import AttendanceScanner from './components/AttendanceScanner';
 import FaceRecognitionScreen from './components/FaceRecognitionScreen';
 import FaceEnrollmentList from './components/FaceEnrollmentList';
-import FaceEnrollmentScreen from './components/FaceEnrollmentScreen';
+import FaceEnrollmentScreen from './components/FaceEnrollmentScreen1';
 import ApiService from './services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
 
 const LoginScreen = ({ onLogin }) => {
@@ -21,16 +22,7 @@ const LoginScreen = ({ onLogin }) => {
 
     setLoading(true);
     try {
-      // Use the same API base URL logic as ApiService
-      const apiUrl = 
-      // __DEV__ 
-      //   ? 'http://10.0.2.2:5100/api/auth/login'  // Android emulator
-      //   // ? 'http://localhost:5100/api/auth/login'  // iOS simulator  
-      //   // ? 'http://YOUR_COMPUTER_IP:5100/api/auth/login'  // Physical device
-      //   : 
-        'https://naraingrouphrm.onrender.com/api/auth/login';  // Production
-        
-      const response = await fetch(apiUrl, {
+      const response = await fetch(await API_CONFIG.getUrl(API_CONFIG.ENDPOINTS.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

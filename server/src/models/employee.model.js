@@ -44,6 +44,8 @@ const employeeSchema = new mongoose.Schema({
             message: 'Face template must be a 128-dimensional vector'
         }
     },
+    faceTemplateCount: { type: Number, default: 0 },
+    faceTemplateLastUpdated: { type: Date },
     faceEnrolled: { type: Boolean, default: false },
     faceEnrollmentDate: { type: Date },
     embeddingVersion: { type: String, default: 'v1' },
