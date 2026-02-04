@@ -6,10 +6,11 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
   const [loading, setLoading] = useState(false)
   const todayIso = new Date().toLocaleDateString('en-CA')
 
-const [employeeId, setEmployeeId] = useState('Select')
+const [employeeId, setEmployeeId] = useState("")
 const [search, setSearch] = useState("");
 const [searchFocused, setSearchFocused] = useState(false);
 const searchWrapRef = useRef(null);
+const [selectedEmployee, setSelectedEmployee] = useState(null)
 
   const [date, setDate] = useState(todayIso)
   const [inHour, setInHour] = useState('')
@@ -54,6 +55,20 @@ const searchWrapRef = useRef(null);
     const mer = (meridiem || 'AM').toLowerCase()
     return `${hhStr}:${mmStr}:00 ${mer}`
   }
+
+// useEffect(() => {
+//   const handleClickOutside = (e) => {
+//     if (
+//       searchWrapRef.current &&
+//       !searchWrapRef.current.contains(e.target)
+//     ) {
+//       setSearchFocused(false)
+//     }
+//   }
+
+//   document.addEventListener("mousedown", handleClickOutside)
+//   return () => document.removeEventListener("mousedown", handleClickOutside)
+// }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -115,10 +130,14 @@ const searchWrapRef = useRef(null);
     }
   }
 
-  const filteredEmployees = (employees || []).filter(emp =>
-  emp.name?.toLowerCase().includes(search.toLowerCase()) ||
-  emp.empId?.toLowerCase().includes(search.toLowerCase())
-);
+  const filteredEmployees = (employees || []).filter(emp => {
+  if (!searchFocused) return true   // show all when not typing
+
+  return (
+    emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+    emp.empId?.toLowerCase().includes(search.toLowerCase())
+  )
+})
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
@@ -146,14 +165,29 @@ const searchWrapRef = useRef(null);
 
             <div
               className="relative"
-              onClick={() => setSearchFocused(true)}
+              onClick={() => {
+  setSearchFocused(true)
+  // if (searchFocused)
+   setSearch("")   // reset filter when opening
+}}
             >
               <input
                 type="text"
                 placeholder="Select or Search by name or emp id..."
-                value={search}
+           value={
+  searchFocused
+    ? search
+    : selectedEmployee
+    ? `${selectedEmployee.name} (${selectedEmployee.empId})`
+    : ""
+}
+
                 onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
+                onFocus={() => {
+  setSearchFocused(true)
+  //  setSearch("")
+}}
+
                 className="w-full border rounded-lg px-3 py-2 pr-10 text-sm"
               />
 
@@ -170,17 +204,18 @@ const searchWrapRef = useRef(null);
             {searchFocused && (
               <div
                 ref={searchWrapRef}
+                 onMouseDown={(e) => e.stopPropagation()}
                 className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto"
               >
                 {filteredEmployees.length ? (
                   filteredEmployees.map(emp => (
                     <div
                       key={emp._id}
-                      onClick={() => {
-                        setEmployeeId(emp._id)
-                        setSearch(`${emp.name} (${emp.empId})`)
-                        setSearchFocused(false)
-                      }}
+                    onClick={() => {
+  setEmployeeId(emp._id)
+  setSelectedEmployee(emp)
+  setSearchFocused(false)
+}}
                       className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
                     > 
                     <div className='flex col-span-2 gap-5'>
