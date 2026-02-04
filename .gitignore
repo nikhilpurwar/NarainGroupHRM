@@ -23,5 +23,7 @@ FACE_RECOGNITION_IMPLEMENTATION.md
 FACE_TEMPLATE_ARCHITECTURE.md
 
 faceRecognitionPython/venv
-FaceRecognitionApp
 docs/FACE_RECOGNITION_INTEGRATION.md
+faceRecognitionPython/requirements.txt
+server/.env.example
+faceRecognitionPython/requirements.txt
