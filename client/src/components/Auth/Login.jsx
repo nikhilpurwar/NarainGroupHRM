@@ -150,7 +150,7 @@ const Login = () => {
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={keepLoggedIn}
+                // checked={keepLoggedIn}
                 onChange={(e) => setKeepLoggedIn(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
               />

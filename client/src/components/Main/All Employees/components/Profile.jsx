@@ -18,7 +18,8 @@ import {
   MdDownload,
   MdPrint,
   MdShare,
-  MdEdit
+  MdEdit,
+  MdDirectionsCar
 } from "react-icons/md"
 import {
   FiUser,
@@ -172,6 +173,30 @@ const Profile = () => {
   const handleDownloadProfile = () => {
     window.print()
   }
+
+  const isDriver =
+  emp.designation?.name?.toLowerCase() === 'driver' ||
+  emp.empType?.toLowerCase() === 'driver'
+
+  const getInsuranceStatus = (expiryDate) => {
+  if (!expiryDate) {
+    return { label: 'Not Available', color: 'text-gray-500 bg-gray-100' }
+  }
+
+  const today = new Date()
+  const expiry = new Date(expiryDate)
+  const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    return { label: 'Expired', color: 'text-red-600 bg-red-50' }
+  }
+
+  if (diffDays <= 15) {
+    return { label: 'Expiring Soon', color: 'text-orange-600 bg-orange-50' }
+  }
+
+  return { label: 'Active', color: 'text-green-600 bg-green-50' }
+}
 
   return (
     <>
@@ -483,7 +508,7 @@ const Profile = () => {
               </div>
 
               {/* Attendance Summary Card */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              {/* <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4">
                   <FiCalendar className="text-indigo-500" />
                   Attendance Summary
@@ -508,7 +533,78 @@ const Profile = () => {
                     icon={<FiCalendar />}
                   />
                 </div>
-              </div>
+              </div> */}
+
+{/* Vehicle Details (Only for Driver) */}
+{isDriver && (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4">
+      <MdDirectionsCar className="text-indigo-500" />
+      Vehicle Details
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <StatCard
+        title="Vehicle Name"
+        value={emp.vehicleInfo?.vehicleName || 'N/A'}
+        color="bg-indigo-50 text-indigo-600"
+        icon={<MdDirectionsCar />}
+      />
+
+      <StatCard
+        title="Vehicle Number"
+        value={emp.vehicleInfo?.vehicleNumber || 'N/A'}
+        color="bg-blue-50 text-blue-600"
+        icon={<MdCreditCard />}
+      />
+
+      <StatCard
+        title="Insurance Status"
+        value={(() => {
+          const status = getInsuranceStatus(emp.vehicleInfo?.insuranceExpiry)
+          return status.label
+        })()}
+        color={(() => {
+          const status = getInsuranceStatus(emp.vehicleInfo?.insuranceExpiry)
+          return status.label === 'Expired'
+            ? 'bg-red-50 text-red-600'
+            : status.label === 'Expiring Soon'
+              ? 'bg-orange-50 text-orange-600'
+              : 'bg-green-50 text-green-600'
+        })()}
+        icon={<FiCalendar />}
+      />
+
+    </div>
+
+    {/* Insurance expiry date + document */}
+    <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+      <span className="text-gray-600">
+        Insurance Expiry:{' '}
+        <strong>
+          {emp.vehicleInfo?.insuranceExpiry
+            ? formatDate(emp.vehicleInfo.insuranceExpiry)
+            : 'N/A'}
+        </strong>
+      </span>
+
+      {emp.vehicleInfo?.vehicleDocument && (
+        <a
+          href={`${API_URL}${emp.vehicleInfo.vehicleDocument}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+        >
+          <MdDownload />
+          View Document
+        </a>
+      )}
+    </div>
+  </div>
+)}
+
+
             </div>
 
             {/* Right Column - Quick Info & Actions */}
@@ -570,7 +666,7 @@ const Profile = () => {
                       <img
                         src={emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=6366f1&color=fff&size=256`}
                         alt={emp.name}
-                        className="rounded-full border-4 border-white/30 shadow-2xl object-cover"
+                        className="w-18 h-18 rounded-full border "
                       />
                     ) : (
                       <FiUser size={24} />
@@ -780,7 +876,7 @@ const StatCard = ({ title, value, color, icon }) => (
         {icon}
       </div>
     </div>
-    <div className="text-2xl font-bold text-gray-900">{value}</div>
+    <div className="text-xl font-bold text-gray-900">{value}</div>
   </div>
 )
 
