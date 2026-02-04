@@ -1,11 +1,43 @@
+# # old currently in render
+# fastapi
+# uvicorn[standard]
+# numpy
+# pillow
+# python-multipart
+# # Optional/Recommended (install if you can build native deps):
+# insightface
+# onnxruntime
+# faiss-cpu
+# opencv-python
+# # If insightface isn't available, this scaffold will fallback to a dummy/embedder for testing
+
+
+# fastapi==0.104.1
+# uvicorn[standard]==0.24.0
+# numpy==1.24.3
+# pillow==10.0.1
+# python-multipart==0.0.6
+# # Core ML dependencies
+# onnxruntime==1.16.3
+# opencv-python-headless==4.8.1.78
+# # Face recognition (may need fallback on limited resources)
+# insightface==0.7.3
+# faiss-cpu==1.7.4
+# # Additional dependencies
+# scipy==1.11.4
+# scikit-learn==1.3.2
 fastapi
 uvicorn[standard]
 numpy
 pillow
 python-multipart
-# Optional/Recommended (install if you can build native deps):
-insightface
+# Core ML dependencies
 onnxruntime
-faiss-cpu
 opencv-python
-# If insightface isn't available, this scaffold will fallback to a dummy/embedder for testing
+# Face recognition (may need fallback on limited resources)
+insightface
+faiss-cpu
+# Additional dependencies
+scipy
+scikit-learn
+
