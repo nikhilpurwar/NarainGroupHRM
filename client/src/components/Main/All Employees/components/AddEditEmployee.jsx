@@ -8,6 +8,7 @@ import { useDispatch } from 'react-redux'
 import { fetchEmployees } from '../../../../store/employeesSlice'
 import { Loader } from 'lucide-react'
 import { FaFilePdf } from "react-icons/fa";
+import Spinner from '../../../utility/Spinner'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/employees`
@@ -95,6 +96,7 @@ const AddEditEmployee = () => {
     const [preview, setPreview] = useState(null)
     const [formError, setFormError] = useState('')
     const submittingRef = useRef(false)
+    const [editLoaded, setEditLoaded] = useState(!isEdit)
 
     const DRAFT_KEY = 'addEmployeeFormDraft'
     const [hasLoadedDraft, setHasLoadedDraft] = useState(false)
@@ -127,43 +129,52 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
         fetchEmployees()
 
         if (!isEdit) return
-        const fetchEmployee = async () => {
-            try {
-                const res = await axios.get(`${API}/${id}`)
-                const emp = res.data.data
-                const [firstName, ...rest] = (emp.name || '').split(' ')
-                const lastName = rest.join(' ')
-                setForm((f) => ({
-                    ...f,
-                    firstName: firstName || '',
-                    lastName: lastName || '',
-                    fatherName: emp.fatherName || '',
-                    motherName: emp.motherName || '',
-                    email: emp.email || '',
-                    mobile: emp.mobile || '',
-                    address: emp.address || '',
-                    pincode: emp.pincode || '',
-                    gender: emp.gender || '',
-                    maritalStatus: emp.maritalStatus || '',
-                    salary: emp.salary || '',
-                    empType: emp.empType || '',
-                    shift: emp.shift || '',
-                    headDepartment: emp.headDepartment?._id || emp.headDepartment || '',
-                    subDepartment: emp.subDepartment?._id || emp.subDepartment || '',
-                    designation: emp.designation?._id || emp.designation || '',
-                    deductions: Array.isArray(emp.deductions) ? emp.deductions : [],
-                    empId: emp.empId || '',
-                    status: emp.status || 'active',
-                    avatar: emp.avatar || null,
-                    vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
-  vehicleName: emp.vehicleInfo?.vehicleName || '',
-  vehicleDocument: emp.vehicleInfo?.vehicleDocument || null,
-  vehicleInsuranceExpiry: emp.vehicleInfo?.insuranceExpiry
-  ? emp.vehicleInfo.insuranceExpiry.split('T')[0]
-  : '',
-                }))
-                if (emp.avatar) setPreview(emp.avatar)
-            } catch (err) {
+const fetchEmployee = async () => {
+  try {
+    const res = await axios.get(`${API}/${id}`)
+    const emp = res.data.data
+
+    const [firstName, ...rest] = (emp.name || '').split(' ')
+    const lastName = rest.join(' ')
+
+    setForm({
+      ...defaultForm,   // important — clean base
+      firstName,
+      lastName,
+      fatherName: emp.fatherName || '',
+      motherName: emp.motherName || '',
+      email: emp.email || '',
+      mobile: emp.mobile || '',
+      address: emp.address || '',
+      pincode: emp.pincode || '',
+      gender: emp.gender || '',
+      maritalStatus: emp.maritalStatus || '',
+      salary: emp.salary || '',
+      empType: emp.empType || '',
+      shift: emp.shift || '',
+      headDepartment: emp.headDepartment?._id || '',
+      subDepartment: emp.subDepartment?._id || '',
+      designation: emp.designation?._id || '',
+      deductions: emp.deductions || [],
+      empId: emp.empId || '',
+      status: emp.status || 'active',
+
+      avatar: emp.avatar || null,
+
+      vehicleNumber: emp.vehicleInfo?.vehicleNumber || '',
+      vehicleName: emp.vehicleInfo?.vehicleName || '',
+      vehicleDocument: emp.vehicleInfo?.vehicleDocument || null,
+      vehicleInsuranceExpiry: emp.vehicleInfo?.insuranceExpiry
+        ? emp.vehicleInfo.insuranceExpiry.split('T')[0]
+        : ''
+    })
+
+    if (emp.avatar) setPreview(emp.avatar)
+
+    setEditLoaded(true)   // ✅ NOW form can render
+
+  } catch (err) {
+    toast.error('Failed to load employee')
                 console.error(err)
                 const msg = err?.message || ''
                 if (err.code === 'ECONNREFUSED' || msg.toLowerCase().includes('network')) {
@@ -188,7 +199,7 @@ if (form.vehicleDocument) {
   formData.append('vehicleDocument', form.vehicleDocument)
 }
 
-await axios.post(API, formData, {
+const res = await axios.post(API, formData, {
   headers: { 'Content-Type': 'multipart/form-data' }
 })
 }
@@ -300,7 +311,7 @@ await axios.post(API, formData, {
     const validate = () => {
         const err = {}
         if (!form.firstName.trim()) err.firstName = 'First name is required'
-        if (!form.lastName.trim()) err.lastName = 'Last name is required'
+        // if (!form.lastName.trim()) err.lastName = 'Last name is required'
         if (!form.salary || Number(form.salary) <= 0) err.salary = 'Salary must be a positive number'
         if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email || '')) err.email = 'Enter a valid email address'
         if (!/^[0-9]{10}$/.test(form.mobile || '')) err.mobile = 'Enter a valid 10-digit mobile number'
@@ -314,6 +325,14 @@ await axios.post(API, formData, {
         reader.onerror = (e) => rej(e)
         reader.readAsDataURL(file)
     })
+
+      useEffect(() => {
+    if (location.state?.scrollTo === "vehicle-info") {
+      document
+        .getElementById("vehicle-info")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [location]);
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -413,7 +432,7 @@ await axios.post(API, formData, {
                 }
             } else {
                 if (isEdit) {
-                    await axios.put(`${API}/${id}`, payload)
+                    const res = await axios.put(`${API}/${id}`, payload)
                 } else {
                     await axios.post(API, payload)
                 }
@@ -425,7 +444,17 @@ await axios.post(API, formData, {
             try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { }
             setFormError('')
             setErrors({})
-            navigate(-1)
+//             navigate(-1)
+//                   const updatedEmployee = res.data
+
+// // If insurance is now valid → remove its notification
+// if (new Date(updatedEmployee.vehicleInsuranceExpiry) > new Date()) {
+//   setInsuranceAlerts(prev =>
+//     prev.filter(n => n.emp._id !== updatedEmployee._id)
+//   )
+// } 
+navigate(-1, { state: { insuranceUpdated: id } })
+
         } catch (err) {
             console.error(err)
             const msg = err?.response?.data?.message || err?.message || 'Save failed'
@@ -444,26 +473,37 @@ await axios.post(API, formData, {
         }
     }
 
-// const getInsuranceStatus = (expiryDate) => {
-//   if (!expiryDate) return null
+//   const getInsuranceStatus = (expiry) => {
+//     if (!expiry) return null;
 
-//   const today = new Date()
-//   const expiry = new Date(expiryDate)
+//     const today = new Date();
+//     const exp = new Date(expiry);
 
-//   const diffDays = Math.ceil(
-//     (expiry - today) / (1000 * 60 * 60 * 24)
+//     const days = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+
+//     if (days < 0) return "expired";
+//     if (days <= 15) return "warning";
+//     return "valid";
+//   };
+
+  const forceOpenVehicle = location.state?.openVehicle;
+//   const insuranceStatus = getInsuranceStatus(form.vehicleInsuranceExpiry);
+ 
+// if (!editLoaded) {
+//   return (
+//     <div className="flex items-center justify-center h-[70vh]">
+//       <S size={32} />
+//       <span className="ml-3 font-medium">Loading employee...</span>
+//     </div>
 //   )
-
-//   if (diffDays < 0) return 'expired'
-//   if (diffDays <= 7) return 'warning' // expiring in 7 days
-//   return null
 // }
-// const insuranceAlertEmployees = employees.filter(emp => {
-//   const expiry = emp.vehicleInfo?.insuranceExpiry
-//   if (!expiry) return false
-
-//   return getInsuranceStatus(expiry)
-// })
+ if  (!editLoaded){
+    return (
+      <div className="p-6 text-center">
+        <Spinner />
+      </div>
+    );
+}
 
 
     return (
@@ -539,7 +579,7 @@ await axios.post(API, formData, {
                         </div>
 
                         <Input label="First Name" name="firstName" value={form.firstName} onChange={handleChange} error={errors.firstName} required />
-                        <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName} required/>
+                        <Input label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} error={errors.lastName}/>
                         <Input label="Mobile" name="mobile" value={form.mobile} onChange={handleChange} required error={errors.mobile} prefix="+91" suffix={
                         <span style={{ color: !form.mobile? "#999": form.mobile.length === 10 ? "green": "red",}}> ({form.mobile?.length || 0}/10)</span>}/>
                         <Input label="Email" name="email" value={form.email} onChange={handleChange} error={errors.email} required/>
@@ -636,9 +676,11 @@ await axios.post(API, formData, {
                     </div>
                 </div>
 
-                 {isDriver && (
-      <div className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)]">
-                    <h3 className="text-white bg-gray-900 font-semibold text-lg rounded-t-xl p-4">
+                  {isDriver && (forceOpenVehicle || true) && (
+          <div
+            id="vehicle-info"
+            className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)] scroll-mt-24"
+          >            <h3 className="text-white bg-gray-900 font-semibold text-lg rounded-t-xl p-4">
                         Vehicle Info
                     </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
@@ -669,7 +711,23 @@ await axios.post(API, formData, {
   onChange={handleChange}
   required
 />
+         {/* {insuranceStatus === "valid" && (
+                        <span className="absolute rigaht-3 top-9 text-green-600 font-bold">
+                          ✓ Done
+                        </span>
+                      )}
 
+                      {insuranceStatus === "warning" && (
+                        <span className="absolute right-3 top-9 text-orange-600 font-semibold">
+                          Expiring soon
+                        </span>
+                      )}
+
+                      {insuranceStatus === "expired" && (
+                        <span className="absolute right-3 top-9 text-red-600 font-semibold">
+                          Expired
+                        </span>
+                      )} */}
 <div>
   <label className="block font-medium mb-1 text-gray-800">
     Vehicle Document (PDF)

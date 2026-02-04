@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CgMenuLeft } from "react-icons/cg";
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { FaUserAlt, FaCaretDown, FaCaretUp } from "react-icons/fa";
 import ChangePassword from "../../Auth/ChangePassword";
@@ -26,7 +26,10 @@ const Topbar = ({ title, subtitle, isSidebarCollapsed, isSidebarHovered, toggleS
     const [insuranceAlerts, setInsuranceAlerts] = useState([]);
 const [showNotifications, setShowNotifications] = useState(false);
 const [selectedNotification, setSelectedNotification] = useState(null)
-
+const location = useLocation()
+const [viewedNotifs, setViewedNotifs] = useState(() => {
+  return JSON.parse(localStorage.getItem("viewedNotifs") || "[]")
+})
 
 const getInsuranceStatus = (expiryDate) => {
   if (!expiryDate) return null
@@ -130,6 +133,11 @@ const getInsuranceStatus = (expiryDate) => {
             border: 'border-gray-600'
         }
     }
+const handleViewNotif = (id) => {
+  setViewedNotifs(prev =>
+    prev.includes(id) ? prev : [...prev, id]
+  )
+}
 
     useEffect(() => {
         try {
@@ -145,6 +153,24 @@ const getInsuranceStatus = (expiryDate) => {
             console.error('Failed to read user from storage', e)
         }
     }, [])
+useEffect(() => {
+  if (!location.state?.insuranceUpdated) return
+
+  const updatedId = location.state.insuranceUpdated
+
+  setInsuranceAlerts(prev =>
+    prev.map(n =>
+      n.emp._id === updatedId
+        ? { ...n, resolved: true }
+        : n
+    )
+  )
+
+}, [location.state])
+
+useEffect(() => {
+  localStorage.setItem("viewedNotifs", JSON.stringify(viewedNotifs))
+}, [viewedNotifs])
 
     useEffect(() => {
         const fetchEmployeeAvatar = async () => {
@@ -265,26 +291,27 @@ useEffect(() => {
       const res = await axios.get(`${API_URL}/api/employees`)
       const list = res.data?.data || []
 
-      const alerts = list
+const alerts = list
   .map(emp => {
     const expiry = emp.vehicleInfo?.insuranceExpiry
     const status = getInsuranceStatus(expiry)
 
-    if (!status) return null
-
+if(!status) return null
     return {
       id: emp._id,
       type: 'INSURANCE',
       title: 'Vehicle Insurance',
-      message: `${emp.vehicleInfo?.vehicleName} (${emp.vehicleNumber?.vehicleNumber}) insurance ${status.label.toLowerCase()}`,
-      emp,
+     message: `${emp.vehicleInfo?.vehicleName} • ${emp.vehicleInfo?.vehicleNumber} insurance `,         // ${status.label.toLowerCase()}
+    emp,
       expiry,
       status,
+      resolved: false
     }
-  })
+})
   .filter(Boolean)
 
 setInsuranceAlerts(alerts)
+
 
     } catch (err) {
       console.error('Insurance fetch error', err)
@@ -306,6 +333,24 @@ setInsuranceAlerts(alerts)
 }, [])
 
 
+useEffect(() => {
+  const handleInsuranceUpdate = () => {
+    const updated = JSON.parse(localStorage.getItem("insuranceUpdated"))
+    if (!updated?.employeeId) return
+
+    setInsuranceAlerts(prev =>
+      prev.map(n =>
+        n.emp._id === updated.employeeId
+          ? { ...n, resolved: true }
+          : n
+      )
+    )
+  }
+
+  window.addEventListener("storage", handleInsuranceUpdate)
+
+  return () => window.removeEventListener("storage", handleInsuranceUpdate)
+}, [])
 
 
     return (
@@ -345,12 +390,12 @@ setInsuranceAlerts(alerts)
                         </div>
                     )}
                 </div>
-                 
+                                                                                                {/* ref={notificationRef} */}
    
                 {/* Right side with user menu */}
                 <div className="relative flex items-center justify-center gap-5" >
 
-                    <div className="flex items-center">
+                    <div className="flex items-center" >   
                     <button
   onClick={() => setShowNotifications(prev => !prev)}
   className="relative"
@@ -363,7 +408,7 @@ setInsuranceAlerts(alerts)
   )}
 </button> </div>
 
-<div>
+<div  ref={dropdownRef}>
                     <button
                         onClick={() => setOpen(!open)}
                         className="flex items-center pl-4 pr-2 py-2 rounded-full gap-3 border border-gray-700 bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-lg shadow-black/40 hover:shadow-xl hover:-translate-y-0.5 hover:from-gray-900 hover:to-indigo-800 transition-transform transition-shadow duration-150"
@@ -394,7 +439,7 @@ setInsuranceAlerts(alerts)
                     {/* Dropdown menu */}
                     {open && (
                         <div className="absolute right-0.5 top-15.5 w-52 bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50 transform origin-top-right animate-dropdown"
-                        ref={dropdownRef}>
+                       >
                             <div className="">
                                 {userRole && (
                                     <span className={`block w-full text-left px-4 py-2 text-sm font-semibold ${getRoleStyle(userRole).text} ${getRoleStyle(userRole).bg} rounded-t-xl`}>
@@ -443,8 +488,11 @@ setInsuranceAlerts(alerts)
   selectedNotification={selectedNotification}
   setSelectedNotification={setSelectedNotification}
   setInsuranceAlerts={setInsuranceAlerts}
+  viewedNotifs={viewedNotifs}
+  setViewedNotifs={setViewedNotifs}
   navigate={navigate}
 />
+
 
 
 
