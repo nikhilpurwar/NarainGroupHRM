@@ -414,26 +414,14 @@ export const recognizeFace = async (req, res) => {
       });
     }
 
-    // Try AI service first for recognition (fast vector search)
+    // Try AI service first for recognition (extract embedding)
+    let liveEmbedding = null;
     try {
       const topK = 5;
       const aiResp = await aiClient.recognizeImage(image, topK);
-      if (aiResp && Array.isArray(aiResp.matches) && aiResp.matches.length > 0) {
-        // Find first match above threshold
-        const filtered = aiResp.matches.filter(m => typeof m.score === 'number' && m.score >= numThreshold);
-        if (filtered.length === 0) {
-          return res.json({ success: true, recognized: false, confidence: aiResp.matches[0]?.score || 0, message: 'No matching face found' });
-        }
-
-        // Best match is highest score
-        const best = filtered.sort((a,b) => b.score - a.score)[0];
-        // best.employeeId should match the id we stored during enroll (DB _id string)
-        const empDoc = await Employee.findById(best.employeeId).select('_id name empId').lean();
-        if (!empDoc) {
-          return res.json({ success: true, recognized: false, confidence: best.score, message: 'Matched employee not found in DB' });
-        }
-
-        return res.json({ success: true, recognized: true, employee: { employeeId: empDoc._id, name: empDoc.name, empId: empDoc.empId, confidence: best.score }, confidence: best.score });
+      // Python now returns { success: true, embedding: [...] }
+      if (aiResp && Array.isArray(aiResp.embedding) && aiResp.embedding.length > 0) {
+        liveEmbedding = aiResp.embedding;
       }
     } catch (aiErr) {
       // If AI explicitly reported no face detected, return structured response so clients can show friendly UI
@@ -444,17 +432,18 @@ export const recognizeFace = async (req, res) => {
       console.warn('AI recognize error, falling back to local:', aiErr && aiErr.message ? aiErr.message : aiErr);
     }
 
-    // Fallback: extract embedding locally and compare against DB templates
-    let liveEmbedding;
-    try {
-      liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
-    } catch (extractErr) {
-      const errMsg = extractErr && extractErr.message ? extractErr.message : String(extractErr);
-      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('no face')) {
-        return res.json({ success: true, recognized: false, noFaceDetected: true, message: 'No face detected in image. Please look at the camera and try again.' });
+    // Fallback: extract embedding locally if AI failed
+    if (!liveEmbedding) {
+      try {
+        liveEmbedding = await faceRecognitionService.extractFaceDescriptor(imageBuffer);
+      } catch (extractErr) {
+        const errMsg = extractErr && extractErr.message ? extractErr.message : String(extractErr);
+        if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('no face')) {
+          return res.json({ success: true, recognized: false, noFaceDetected: true, message: 'No face detected in image. Please look at the camera and try again.' });
+        }
+        // unknown extraction error - bubble up
+        throw extractErr;
       }
-      // unknown extraction error - bubble up
-      throw extractErr;
     }
 
     const employees = await Employee.find({ 

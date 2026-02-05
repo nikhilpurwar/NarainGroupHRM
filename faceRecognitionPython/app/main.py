@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from .utils.model_utils import get_embedder
-from .embeddings_store import save_embedding, find_top_k
 import uvicorn
 import logging
 import traceback
@@ -134,9 +133,10 @@ async def enroll(req: EnrollRequest):
     else:
         fused = fused.tolist()
 
-    save_embedding(req.employeeId, fused, version='v1')
+    # NOTE: Embedding is returned to Node; Node saves it to MongoDB
+    # No local file I/O here (DB-only mode)
 
-    result = {'success': True, 'imagesProcessed': processed, 'selectedFrames': len(selected), 'embedding': fused, 'selectedIndices': [s['idx'] for s in selected], 'selectedScores': [float(scores[int(i)]) for i in top_idx]}
+    result = {'success': True, 'imagesProcessed': processed, 'selectedFrames': len(selected), 'embedding': fused, 'version': 'v1', 'selectedIndices': [s['idx'] for s in selected], 'selectedScores': [float(scores[int(i)]) for i in top_idx]}
 
     if preview and preview_images:
         result['selectedPreviews'] = [s.get('original') for s in selected]
@@ -153,10 +153,9 @@ async def recognize(req: RecognizeRequest):
         logging.debug(traceback.format_exc())
         raise HTTPException(status_code=400, detail='Failed to extract embedding: ' + str(e))
 
-    topk = req.topK if req.topK and req.topK > 0 else 1
-    matches = find_top_k(qemb, k=topk)
-
-    return {'success': True, 'matches': matches}
+    # NOTE: Embedding is returned to Node; Node performs DB lookup and matching
+    # No local embeddings_store access here (DB-only mode)
+    return {'success': True, 'embedding': qemb}
 
 if __name__ == '__main__':
     uvicorn.run('faceRecognitionPython.app.main:app', host='0.0.0.0', port=8000, reload=True)
