@@ -483,6 +483,7 @@ useEffect(() => {
             />
 <Notification
   showNotifications={showNotifications}
+   setShowNotifications={setShowNotifications}
   notificationRef={notificationRef}
   insuranceAlerts={insuranceAlerts}
   selectedNotification={selectedNotification}

@@ -67,6 +67,7 @@ const Attendance = () => {
         const res = await axios.get(`${API_URL}/api/holidays`)
         setHolidays(res.data?.data || [])
       } catch (err) {
+        
         console.error('Failed to load holidays', err)
       }
     }
@@ -147,7 +148,7 @@ const Attendance = () => {
       const res = await axios.get(API, { params })
       setReport(res.data?.data || null)
       setHolidays(res.data?.data?.holidays || [])
-      // setViewMode("report")
+      setViewMode("list")
     } catch (err) {
       console.error('fetchReport error', err)
       toast.error("Failed to load report")
@@ -380,7 +381,7 @@ const Attendance = () => {
             setReport(newReport)
           } else {
             // fallback: refetch full report
-            // await fetchReport({ employeeId, month: filters.month, year: filters.year })
+            await fetchReport({ employeeId, month: filters.month, year: filters.year })
           }
         } catch (e) {
           // if anything fails, fallback to refetch

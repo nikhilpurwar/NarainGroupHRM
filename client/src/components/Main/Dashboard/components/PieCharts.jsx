@@ -19,7 +19,7 @@ export const PieCharts = ({ data }) => {
     "#fbbf24",
     "#34d399",
     "#22d3ee",
-    "#8bc34a"
+    "#8bc34a",
   ];
 
   let colorIndex = 0;
@@ -38,19 +38,11 @@ export const PieCharts = ({ data }) => {
     });
   });
 
-  // ✅ CHECK IF OUTER PIE HAS DATA
   const outerTotal = outerData.reduce((a, b) => a + b, 0);
 
-  const finalOuterData =
-    outerTotal === 0 ? [1] : outerData;
-
-  const finalOuterColors =
-    outerTotal === 0
-      ? ["#e5e7eb"] // gray
-      : outerColors;
-
-  const finalOuterLabels =
-    outerTotal === 0 ? ["No Data"] : outerLabels;
+  const finalOuterData = outerTotal === 0 ? [1] : outerData;
+  const finalOuterColors = outerTotal === 0 ? ["#e5e7eb"] : outerColors;
+  const finalOuterLabels = outerTotal === 0 ? ["No Data"] : outerLabels;
 
   const nestedSubDeptPie = {
     labels: finalOuterLabels,
@@ -73,12 +65,12 @@ export const PieCharts = ({ data }) => {
   };
 
   return (
-    <div className="bg-white w-full max-w-xl p-6 rounded-xl shadow-md border border-gray-100 flex flex-col items-center">
-      <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">
+    <div className="bg-white w-full max-w-xl p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center hover:shadow-md transition-shadow">
+      <h2 className="text-base md:text-lg font-semibold text-gray-700 tracking-wide mb-5">
         Sub-Department Attendance
       </h2>
 
-      <div className="relative w-full h-80 flex items-center justify-center">
+      <div className="relative w-full h-72 md:h-80 flex items-center justify-center">
         <Doughnut
           data={nestedSubDeptPie}
           options={{
@@ -87,21 +79,26 @@ export const PieCharts = ({ data }) => {
             plugins: {
               legend: {
                 position: "bottom",
+                labels: {
+                  boxWidth: 10,
+                  boxHeight: 10,
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                },
               },
               tooltip: {
                 enabled: outerTotal !== 0,
               },
             },
             animation: {
-              duration: 1000,
+              duration: 900,
               easing: "easeOutQuart",
             },
           }}
         />
 
-        {/* CENTER TEXT WHEN EMPTY */}
         {outerTotal === 0 && (
-          <div className="absolute text-gray-400 text-sm font-medium">
+          <div className="absolute text-gray-400 text-sm font-medium tracking-wide">
             No Attendance Data
           </div>
         )}

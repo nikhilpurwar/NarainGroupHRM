@@ -9,8 +9,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import LineTrendChart from "./components/LineTrendChart";
 
+import LineTrendChart from "./components/LineTrendChart";
 import Cards from "./components/Cards";
 import FestivalList from "./components/FestivalList";
 import { PieCharts } from "./components/PieCharts";
@@ -23,14 +23,13 @@ ChartJS.register(
   BarElement,
   ArcElement,
   Tooltip,
-  Legend,
+  Legend
 );
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // const [employeeFilter, setEmployeeFilter] = useState("all");
 
   useEffect(() => {
     axios
@@ -39,8 +38,7 @@ const Dashboard = () => {
         setData(res.data);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error("Dashboard API error:", err);
+      .catch(() => {
         setError("Failed to fetch dashboard data.");
         setLoading(false);
       });
@@ -52,7 +50,9 @@ const Dashboard = () => {
         <Spinner />
       </div>
     );
-  if (error) return <div className="p-6 text-red-500">{error}</div>;
+
+  if (error)
+    return <div className="p-6 text-red-500">{error}</div>;
 
   const cardData = {
     totalEmployees: data.totalEmployees,
@@ -67,52 +67,21 @@ const Dashboard = () => {
     departments: data.departments,
   };
 
-  // // Attendance Trend
-  // const attendanceTrend = {
-  //   labels: data?.attendanceTrend?.labels || [],
-  //   datasets: [
-  //     {
-  //       label: "Present",
-  //       data: data?.attendanceTrend?.datasets?.map((d) => d.present) || [],
-  //       backgroundColor: "#16a34a",
-  //     },
-  //     {
-  //       label: "Absent",
-  //       data: data?.attendanceTrend?.datasets?.map((d) => d.absent) || [],
-  //       backgroundColor: "#dc2626",
-  //     },
-  //   ],
-  // };
-  // // Today's attendance donut
-  // const attendanceDonut = {
-  //   labels: ["Present", "Absent", "On Leave"],
-  //   datasets: [
-  //     {
-  //       data: [
-  //         data?.attendance?.present || 0,
-  //         data?.attendance?.absent || 0,
-  //         data?.attendance?.onLeave || 0,
-  //       ],
-  //       backgroundColor: ["#16a34a", "#dc2626", "#f59e0b"],
-  //     },
-  //   ],
-  // };
   return (
-   <div className="p-6 bg-gray-100 min-h-screen space-y-8">
-  <Cards data={cardData} />
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen space-y-10">
+      <Cards data={cardData} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white py-1 justify-between p-6 rounded-xl shadow lg:col-span-2">
-            <h2 className="text-xl font-bold mb-4 py-7">
-              Attendance Trend (Last 7 Days)
-            </h2>
-               {/* <div className="h-20 w-20 flex align-right" >
-              <Doughnut data={attendanceDonut}/>
-              </div> */}
-           <div>
-             <LineTrendChart
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:col-span-2 flex flex-col hover:shadow-md transition-shadow">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-6">
+            Attendance Trend
+            <span className="block text-sm font-normal text-gray-500">
+              Last 7 Days
+            </span>
+          </h2>
+
+          <div className="flex-1 flex items-center">
+            <LineTrendChart
               data={(data?.attendanceTrend?.datasets || []).map((d, i) => ({
                 date: data.attendanceTrend.labels[i] || `Day ${i + 1}`,
                 value: d.present || 0,
@@ -120,29 +89,20 @@ const Dashboard = () => {
               height={160}
               stroke="#16a34a"
             />
-           </div>
-          </div>   
+          </div>
+        </div>
 
-           <PieCharts className="justify-center items-center" data={data} />
-         
-        </div> 
-        {/* 
-            <h2 className="text-xl font-bold mb-4">Today's Attendance</h2>
-           
-          </div> */}
-           </div> 
-      {/* Recent Employees & Holidays */}
-      
-      <div className="grid grid-row-1 lg:grid-cols-3 gap-6">
-        {/* Recent Employees */}
-        <span className="lg:col-span-2">
+        <PieCharts data={data} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2">
           <EmployeeAttendance employees={data.recentEmployees} />
-        </span>
-        {/* Upcoming Holidays */}
+        </div>
         <FestivalList holidays={data?.upcomingHolidays || []} />
       </div>
     </div>
-     
   );
 };
+
 export default Dashboard;
