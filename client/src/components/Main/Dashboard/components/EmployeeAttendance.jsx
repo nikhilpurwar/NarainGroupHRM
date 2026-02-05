@@ -28,8 +28,8 @@ const EmployeeAttendance = ({ employees = [] }) => {
         </select>
       </div>
 
-      <table className="table-auto w-full bg-white border-collapse">
-        <thead className="bg-gray-100 text-gray-700 border-b">
+      <table className="table-auto w-full bg-white ">
+        <thead className="bg-gray-100 text-gray-700 ">
           <tr>
             <th className="px-4 py-3 text-left">S.No</th>
             <th className="px-4 py-3 text-left">Emp.ID</th>
@@ -47,7 +47,7 @@ const EmployeeAttendance = ({ employees = [] }) => {
               return (
                 <tr
                   key={emp._id || emp.id}
-                  className="border-b hover:bg-gray-100 transition cursor-pointer"
+                  className="border-t hover:bg-gray-100 transition cursor-pointer"
                 >
                   <td className="px-4 py-3">{index + 1}</td>
                   <td className="px-4 py-3">{emp.empId}</td>

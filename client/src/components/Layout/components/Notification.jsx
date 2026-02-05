@@ -7,6 +7,7 @@ const Notification = ({
   insuranceAlerts,
   selectedNotification,
   setSelectedNotification,
+   setShowNotifications, 
   setInsuranceAlerts,
   viewedNotifs,
   setViewedNotifs,
@@ -30,13 +31,28 @@ const Notification = ({
             Notifications
           </h3>
 
-          <span className="min-w-[26px] h-6 px-2 
-            flex items-center justify-center 
-            text-xs font-bold rounded-full 
-            bg-gradient-to-br from-indigo-500 to-indigo-600 
-            text-white shadow-sm">
-            {insuranceAlerts.length}
-          </span>
+         <div className="flex items-center gap-3">
+      <span className="min-w-[26px] h-6 px-2 
+        flex items-center justify-center 
+        text-xs font-bold rounded-full 
+        bg-gradient-to-br from-indigo-500 to-indigo-600 
+        text-white shadow-sm">
+        {insuranceAlerts.length}
+      </span>
+
+      {/*  CLOSE BUTTON */}
+      <button
+        onClick={() => {
+          setShowNotifications(false)
+          setSelectedNotification(null)
+        }}
+        className="w-8 h-8 flex items-center justify-center 
+          rounded-full text-gray-500 hover:text-gray-900
+          hover:bg-gray-200 transition"
+        title="Close" >
+         ❌
+      </button>
+    </div>   
         </div>
       </div>
 
