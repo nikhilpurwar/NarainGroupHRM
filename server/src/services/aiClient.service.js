@@ -13,6 +13,8 @@ export async function recognizeImage(image, topK = 1) {
   const url = `${AI_BASE}/recognize`;
   const body = { image, topK };
   const resp = await axios.post(url, body, { timeout: 15_000 });
+  // Python service now returns { success: true, embedding: [...] }
+  // Node will do the DB matching in the recognizeFace controller
   return resp.data;
 }
 
