@@ -1,21 +1,67 @@
 {
   "expo": {
-    "name": "HRM Attendance",
-    "slug": "hrm-attendance",
+    "name": "Narain Group HRM",
+    "slug": "narain-hrm",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
+    "icon": "./assets/logo1.png",
+    "description": "Human Resource Management system for Narain Group employees",
+    "privacy": "public",
+    "platforms": ["ios", "android"],
     "splash": {
+      "image": "./assets/logo1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1e3c72"
     },
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.naraingroup.hrm",
+      "buildNumber": "1"
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.nikhilpurwar.hrmattendance"
-    }
+      "package": "com.naraingroup.hrm",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo2.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Narain Group HRM to access your camera for face recognition and attendance scanning."
+        }
+      ],
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Allow Narain Group HRM to access your camera for barcode scanning."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "679c34e0-353c-4341-a44e-ebe3a155ff5c"
+      }
+    },
+    "owner": "nikhilttc"
   }
 }

@@ -29,6 +29,12 @@ export default function FaceRecognitionScreen({ onBack }) {
       setHasPermission(status === 'granted');
     })();
     loadEmployees();
+    // periodic revalidation every 5 minutes
+    const interval = setInterval(() => {
+      loadEmployees(true);
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -44,14 +50,49 @@ export default function FaceRecognitionScreen({ onBack }) {
     }
   }, [recognizing]);
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (forceRefresh = false) => {
     try {
-      const { data } = await ApiService.makeAuthenticatedRequest('/employees/face-recognition', { method: 'GET' });
-      if (data && data.data) {
-        setEmployees(data.data || []);
-        await AsyncStorage.setItem('employeeFaces', JSON.stringify(data.data || []));
+      const lastSync = await AsyncStorage.getItem('faceCacheLastSync');
+
+      if (!forceRefresh) {
+        // Validate cache with server
+        try {
+          const { data } = await ApiService.validateFaceCache(lastSync);
+          if (data && data.cacheValid) {
+            // Cache is valid: load from AsyncStorage if present
+            const cached = await AsyncStorage.getItem('employeeFaces');
+            if (cached) {
+              try {
+                setEmployees(JSON.parse(cached));
+                return;
+              } catch (e) {
+                console.warn('Failed to parse cached employee data:', e);
+                await AsyncStorage.removeItem('employeeFaces');
+              }
+            }
+            // No cached data present, fall through to fetch fresh list
+          } else {
+            // Cache invalid/stale: use returned employees if provided
+            if (data && Array.isArray(data.employees) && data.employees.length > 0) {
+              setEmployees(data.employees);
+              await AsyncStorage.setItem('employeeFaces', JSON.stringify(data.employees));
+              await AsyncStorage.setItem('faceCacheLastSync', data.timestamp || new Date().toISOString());
+              return;
+            }
+          }
+        } catch (validationError) {
+          console.warn('Cache validation failed, will attempt full fetch:', validationError.message || validationError);
+        }
       }
+
+      // Fallback: fetch full employee list from server
+      const { data } = await ApiService.makeAuthenticatedRequest('/employees/face-recognition', { method: 'GET' });
+      const employeesList = (data && data.data) ? data.data : [];
+      setEmployees(employeesList || []);
+      await AsyncStorage.setItem('employeeFaces', JSON.stringify(employeesList || []));
+      await AsyncStorage.setItem('faceCacheLastSync', new Date().toISOString());
     } catch (error) {
+      // Last resort: use cached data already on device
       const cached = await AsyncStorage.getItem('employeeFaces');
       if (cached) {
         try {
@@ -123,6 +164,13 @@ export default function FaceRecognitionScreen({ onBack }) {
                 try {
                   const payload = { employeeId: result.employee.employeeId, image: `data:image/jpeg;base64,${photo.base64}`, confidence: result.confidence };
                   await ApiService.makeAuthenticatedRequest('/employees/confirm-recognition', { method: 'POST', body: JSON.stringify(payload) });
+                  // Invalidate local cache so we fetch updated templates
+                  try {
+                    await AsyncStorage.removeItem('faceCacheLastSync');
+                    await loadEmployees(true);
+                  } catch (e) {
+                    console.warn('Failed to refresh face cache after confirm:', e);
+                  }
                 } catch (e) {
                   console.warn('Confirm recognition failed', e);
                 }

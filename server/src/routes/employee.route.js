@@ -17,6 +17,7 @@ import {
   testFaceService,
   recognitionFeedback,
   confirmRecognition,
+  validateFaceCache,
 } from "../controllers/employee.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/permission.middleware.js";
@@ -31,6 +32,7 @@ router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
 router.get("/face-recognition", getEmployeesForFaceRecognition); // Get employees with face data
 router.get("/face/test", testFaceService); // Test face service
 router.post("/face/test", testFaceService); // Test face service
+router.post("/validate-face-cache", validateFaceCache); // Validate mobile cache against DB
 router.post("/enroll-face", enrollFace); // Enroll face embedding
 router.post("/recognize-face", recognizeFace); // Recognize face from embedding
 router.post("/face-attendance", faceAttendance); // Face attendance endpoint

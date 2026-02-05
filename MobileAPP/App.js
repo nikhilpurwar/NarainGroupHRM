@@ -9,6 +9,7 @@ import AttendanceScanner from './components/AttendanceScanner';
 import FaceRecognitionScreen from './components/FaceRecognitionScreen';
 import FaceEnrollmentList from './components/FaceEnrollmentList';
 import FaceEnrollmentScreen from './components/FaceEnrollmentScreen1';
+import SplashScreen from './components/SplashScreen';
 import ApiService from './services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,6 +19,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     checkAuthStatus();
@@ -55,6 +57,14 @@ export default function App() {
     setCurrentScreen(screen);
     if (employee) setSelectedEmployee(employee);
   };
+
+  const handleSplashFinish = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
 
   if (loading) {
     return null; // Or a loading screen

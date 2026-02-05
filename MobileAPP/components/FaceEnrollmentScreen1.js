@@ -25,6 +25,7 @@ try {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ApiService from '../services/ApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
 
@@ -472,6 +473,12 @@ const FaceEnrollmentScreen1 = ({ employee, onBack }) => {
           `Face enrolled using ${images.length} images`,
           [{ text: 'OK', onPress: onBack }]
         );
+        // Invalidate local face cache so clients refresh their templates
+        try {
+          await AsyncStorage.removeItem('faceCacheLastSync');
+        } catch (e) {
+          console.warn('Failed to clear face cache timestamp after enrollment:', e);
+        }
       } else {
         throw new Error(data?.message || 'Enrollment failed');
       }
