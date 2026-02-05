@@ -590,28 +590,24 @@ export const faceAttendance = async (req, res) => {
 export const recognitionFeedback = async (req, res) => {
   try {
     const { employeeId, predictedId, correct, confidence } = req.body || {};
-    const feedback = {
-      timestamp: new Date().toISOString(),
-      employeeId: employeeId || null,
+    
+    if (!employeeId) {
+      return res.status(400).json({ success: false, message: 'employeeId is required' });
+    }
+
+    // Dynamically import RecognitionFeedback model
+    const { default: RecognitionFeedback } = await import('../models/recognitionFeedback.model.js');
+
+    const feedback = await RecognitionFeedback.create({
+      employeeId,
       predictedId: predictedId || null,
       correct: !!correct,
       confidence: typeof confidence === 'number' ? confidence : null,
-      userAgent: req.headers['user-agent'] || null
-    };
+      action: 'feedback',
+      userAgent: req.headers['user-agent'] || null,
+    });
 
-    const fs = await import('fs').then(m => m.promises);
-    const fbPath = path.join(process.cwd(), 'recognition_feedback.json');
-    let arr = [];
-    try {
-      const raw = await fs.readFile(fbPath, 'utf8');
-      arr = JSON.parse(raw || '[]');
-    } catch (e) {
-      arr = [];
-    }
-    arr.push(feedback);
-    await fs.writeFile(fbPath, JSON.stringify(arr, null, 2), 'utf8');
-
-    return res.json({ success: true, message: 'Feedback recorded' });
+    return res.json({ success: true, message: 'Feedback recorded', feedbackId: feedback._id });
   } catch (err) {
     console.error('Feedback error:', err);
     return res.status(500).json({ success: false, message: 'Failed to record feedback' });
@@ -671,24 +667,23 @@ export const confirmRecognition = async (req, res) => {
 
       await employee.save();
 
-      // Record feedback entry too
+      // Record feedback entry in MongoDB (DB-only, no local files)
       try {
-        const fs = await import('fs').then(m => m.promises);
-        const fbPath = path.join(process.cwd(), 'recognition_feedback.json');
-        let arr = [];
-        try {
-          const raw = await fs.readFile(fbPath, 'utf8');
-          arr = JSON.parse(raw || '[]');
-        } catch (e) {
-          arr = [];
-        }
-        arr.push({ timestamp: new Date().toISOString(), employeeId, predictedId: employeeId, correct: true, confidence: typeof confidence === 'number' ? confidence : null, userAgent: req.headers['user-agent'] || null, action: 'confirm-recognition' });
-        await fs.writeFile(fbPath, JSON.stringify(arr, null, 2), 'utf8');
-      } catch (e) {
-        console.warn('Failed to write feedback after confirmRecognition:', e);
+        const { default: RecognitionFeedback } = await import('../models/recognitionFeedback.model.js');
+        await RecognitionFeedback.create({
+          employeeId,
+          predictedId: employeeId,
+          correct: true,
+          confidence: typeof confidence === 'number' ? confidence : null,
+          action: 'confirm-recognition',
+          userAgent: req.headers['user-agent'] || null,
+        });
+      } catch (fbErr) {
+        console.warn('Failed to write feedback after confirmRecognition:', fbErr.message || fbErr);
+        // don't fail the whole operation if feedback write fails
       }
 
-      return res.json({ success: true, message: 'Template updated' });
+      return res.json({ success: true, message: 'Template updated', faceTemplateCount: employee.faceTemplateCount });
     } catch (e) {
       console.error('confirmRecognition extraction error:', e);
       return res.status(400).json({ success: false, message: 'Failed to extract embedding: ' + e.message });
@@ -696,6 +691,49 @@ export const confirmRecognition = async (req, res) => {
   } catch (err) {
     console.error('confirmRecognition error:', err);
     return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Validate mobile cache: client sends lastSyncTimestamp (ISO string).
+// If missing or stale, return full employee list for face recognition and a new timestamp.
+export const validateFaceCache = async (req, res) => {
+  try {
+    const { lastSyncTimestamp } = req.body || {};
+
+    // Get all currently enrolled employees (active + faceEnrolled)
+    const enrolled = await Employee.find({ status: 'active', faceEnrolled: true })
+      .select('_id name empId avatar faceTemplate updatedAt')
+      .lean();
+
+    const nowTs = new Date().toISOString();
+
+    if (!lastSyncTimestamp) {
+      // Client has no cache — return full list so it can populate
+      return res.json({ success: true, cacheValid: false, reason: 'no-cache', employees: enrolled, timestamp: nowTs });
+    }
+
+    const lastSync = new Date(lastSyncTimestamp);
+    if (isNaN(lastSync.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid lastSyncTimestamp' });
+    }
+
+    // If DB has zero enrolled employees, inform client so it can disable recognition
+    if (!enrolled || enrolled.length === 0) {
+      return res.json({ success: true, cacheValid: false, reason: 'no-enrolled', employees: [], timestamp: nowTs });
+    }
+
+    // Check if any enrolled employee was updated after lastSync
+    const stale = enrolled.some(emp => emp.updatedAt && new Date(emp.updatedAt) > lastSync);
+
+    if (stale) {
+      return res.json({ success: true, cacheValid: false, reason: 'cache-stale', employees: enrolled, timestamp: nowTs });
+    }
+
+    // Cache is valid
+    return res.json({ success: true, cacheValid: true });
+  } catch (err) {
+    console.error('validateFaceCache error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to validate cache' });
   }
 };
 

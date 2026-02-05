@@ -227,5 +227,48 @@
     "confidence": 0.7638353109359741,
     "userAgent": "okhttp/4.12.0",
     "action": "confirm-recognition"
+  },
+  {
+    "timestamp": "2026-02-05T07:04:35.005Z",
+    "employeeId": "69734191254f8d752880382e",
+    "predictedId": "69734191254f8d752880382e",
+    "correct": true,
+    "confidence": 0.8115707635879517,
+    "userAgent": "okhttp/4.12.0",
+    "action": "confirm-recognition"
+  },
+  {
+    "timestamp": "2026-02-05T07:17:39.209Z",
+    "employeeId": "69734191254f8d752880382e",
+    "predictedId": "69734191254f8d752880382e",
+    "correct": true,
+    "confidence": 0.8047608137130737,
+    "userAgent": "okhttp/4.12.0",
+    "action": "confirm-recognition"
+  },
+  {
+    "timestamp": "2026-02-05T07:20:53.945Z",
+    "employeeId": null,
+    "predictedId": "69734191254f8d752880382e",
+    "correct": false,
+    "confidence": 0.845267653465271,
+    "userAgent": "okhttp/4.12.0"
+  },
+  {
+    "timestamp": "2026-02-05T07:21:22.814Z",
+    "employeeId": "69734191254f8d752880382e",
+    "predictedId": "69734191254f8d752880382e",
+    "correct": true,
+    "confidence": 0.7974347472190857,
+    "userAgent": "okhttp/4.12.0",
+    "action": "confirm-recognition"
+  },
+  {
+    "timestamp": "2026-02-05T07:26:26.947Z",
+    "employeeId": null,
+    "predictedId": "697b2711cc671ea1ac2f7a00",
+    "correct": false,
+    "confidence": 0.8999279308053142,
+    "userAgent": "okhttp/4.12.0"
   }
 ]

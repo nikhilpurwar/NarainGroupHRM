@@ -35,6 +35,25 @@ class ApiService {
     return { response, data };
   }
 
+  static async validateFaceCache(lastSyncTimestamp) {
+    const body = lastSyncTimestamp ? { lastSyncTimestamp } : {};
+    const token = await this.getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const baseUrl = await API_CONFIG.getBaseUrl();
+    const response = await fetch(`${baseUrl}/employees/validate-face-cache`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    return { response, data };
+  }
+
   static async logout() {
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('user');
