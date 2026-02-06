@@ -22,6 +22,13 @@ try {
 } catch (e) {
   console.warn('expo-face-detector not available:', e.message);
 }
+// Ensure the constants shape exists before using it (some builds may provide a stub)
+const FACE_DETECTOR_HAS_CONSTANTS = !!(FaceDetector && FaceDetector.Constants && typeof FaceDetector.Constants === 'object');
+const FACE_DETECTOR_SETTINGS = FACE_DETECTOR_HAS_CONSTANTS ? {
+  mode: FaceDetector.Constants.Mode?.fast,
+  detectLandmarks: FaceDetector.Constants.Landmarks?.none,
+  runClassifications: FaceDetector.Constants.Classifications?.all,
+} : undefined;
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ApiService from '../services/ApiService';
@@ -350,13 +357,9 @@ const FaceEnrollmentScreen1 = ({ employee, onBack }) => {
             if (!thumb || !thumb.uri) continue;
 
             let hasFace = false;
-            try {
-              if (FaceDetector && FaceDetector.detectFacesAsync) {
-                const detection = await FaceDetector.detectFacesAsync(thumb.uri, {
-                  mode: FaceDetector.Constants.Mode.fast,
-                  detectLandmarks: FaceDetector.Constants.Landmarks.none,
-                  runClassifications: FaceDetector.Constants.Classifications.all,
-                });
+              try {
+                if (FACE_DETECTOR_HAS_CONSTANTS && FaceDetector.detectFacesAsync) {
+                const detection = await FaceDetector.detectFacesAsync(thumb.uri, FACE_DETECTOR_SETTINGS);
                 if (detection && Array.isArray(detection.faces) && detection.faces.length > 0) {
                   const f = detection.faces[0];
                   const left = f.leftEyeOpenProbability ?? null;
@@ -531,12 +534,8 @@ const FaceEnrollmentScreen1 = ({ employee, onBack }) => {
           style={styles.camera}
           facing={cameraFacing}
           onCameraReady={() => setCameraReady(true)}
-          onFacesDetected={FaceDetector ? handleFacesDetected : undefined}
-          faceDetectorSettings={FaceDetector ? {
-            mode: FaceDetector.Constants.Mode.fast,
-            detectLandmarks: FaceDetector.Constants.Landmarks.none,
-            runClassifications: FaceDetector.Constants.Classifications.all
-          } : undefined}
+          onFacesDetected={FACE_DETECTOR_HAS_CONSTANTS ? handleFacesDetected : undefined}
+          faceDetectorSettings={FACE_DETECTOR_SETTINGS}
         />
 
         <View style={styles.overlay}>

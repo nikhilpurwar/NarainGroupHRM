@@ -19,7 +19,6 @@ SALARY_CALCULATION_REFERENCE.md
 MONTHLY_SALARY_FLOW.md
 FACE_RECOGNITION_NODEJS.md
 FACE_RECOGNITION_IMPLEMENTATION.md
-.gitignore
 FACE_TEMPLATE_ARCHITECTURE.md
 
 faceRecognitionPython/venv
@@ -27,3 +26,4 @@ docs/FACE_RECOGNITION_INTEGRATION.md
 faceRecognitionPython/requirements.txt
 server/.env.example
 faceRecognitionPython/requirements.txt
+face_crash_log.txt
