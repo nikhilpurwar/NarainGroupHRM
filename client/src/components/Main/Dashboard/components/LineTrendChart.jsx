@@ -130,8 +130,8 @@ const LineTrendChart = ({ data = [], height = 120, stroke = "#2563eb" }) => {
             }}
           >
             <div className="bg-white text-xs text-gray-800 shadow-xl rounded-lg border border-gray-200 px-3 py-2">
-              <div className="font-semibold text-sm">{hover.label}</div>
-              <div className="text-gray-600 font-medium">
+              <div className="font-semibold text-s">{hover.label}</div>
+              <div className="text-gray-600 font-medium text-11px">
                 {hover.value}
               </div>
             </div>
