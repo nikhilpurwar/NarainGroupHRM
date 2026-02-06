@@ -403,7 +403,7 @@ useEffect(() => {
   <IoIosNotificationsOutline size={26} />
   {insuranceAlerts.length > 0 && (
     <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1 rounded-full">
-      {insuranceAlerts.length}
+      {insuranceAlerts.filter(n => !viewedNotifs.includes(n.id)).length}
     </span>
   )}
 </button> </div>

@@ -71,7 +71,7 @@ const Dashboard = () => {
     <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen space-y-10">
       <Cards data={cardData} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:col-span-2 flex flex-col hover:shadow-md transition-shadow">
           <h2 className="text-lg md:text-xl font-semibold text-gray-800 mb-6">
             Attendance Trend
@@ -95,7 +95,7 @@ const Dashboard = () => {
         <PieCharts data={data} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
           <EmployeeAttendance employees={data.recentEmployees} />
         </div>

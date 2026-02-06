@@ -172,7 +172,14 @@ export const dashboardSummary = async (req, res) => {
         absent: list.filter(a => a.status === "absent").length,
       });
 
-      labels.push(day.toLocaleDateString("en-US", { weekday: "short" }));
+      labels.push(
+  day.toLocaleDateString("en-US", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  })
+);
+
     }
 
 // RECENT EMPLOYEES

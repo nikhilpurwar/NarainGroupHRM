@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { MdKeyboardBackspace } from "react-icons/md"
@@ -87,6 +87,7 @@ const AddEditEmployee = () => {
     const isEdit = Boolean(id)
     const { headDepartments, getSubDepartmentsByHead, getDesignationsBySubDepartment } = useHierarchy()
     const dispatch = useDispatch()
+    const location = useLocation()
 
     const [form, setForm] = useState(defaultForm)
     const [employees, setEmployees] = useState([])
@@ -129,6 +130,9 @@ const isDriver = selectedSubDept?.name?.toLowerCase() === 'driver'
         fetchEmployees()
 
         if (!isEdit) return
+          setPreview(null);
+  setForm(defaultForm);
+  setEditLoaded(false);
 const fetchEmployee = async () => {
   try {
     const res = await axios.get(`${API}/${id}`)
@@ -169,7 +173,8 @@ const fetchEmployee = async () => {
         : ''
     })
 
-    if (emp.avatar) setPreview(emp.avatar)
+    setPreview(emp.avatar || null);
+
 
     setEditLoaded(true)   // ✅ NOW form can render
 
@@ -307,6 +312,19 @@ const res = await axios.post(API, formData, {
             console.warn('Failed to save add-employee draft to sessionStorage', e)
         }
     }, [form, isEdit, hasLoadedDraft])
+    
+useEffect(() => {
+  if (!editLoaded) return
+
+  if (location.state?.scrollTo === "vehicle") {
+    requestAnimationFrame(() => {
+      document
+        .getElementById("vehicleInfo")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
+}, [editLoaded, location.state])
+
 
     const validate = () => {
         const err = {}
@@ -325,14 +343,6 @@ const res = await axios.post(API, formData, {
         reader.onerror = (e) => rej(e)
         reader.readAsDataURL(file)
     })
-
-      useEffect(() => {
-    if (location.state?.scrollTo === "vehicle-info") {
-      document
-        .getElementById("vehicle-info")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [location]);
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -677,8 +687,7 @@ navigate(-1, { state: { insuranceUpdated: id } })
                 </div>
 
                   {isDriver && (forceOpenVehicle || true) && (
-          <div
-            id="vehicle-info"
+          <div id="vehicleInfo"
             className="bg-gray-100 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.4)] scroll-mt-24"
           >            <h3 className="text-white bg-gray-900 font-semibold text-lg rounded-t-xl p-4">
                         Vehicle Info
