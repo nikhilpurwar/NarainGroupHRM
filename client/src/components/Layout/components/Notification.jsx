@@ -1,5 +1,5 @@
 import React from "react"
-import { FaBell, FaCheckCircle } from "react-icons/fa"
+import { FaBell, FaCheckCircle, FaClipboardList, FaTimes } from "react-icons/fa"
 
 const Notification = ({
   showNotifications,
@@ -23,38 +23,36 @@ const Notification = ({
         shadow-[0_35px_80px_rgba(0,0,0,0.28)]
         z-50 overflow-hidden animate-fadeIn"
     >
-      {/* HEADER */}
-      <div className="sticky top-0 z-20 px-6 py-5 
-        bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">
-            Notifications
-          </h3>
+{/* HEADER */}
+      <div className="sticky top-0 z-20 px-6 py-5
+        bg-white/90 backdrop-blur-xl border-b border-gray-200/60 flex justify-between items-center">
+        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <FaClipboardList className="text-indigo-500" /> Notifications
+        </h3>
 
-         <div className="flex items-center gap-3">
-      <span className="min-w-[26px] h-6 px-2 
-        flex items-center justify-center 
-        text-xs font-bold rounded-full 
-        bg-gradient-to-br from-indigo-500 to-indigo-600 
-        text-white shadow-sm">
-        {insuranceAlerts.length}
-      </span>
+        <div className="flex items-center gap-3">
+          <span className="min-w-[20px] h-5 px-1 flex items-center justify-center
+            text-xs font-bold rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600
+            text-white shadow-sm">
+           {insuranceAlerts.filter(n => !viewedNotifs.includes(n.id)).length}
 
-      {/*  CLOSE BUTTON */}
-      <button
-        onClick={() => {
-          setShowNotifications(false)
-          setSelectedNotification(null)
-        }}
-        className="w-8 h-8 flex items-center justify-center 
-          rounded-full text-gray-500 hover:text-gray-900
-          hover:bg-gray-200 transition"
-        title="Close" >
-         ❌
-      </button>
-    </div>   
+          </span>
+
+          <button
+            onClick={() => {
+              setShowNotifications(false);
+              setSelectedNotification(null);
+            }}
+            className="w-8 h-8 flex items-center justify-center
+              rounded-full text-gray-500 hover:text-gray-900
+              hover:bg-gray-200 transition"
+            title="Close"
+          >
+            <FaTimes />
+          </button>
         </div>
       </div>
+
 
       {/* LIST */}
       {!selectedNotification && (
@@ -82,11 +80,19 @@ const Notification = ({
             insuranceAlerts.map(notif => (
               <button
                 key={notif.id}
-                onClick={() =>
-                  navigate(`/employee/${notif.emp._id}/edit`, {
-                    state: { scrollTo: "vehicle-info" }
-                  })
-                }
+                onClick={() => {
+  // 1. Mark as viewed
+  if (!viewedNotifs.includes(notif.id)) {
+    const updatedViewed = [...viewedNotifs, notif.id]
+    setViewedNotifs(updatedViewed)
+    localStorage.setItem("viewedNotifs", JSON.stringify(updatedViewed))
+  }
+
+  // 2. Navigate
+  navigate(`/employee/${notif.emp._id}/edit`, {
+    state: { scrollTo: "vehicle" },
+  })
+}}
                 className="relative w-full text-left 
                   rounded-2xl px-5 py-4 
                   bg-white border border-gray-200/70
