@@ -39,7 +39,7 @@
         "WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo2.png",
+        "foregroundImage": "./assets/logo1.png",
         "backgroundColor": "#ffffff"
       }
     },
@@ -48,12 +48,6 @@
         "expo-camera",
         {
           "cameraPermission": "Allow Narain Group HRM to access your camera for face recognition and attendance scanning."
-        }
-      ],
-      [
-        "expo-barcode-scanner",
-        {
-          "cameraPermission": "Allow Narain Group HRM to access your camera for barcode scanning."
         }
       ]
     ],
