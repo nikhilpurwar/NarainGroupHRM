@@ -661,15 +661,15 @@ const Profile = () => {
               <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-xl p-6 text-white">
                 <div className="text-center mb-4">
 
-                  <div className="w-18 h-18 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <div className="w-18 h-18 bg-white/20 rounded-full flex items-center justify-center shadow-2xl mx-auto mb-3">
                     {emp.avatar ? (
                       <img
                         src={emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=6366f1&color=fff&size=256`}
                         alt={emp.name}
-                        className="w-18 h-18 rounded-full border "
+                        className="w-18 h-18 rounded-full border-4 border-white/30 shadow-2xs object-cover "
                       />
                     ) : (
-                      <FiUser size={24} />
+                      <FiUser size={24}/>
                     )
                     }
                   </div>
