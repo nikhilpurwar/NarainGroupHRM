@@ -148,36 +148,46 @@ const Permissions = () => {
         return p ? p.allowedRoles || [] : []
     }
 
-    const toggleRole = async (path, role) => {
-        try {
-            const existing = perms.find(x => x.route === path)
-            let allowed = existing ? (existing.allowedRoles || []) : []
+const toggleRole = async (path, role) => {
+  try {
+    const existing = perms.find(x => x.route === path)
 
-            if (allowed.includes(role)) {
-                allowed = allowed.filter(r => r !== role)
-            } else {
-                allowed = [...allowed, role]
-            }
+    let allowed = existing?.allowedRoles || []
 
-            const routeInfo = knownRoutes.find(r => r.path === path)
-            const payload = {
-                route: path,
-                label: routeInfo?.label || path,
-                allowedRoles: allowed
-            }
-
-            const res = await axios.post(`${API_URL}/api/permissions`, payload)
-            if (res.data?.success) {
-                toast.success('✓ Permission updated successfully')
-                loadPermissions() // Refresh data
-            } else {
-                throw new Error(res.data?.message || 'Update failed')
-            }
-        } catch (e) {
-            console.error('Update error:', e)
-            toast.error(e.response?.data?.message || e.message || 'Failed to update permission')
-        }
+    if (allowed.includes(role)) {
+      allowed = allowed.filter(r => r !== role)
+    } else {
+      allowed = [...allowed, role]
     }
+
+    const routeInfo = knownRoutes.find(r => r.path === path)
+
+    const payload = {
+      route: path,
+      label: routeInfo?.label || path,
+      allowedRoles: allowed
+    }
+
+    const res = await axios.post(`${API_URL}/api/permissions`, payload)
+
+    if (!res.data?.success) throw new Error()
+
+    // 🔥 Update UI locally — NO refresh
+    setPerms(prev =>
+      prev.some(p => p.route === path)
+        ? prev.map(p =>
+            p.route === path ? { ...p, allowedRoles: allowed } : p
+          )
+        : [...prev, payload]
+    )
+
+    toast.success("Permission updated")
+
+  } catch (e) {
+    toast.error("Failed to update permission")
+  }
+}
+
 
     const toggleAllForRole = async (role) => {
         setBulkUpdating(true)
@@ -198,7 +208,20 @@ const Permissions = () => {
 
             await Promise.all(updates)
             toast.success(`✓ ${selectedRoles.includes(role) ? 'Removed' : 'Granted'} ${role} access to all routes`)
-            loadPermissions()
+            setPerms(prev =>
+  knownRoutes.map(rt => {
+    const allowed = selectedRoles.includes(role)
+      ? getAllowed(rt.path).filter(r => r !== role)
+      : [...new Set([...getAllowed(rt.path), role])]
+
+    return {
+      route: rt.path,
+      label: rt.label,
+      allowedRoles: allowed
+    }
+  })
+)
+
         } catch (e) {
             console.error('Bulk update error:', e)
             toast.error('Failed to update permissions')
