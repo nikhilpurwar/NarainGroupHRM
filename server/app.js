@@ -40,6 +40,8 @@ app.use(cors(corsOptionsDelegate))
 // importing routes 
 import authRoutes from "./src/routes/auth.route.js";
 import employeeRoutes from "./src/routes/employee.route.js";
+// AI health/debug route
+import aiRoutes from "./src/routes/ai.route.js";
 
 // department imports
 import departmentRoutes from "./src/routes/department.route.js";
@@ -67,6 +69,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use('/api/ai', aiRoutes);
 app.use("/api/charges", chargeRoutes);
 app.use("/api/break-times", workingHours);
 app.use("/api/auth", authRoutes);
