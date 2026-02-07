@@ -2,7 +2,7 @@
 const API_CONFIG = {
   // Local development URLs
   LOCAL: {
-    BASE_URL: 'http://192.168.1.22:5100/api', // Replace with your actual IP
+    BASE_URL: 'http://192.168.1.15:5100/api', // Replace with your actual IP
     // BASE_URL: 'http://10.0.2.2:5100/api', // Android emulator (if using AVD)
     // BASE_URL: 'http://localhost:5100/api', // iOS simulator only
   },
