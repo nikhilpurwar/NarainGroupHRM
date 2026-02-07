@@ -19,6 +19,14 @@ export const theme = {
     gradient: ['#8B5CF6', '#EC4899'],
     gradientDark: ['#000000', '#8B5CF6'],
   },
+  light: {
+    background: '#F9FAFB',
+    surface: '#FFFFFF',
+    text: '#1F2937',
+    textSecondary: '#6B7280',
+    border: '#E5E7EB',
+    gradientDark: ['#8B5CF6', '#EC4899'],
+  },
   spacing: {
     xs: 4,
     sm: 8,

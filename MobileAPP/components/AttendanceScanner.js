@@ -8,11 +8,13 @@ import * as Haptics from 'expo-haptics';
 import ApiService from '../services/ApiService';
 import API_CONFIG from '../config/apiConfig';
 import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
 
 const { width } = Dimensions.get('window');
 
 export default function AttendanceScanner({ onBack }) {
   const insets = useSafeAreaInsets();
+  const { setLoading: setGlobalLoading } = useApp();
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +25,9 @@ export default function AttendanceScanner({ onBack }) {
   const fadeAnim = useState(new Animated.Value(1))[0];
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [successTitle, setSuccessTitle] = useState('');
+  const [autoScan, setAutoScan] = useState(true);
+  const [lastScannedCode, setLastScannedCode] = useState(null);
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -45,14 +50,15 @@ export default function AttendanceScanner({ onBack }) {
 
   const markAttendance = async (barcodeCode) => {
     setIsLoading(true);
+    setGlobalLoading(true);
     setScannedData(barcodeCode);
-    
+
     try {
       const now = new Date();
       const tzOffsetMinutes = -now.getTimezoneOffset();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+
       const response = await fetch(`${await API_CONFIG.getUrl(API_CONFIG.ENDPOINTS.ATTENDANCE_BARCODE)}?code=${barcodeCode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await ApiService.getAuthToken()}` },
@@ -62,31 +68,47 @@ export default function AttendanceScanner({ onBack }) {
 
       clearTimeout(timeoutId);
       const result = await response.json();
-      
+
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setSuccessMessage(`${result.type.toUpperCase()} - ${result.employee_name}\nTime: ${result.time}`);
+        const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const title = result.type === 'in' ? 'Punched In' : result.type === 'out' ? 'Punched Out' : 'Attendance Marked';
+        setSuccessTitle(title);
+        setSuccessMessage(`${result.type.toUpperCase()} - ${result.employee_name}\nTime: ${istTime}`);
         setShowSuccess(true);
         setTimeout(() => { setShowSuccess(false); setScanned(false); setScanActive(true); }, 3000);
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Error', result.message, [{ text: 'OK', onPress: () => { setScanned(false); setScanActive(true); }}]);
+        Alert.alert('Error', result.message, [{ text: 'OK', onPress: () => { setScanned(false); setScanActive(true); } }]);
       }
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', `${error.name === 'AbortError' ? 'Request timeout' : 'Network error'}. Please try again.`, 
-        [{ text: 'OK', onPress: () => { setScanned(false); setScanActive(true); }}]);
+      Alert.alert('Error', `${error.name === 'AbortError' ? 'Request timeout' : 'Network error'}. Please try again.`,
+        [{ text: 'OK', onPress: () => { setScanned(false); setScanActive(true); } }]);
     } finally {
       setIsLoading(false);
+      setGlobalLoading(false);
     }
   };
 
   const handleBarcodeScanned = ({ type, data }) => {
-    if (scanned || isLoading) return;
+    if (scanned || isLoading || !autoScan) {
+      if (!autoScan) setLastScannedCode(data);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setScanned(true);
     setScanActive(false);
     markAttendance(data);
+  };
+
+  const handleManualScan = () => {
+    if (lastScannedCode && !scanned && !isLoading) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setScanned(true);
+      setScanActive(false);
+      markAttendance(lastScannedCode);
+    }
   };
 
   if (hasPermission === null) {
@@ -118,7 +140,7 @@ export default function AttendanceScanner({ onBack }) {
       </LinearGradient>
 
       <View style={styles.scannerContainer}>
-        <CameraView style={styles.scanner} facing={cameraFacing} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} 
+        <CameraView style={styles.scanner} facing={cameraFacing} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
           barcodeScannerSettings={{ barcodeTypes: ['qr', 'pdf417', 'code128', 'code39', 'ean13', 'ean8'] }} enableTorch={flashEnabled} />
         <View style={styles.overlay}>
           <View style={styles.scannerFrame}>
@@ -128,7 +150,7 @@ export default function AttendanceScanner({ onBack }) {
             <View style={[styles.corner, styles.cornerBR]} />
             {scanActive && !scanned && <Animated.View style={[styles.scanLine, { opacity: fadeAnim }]} />}
           </View>
-          <Text style={styles.instructionText}>Align Barcode code within frame</Text>
+          <Text style={styles.instructionText}>{autoScan ? 'Align Barcode code within frame' : 'Align barcode & press scan button'}</Text>
         </View>
       </View>
 
@@ -136,27 +158,38 @@ export default function AttendanceScanner({ onBack }) {
         <View style={styles.successOverlay}>
           <View style={styles.successCard}>
             <Ionicons name="checkmark-circle" size={60} color={theme.colors.success} />
-            <Text style={styles.successTitle}>Attendance Marked</Text>
+            <Text style={styles.successTitle}>{successTitle}</Text>
             <Text style={styles.successMessage}>{successMessage}</Text>
           </View>
         </View>
       )}
-
-      <View style={[styles.bottomContainer, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
-        {scanned && !showSuccess ? (
+      {scanned && !showSuccess &&
+        <View style={[styles.bottomContainer, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
           <View style={styles.scanResult}>
             <Text style={styles.resultTitle}>Scanned: {scannedData}</Text>
             <TouchableOpacity style={styles.retryButton} onPress={() => { setScanned(false); setScanActive(true); }} disabled={isLoading}>
               {isLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.retryButtonText}>Scan Again</Text>}
             </TouchableOpacity>
           </View>
-        ) : (
-          <Text style={styles.infoText}>Position Barcode code in frame • Auto-scan enabled</Text>
-        )}
-      </View>
+        </View>
+      }
+
+      {!autoScan && !scanned && !showSuccess && (
+        <View style={styles.manualScanContainer}>
+          <TouchableOpacity style={styles.manualScanButton} onPress={handleManualScan} disabled={!lastScannedCode || isLoading}>
+            {/* <Ionicons name="camera" size={32} color="#fff" /> */}
+            <LinearGradient colors={[theme.colors.primary, theme.colors.primaryDark]} style={styles.scanGradient}>
+              <Ionicons name="camera" size={32} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.floatingControls}>
-        <TouchableOpacity style={styles.floatingButton } onPress={() => setFlashEnabled(c => !c)}>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setAutoScan(c => !c)}>
+          <Ionicons name={autoScan ? 'scan' : 'scan-outline'} size={24} color={autoScan ? '#10B981' : '#fff'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setFlashEnabled(c => !c)}>
           <Ionicons name={flashEnabled ? 'flash' : 'flash-off'} size={24} color={flashEnabled ? '#FFD700' : '#fff'} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.floatingButton} onPress={() => setCameraFacing(c => c === 'back' ? 'front' : 'back')}>
@@ -170,20 +203,26 @@ export default function AttendanceScanner({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   centerContent: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
-  header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10, paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg
+  },
   headerContent: { flexDirection: 'row', alignItems: 'center' },
   backButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', flex: 1, marginLeft: theme.spacing.md },
-  scannerContainer: { flex: 1, overflow: 'hidden'},
+  scannerContainer: { flex: 1, overflow: 'hidden' },
   scanner: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  scannerFrame: { width: width * 0.9, height: width * 0.5, position: 'relative' },
+  scannerFrame: { width: width * 0.8, height: width * 0.5, position: 'relative', marginTop: 80 },
   corner: { position: 'absolute', width: 30, height: 30, borderColor: theme.colors.primary },
   cornerTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 12 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 12 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 12 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 12 },
-  scanLine: { position: 'absolute', width: '100%', height: 2, backgroundColor: theme.colors.primary, top: '50%' },
+  scanLine: { position: 'absolute', width: '80%', height: 2, backgroundColor: theme.colors.primary, top: '50%', left: '10%' },
   instructionText: { color: '#fff', fontSize: 14, marginTop: 40, textAlign: 'center', fontWeight: '500', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
   bottomContainer: { padding: theme.spacing.lg, backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.borderRadius.xl, borderTopRightRadius: theme.borderRadius.xl, ...theme.shadows.lg, borderWidth: 1, borderColor: theme.colors.border },
   scanResult: { alignItems: 'center' },
@@ -200,26 +239,48 @@ const styles = StyleSheet.create({
   successTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.text, marginTop: theme.spacing.md, marginBottom: theme.spacing.sm },
   successMessage: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center' },
   floatingControls: {
-  position: 'absolute',
-  bottom: 94,
-  right: 12,
-  backgroundColor: 'rgba(0,0,0,0.85)',
-  borderRadius: 28,          // keep one value
-  elevation: 12,
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: 14,                   // works only in RN 0.71+; else use margin
-  paddingVertical: 20,
-  paddingHorizontal: 14,
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.1)',
-  borderStyle: 'solid',
-  ...theme.shadows.glow,
-  shadowOffset: { width: 0, height: 4 },
-},
+    position: 'absolute',
+    top: 150,
+    right: theme.spacing.lg,
+    backgroundColor: 'transparent',
+    borderRadius: 28,
+    elevation: 12,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 18,
+    ...theme.shadows.glow,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  manualScanContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  manualScanButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    // backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.glow,
+  },
+  scanGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.glow,
+  },
   // floatingButton: { 
   //   width: 56, 
   //   height: 56, 
-    
+
   // },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import Spinner from "../../../utility/Spinner";
 
-const EmployeeAttendance = ({ employees = [] }) => {
+const EmployeeAttendance = ({ employees = [], loading }) => {
   const [employeeFilter, setEmployeeFilter] = useState("present");
 
   // 🔹 USE BACKEND STATUS ONLY
@@ -12,7 +13,7 @@ const EmployeeAttendance = ({ employees = [] }) => {
     .slice(0, 5);
 
   return (
-    <div className="border rounded-xl shadow-lg overflow-hidden">
+    <div className="border rounded-2xl shadow-lg overflow-hidden">
       {/* Header */}
       <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-xl">
         Recent Employees Attendance
@@ -39,58 +40,70 @@ const EmployeeAttendance = ({ employees = [] }) => {
           </tr>
         </thead>
 
-        <tbody>
-          {filteredEmployees.length > 0 ? (
-            filteredEmployees.map((emp, index) => {
-              const status = emp.status;
-
-              return (
-                <tr
-                  key={emp._id || emp.id}
-                  className="border-t hover:bg-gray-100 transition cursor-pointer"
-                >
-                  <td className="px-4 py-3">{index + 1}</td>
-                  <td className="px-4 py-3">{emp.empId}</td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">
-                    {emp.name}
+        {loading ? (
+          <tbody>
+            {[...Array(5)].map((_, index) => (
+              <tr key={index}>
+                {[...Array(5)].map((_, i) => (
+                  <td key={i} className="px-4 py-3">
+                    <div className="animate-pulse bg-gray-200 h-4 rounded"></div>
                   </td>
-                  <td className="px-4 py-3">
-                    {emp.subDepartmentName || "—"}
-                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        ) : (
+          <tbody>
+            {filteredEmployees.length > 0 ? (
+              filteredEmployees.map((emp, index) => {
+                const status = emp.status;
 
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                        status === "present"
-                          ? "bg-green-100 text-green-700"
-                          : status === "pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
+                return (
+                  <tr
+                    key={emp._id || emp.id}
+                    className="border-t hover:bg-gray-100 transition cursor-pointer"
+                  >
+                    <td className="px-4 py-3">{index + 1}</td>
+                    <td className="px-4 py-3">{emp.empId}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">
+                      {emp.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      {emp.subDepartmentName || "—"}
+                    </td>
+
+                    <td className="px-4 py-3">
                       <span
-                        className={`h-2 w-2 rounded-full ${
-                          status === "present"
-                            ? "bg-green-500"
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${status === "present"
+                            ? "bg-green-100 text-green-700"
                             : status === "pending"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
-                      />
-                      {status}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })
-          ) : (
-            <tr>
-              <td colSpan="5" className="text-center py-6 text-gray-500">
-                No attendance found
-              </td>
-            </tr>
-          )}
-        </tbody>
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full ${status === "present"
+                              ? "bg-green-500"
+                              : status === "pending"
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                            }`}
+                        />
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan="5" className="text-center py-6 text-gray-500">
+                  No attendance found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        )}
       </table>
     </div>
   );

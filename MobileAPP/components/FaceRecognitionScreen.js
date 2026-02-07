@@ -17,9 +17,13 @@ export default function FaceRecognitionScreen({ onBack }) {
   const [employees, setEmployees] = useState([]);
   const [recognizing, setRecognizing] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [autoScan, setAutoScan] = useState(false);
+  const [flashEnabled, setFlashEnabled] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('front');
   const [cameraReady, setCameraReady] = useState(false);
+  const [countdownEnabled, setCountdownEnabled] = useState(false);
   const cameraRef = useRef(null);
+  const countdownTimerRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -36,6 +40,15 @@ export default function FaceRecognitionScreen({ onBack }) {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (autoScan && cameraReady && !recognizing) {
+      const autoScanTimer = setTimeout(() => {
+        startFaceRecognition();
+      }, 1000);
+      return () => clearTimeout(autoScanTimer);
+    }
+  }, [autoScan, cameraReady, recognizing]);
 
   useEffect(() => {
     if (recognizing) {
@@ -108,24 +121,36 @@ export default function FaceRecognitionScreen({ onBack }) {
   const startFaceRecognition = () => {
     if (recognizing) return;
     setRecognizing(true);
-    setCountdown(3);
     
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          performRecognition();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (countdownEnabled) {
+      setCountdown(3);
+      countdownTimerRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownTimerRef.current);
+            performRecognition();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      performRecognition();
+    }
+  };
+
+  const cancelRecognition = () => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+    setRecognizing(false);
+    setCountdown(0);
   };
 
   const performRecognition = async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       if (cameraRef.current) {
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, base64: true });
         const payload = { image: `data:image/jpeg;base64,${photo.base64}`, threshold: 0.75, requireFaceDetection: true };
@@ -140,48 +165,53 @@ export default function FaceRecognitionScreen({ onBack }) {
         });
 
         const result = data;
-        
+
         if (result.success && result.recognized && result.confidence >= 0.75) {
           // Ask user to confirm recognition to collect feedback for tuning
           Alert.alert(
             'Confirmation',
             `Did I recognize you as ${result.employee.name}?`,
             [
-              { text: 'No', onPress: async () => {
-                // send feedback to server
-                try {
-                  const payload = { employeeId: null, predictedId: result.employee.employeeId, correct: false, confidence: result.confidence };
-                  await ApiService.makeAuthenticatedRequest('/employees/recognition-feedback', { method: 'POST', body: JSON.stringify(payload) });
-                } catch (e) {
-                  console.warn('Feedback send failed', e);
-                }
-                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                Alert.alert('Okay', 'Thanks — feedback recorded. Try again.');
-                setRecognizing(false);
-              } },
-              { text: 'Yes', onPress: async () => {
-                // Update stored template with this confirmed capture
-                try {
-                  const payload = { employeeId: result.employee.employeeId, image: `data:image/jpeg;base64,${photo.base64}`, confidence: result.confidence };
-                  await ApiService.makeAuthenticatedRequest('/employees/confirm-recognition', { method: 'POST', body: JSON.stringify(payload) });
-                  // Invalidate local cache so we fetch updated templates
+              {
+                text: 'No', onPress: async () => {
+                  // send feedback to server
                   try {
-                    await AsyncStorage.removeItem('faceCacheLastSync');
-                    await loadEmployees(true);
+                    const payload = { employeeId: null, predictedId: result.employee.employeeId, correct: false, confidence: result.confidence };
+                    await ApiService.makeAuthenticatedRequest('/employees/recognition-feedback', { method: 'POST', body: JSON.stringify(payload) });
                   } catch (e) {
-                    console.warn('Failed to refresh face cache after confirm:', e);
+                    console.warn('Feedback send failed', e);
                   }
-                } catch (e) {
-                  console.warn('Confirm recognition failed', e);
+                  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                  Alert.alert('Okay', 'Thanks — feedback recorded. Try again.');
+                  setRecognizing(false);
                 }
-                await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
-              } }
+              },
+              {
+                text: 'Yes', onPress: () => {
+                  setRecognizing(false);
+                  (async () => {
+                    try {
+                      const payload = { employeeId: result.employee.employeeId, image: `data:image/jpeg;base64,${photo.base64}`, confidence: result.confidence };
+                      await ApiService.makeAuthenticatedRequest('/employees/confirm-recognition', { method: 'POST', body: JSON.stringify(payload) });
+                      try {
+                        await AsyncStorage.removeItem('faceCacheLastSync');
+                        await loadEmployees(true);
+                      } catch (e) {
+                        console.warn('Failed to refresh face cache after confirm:', e);
+                      }
+                    } catch (e) {
+                      console.warn('Confirm recognition failed', e);
+                    }
+                    await markAttendance(result.employee.employeeId, result.employee.name, result.confidence);
+                  })();
+                }
+              }
             ],
             { cancelable: false }
           );
         } else {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          const message = result.noFaceDetected ? 
+          const message = result.noFaceDetected ?
             "Can't see you. Please look at the camera and ensure good lighting." :
             `Face not recognized (${result.confidence ? (result.confidence * 100).toFixed(1) + '%' : 'low'} match). Please try again.`;
           Alert.alert('Recognition Failed', message);
@@ -204,23 +234,21 @@ export default function FaceRecognitionScreen({ onBack }) {
         body: JSON.stringify(payload)
       });
       const result = data;
-      
+
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         Alert.alert(
           'Success',
-          `${result.type.toUpperCase()} - ${result.employee_name}\nTime: ${result.time}\nMatch: ${(confidence * 100).toFixed(1)}%`,
-          [{ text: 'OK', onPress: () => setRecognizing(false) }]
+          `${result.type.toUpperCase()} - ${result.employee_name}\nTime: ${istTime}\nMatch: ${(confidence * 100).toFixed(1)}%`
         );
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Error', result.message);
-        setRecognizing(false);
       }
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Network error. Please try again.');
-      setRecognizing(false);
     }
   };
 
@@ -268,7 +296,7 @@ export default function FaceRecognitionScreen({ onBack }) {
             <View style={[styles.corner, styles.cornerTR, recognizing && styles.cornerActive]} />
             <View style={[styles.corner, styles.cornerBL, recognizing && styles.cornerActive]} />
             <View style={[styles.corner, styles.cornerBR, recognizing && styles.cornerActive]} />
-            
+
             {countdown > 0 && (
               <View style={styles.countdownContainer}>
                 <Text style={styles.countdownText}>{countdown}</Text>
@@ -286,23 +314,33 @@ export default function FaceRecognitionScreen({ onBack }) {
       </View>
 
       <View style={[styles.bottomContainer, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
-        <TouchableOpacity style={[styles.scanButton, (!cameraReady || recognizing) && styles.disabledButton]} onPress={startFaceRecognition} disabled={!cameraReady || recognizing} activeOpacity={0.8}>
-          <LinearGradient colors={['#8B5CF6', '#7730f2']} style={styles.scanGradient}>
-            {recognizing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="scan" size={24} color="#fff" />
-                <Text style={styles.scanText}>Scan Face</Text>
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+        {recognizing ? (
+          <TouchableOpacity style={styles.cancelButton} onPress={cancelRecognition}>
+            <Ionicons name="close" size={32} color="#fff" />
+          </TouchableOpacity>
+        ) : !autoScan && (
+          <TouchableOpacity style={[styles.scanButton, !cameraReady && styles.disabledButton]} onPress={startFaceRecognition} disabled={!cameraReady} activeOpacity={0.8}>
+            <LinearGradient colors={[theme.colors.primary, theme.colors.primaryDark]} style={styles.scanGradient}>
+              <Ionicons name="camera" size={32} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <TouchableOpacity style={styles.floatingButton} onPress={() => setCameraFacing(c => c === 'back' ? 'front' : 'back')}>
-        <Ionicons name="camera-reverse" size={24} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.floatingControls}>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setCountdownEnabled(c => !c)}>
+          <Ionicons name={countdownEnabled ? 'timer' : 'timer-outline'} size={24} color={countdownEnabled ? '#10B981' : '#fff'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setAutoScan(c => !c)}>
+          <Ionicons name={autoScan ? 'scan' : 'scan-outline'} size={24} color={autoScan ? '#10B981' : '#fff'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setFlashEnabled(c => !c)}>
+          <Ionicons name={flashEnabled ? 'flash' : 'flash-off'} size={24} color={flashEnabled ? '#FFD700' : '#fff'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={() => setCameraFacing(c => c === 'back' ? 'front' : 'back')}>
+          <Ionicons name="camera-reverse" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -318,7 +356,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2, fontWeight: '500' },
   cameraContainer: { position: 'relative', flex: 1, overflow: 'hidden' },
   camera: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject, paddingTop:80,  justifyContent: 'center', alignItems: 'center', gap: 80, backgroundColor: 'rgba(0,0,0,0.3)' },
+  overlay: { ...StyleSheet.absoluteFillObject, paddingTop: 80, justifyContent: 'center', alignItems: 'center', gap: 80, backgroundColor: 'rgba(0,0,0,0.3)' },
   faceFrame: { width: width * 0.7, height: width * 0.9, position: 'relative' },
   corner: { position: 'absolute', width: 40, height: 40, borderColor: '#3B82F6' },
   cornerActive: { borderColor: '#10B981' },
@@ -330,14 +368,38 @@ const styles = StyleSheet.create({
   countdownText: { color: '#fff', fontSize: 28, fontWeight: '800' },
   instructionBubble: { backgroundColor: 'rgba(0, 0, 0, 0.29)', paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm, borderRadius: theme.borderRadius.xl, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, ...theme.shadows.lg },
   instructionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  bottomContainer: { display:'flex', alignItems:'center'},
-  scanButton: { width:200, marginBottom:20, borderRadius: theme.borderRadius.md, overflow: 'hidden', ...theme.shadows.glow },
+  bottomContainer: { display: 'flex', alignItems: 'center' },
+  scanButton: { marginBottom: 20, borderRadius: theme.borderRadius.md, overflow: 'hidden', ...theme.shadows.glow },
   disabledButton: { opacity: 0.5 },
-  scanGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing.md, gap: theme.spacing.sm, shadow: theme.shadows.glow},
+  scanGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.glow,
+  },
   scanText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   errorText: { fontSize: 20, fontWeight: '700', color: theme.colors.error, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md },
   messageText: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.md },
   permissionButton: { backgroundColor: theme.colors.primary, paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md, borderRadius: theme.borderRadius.md, marginTop: theme.spacing.lg, ...theme.shadows.glow },
   permissionButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  floatingButton: { position: 'absolute', top: 150, right: theme.spacing.lg, ...theme.shadows.glow },
+  floatingControls: {
+    position: 'absolute',
+    top: 150,
+    right: theme.spacing.lg,
+    flexDirection: 'row',
+    gap: 18,
+  },
+  cancelButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    ...theme.shadows.glow,
+  },
 });
