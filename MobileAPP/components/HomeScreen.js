@@ -1,14 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import { SettingsModal } from './SettingsModal';
 
 const { width } = Dimensions.get('window');
 
-export default function HomeScreen({ onNavigate, user, onLogout }) {
+export default function HomeScreen({ onNavigate, user, onLogout, showToast }) {
   const insets = useSafeAreaInsets();
+  const { isDarkMode } = useApp();
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const colors = isDarkMode ? theme.colors : theme.light;
 
   const features = [
     { id: 'barcode', title: 'Barcode', subtitle: 'Quick scan', icon: 'barcode', gradient: ['#F59E0B', '#D97706'] },
@@ -18,23 +24,28 @@ export default function HomeScreen({ onNavigate, user, onLogout }) {
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-            <LinearGradient colors={theme.colors.gradientDark} style={[styles.header, { paddingTop: insets.top + 20 }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
+      <LinearGradient colors={isDarkMode ? theme.colors.gradientDark : theme.light.gradientDark} style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>Welcome back</Text>
             <Text style={styles.userName}>{user?.name || 'User'}</Text>
           </View>
-          <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={22} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.settingsButton}>
+              <Ionicons name="settings-outline" size={22} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
+              <Ionicons name="log-out-outline" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Attendance System</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Attendance System</Text>
           <View style={styles.grid}>
             {features.map((feature) => (
               <TouchableOpacity key={feature.id} onPress={() => onNavigate(feature.id)} style={styles.featureCard} activeOpacity={0.8}>
@@ -51,35 +62,38 @@ export default function HomeScreen({ onNavigate, user, onLogout }) {
           </View>
         </View>
 
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.infoHeader}>
             <Ionicons name="shield-checkmark" size={24} color={theme.colors.primary} />
-            <Text style={styles.infoTitle}>Security Tips</Text>
+            <Text style={[styles.infoTitle, { color: colors.text }]}>Security Tips</Text>
           </View>
           <View style={styles.tipItem}>
             <View style={styles.tipDot} />
-            <Text style={styles.infoText}>Good lighting improves accuracy</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Good lighting improves accuracy</Text>
           </View>
           <View style={styles.tipItem}>
             <View style={styles.tipDot} />
-            <Text style={styles.infoText}>Hold device steady while scanning</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Hold device steady while scanning</Text>
           </View>
           <View style={styles.tipItem}>
             <View style={styles.tipDot} />
-            <Text style={styles.infoText}>Face enrollment takes 30 seconds</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Face enrollment takes 30 seconds</Text>
           </View>
         </View>
       </ScrollView>
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1 },
   header: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.lg },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   greeting: { color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '500' },
   userName: { color: '#fff', fontSize: 26, fontWeight: '800', marginTop: 4 },
+  headerButtons: { flexDirection: 'row', gap: 8 },
+  settingsButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
   logoutButton: { padding: theme.spacing.md, borderRadius: theme.borderRadius.full, backgroundColor: 'rgba(255,255,255,0.15)', ...theme.shadows.sm },
   content: { flex: 1, paddingHorizontal: theme.spacing.lg },
   section: { marginTop: theme.spacing.xl },

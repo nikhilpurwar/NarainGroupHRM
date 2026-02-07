@@ -8,24 +8,33 @@ import LoginScreen from './components/LoginScreen';
 import AttendanceScanner from './components/AttendanceScanner';
 import FaceRecognitionScreen from './components/FaceRecognitionScreen';
 import FaceEnrollmentList from './components/FaceEnrollmentList';
-import FaceEnrollmentScreen from './components/FaceEnrollmentScreen1';
+import FaceEnrollmentScreen from './components/FaceEnrollmentScreen';
 import SplashScreen from './components/SplashScreen';
 import ApiService from './services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+import { AppProvider, useApp } from './context/AppContext';
+import { Toast } from './components/Toast';
+import { SkeletonCard } from './components/Skeleton';
 
-export default function App() {
+function AppContent() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const { loading, setLoading, isDarkMode } = useApp();
 
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type });
+  };
+
   const checkAuthStatus = async () => {
+    setLoading(true);
     try {
       const token = await AsyncStorage.getItem('authToken');
       const userData = await AsyncStorage.getItem('user');
@@ -44,6 +53,7 @@ export default function App() {
   const handleLogin = (userData, token) => {
     setUser(userData);
     setIsAuthenticated(true);
+    showToast('Login successful!', 'success');
   };
 
   const handleLogout = async () => {
@@ -51,6 +61,7 @@ export default function App() {
     setUser(null);
     setIsAuthenticated(false);
     setCurrentScreen('home');
+    showToast('Logged out successfully', 'info');
   };
 
   const navigateToScreen = (screen, employee = null) => {
@@ -67,14 +78,20 @@ export default function App() {
   }
 
   if (loading) {
-    return null; // Or a loading screen
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: isDarkMode ? '#000' : '#F9FAFB' }]}>
+        <SkeletonCard />
+        <SkeletonCard />
+      </View>
+    );
   }
 
   if (!isAuthenticated) {
     return (
       <SafeAreaProvider>
         <LoginScreen onLogin={handleLogin} />
-        <StatusBar style="light" />
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={() => setToast({ ...toast, visible: false })} />
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       </SafeAreaProvider>
     );
   }
@@ -104,19 +121,29 @@ export default function App() {
         );
 
       default:
-        return <HomeScreen onNavigate={navigateToScreen} user={user} onLogout={handleLogout} />;
+        return <HomeScreen onNavigate={navigateToScreen} user={user} onLogout={handleLogout} showToast={showToast} />;
     }
   };
 
   return (
     <SafeAreaProvider>
       {renderScreen()}
-      <StatusBar style="light" />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={() => setToast({ ...toast, visible: false })} />
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
     </SafeAreaProvider>
   );
 }
 
+export default function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  );
+}
+
 const styles = StyleSheet.create({
+  loadingContainer: { flex: 1, justifyContent: 'center', padding: 20 },
   wipContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -142,5 +169,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF'
   }
-
 });

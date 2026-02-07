@@ -27,3 +27,4 @@ faceRecognitionPython/requirements.txt
 server/.env.example
 faceRecognitionPython/requirements.txt
 face_crash_log.txt
+MobileAPP/IMPLEMENTATION_GUIDE.md

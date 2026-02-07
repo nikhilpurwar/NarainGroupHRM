@@ -1,7 +1,28 @@
 import React from "react";
 import { Doughnut } from "react-chartjs-2";
 
-export const PieCharts = ({ data }) => {
+export const PieCharts = ({ data, loading }) => {
+  if (loading) {
+    return (
+      <div className="bg-white w-full max-w-xl p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+        <div className="w-48 h-6 bg-gray-200 rounded mb-5 animate-pulse"></div>
+
+        <div className="relative w-full h-72 md:h-80 flex items-center justify-center">
+          {/* Simple spinning ring */}
+          <div className="relative w-40 h-40">
+            <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-transparent border-t-blue-400 rounded-full animate-spin"></div>
+            <div className="absolute inset-8 border-4 border-transparent border-t-purple-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-gray-400 text-sm">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!data || !data.departments) return null;
 
   const outerLabels = [];
