@@ -71,6 +71,22 @@ const LiveAttendance = () => {
     return 0;
   };
 
+  const getFirstInLastOut = (att) => {
+  if (!att?.punchLogs?.length) return { firstIn: "—", lastOut: "—" };
+
+  const ins = att.punchLogs.filter(p => p.punchType === "IN");
+  const outs = att.punchLogs.filter(p => p.punchType === "OUT");
+
+  const firstIn = ins.length
+    ? new Date(ins[0].punchTime).toLocaleTimeString()
+    : "—";
+
+  const lastOut = outs.length
+    ? new Date(outs[outs.length - 1].punchTime).toLocaleTimeString()
+    : "—";
+
+  return { firstIn, lastOut };
+};
   const sortedEmployees = [...employees].sort((a, b) => {
     const keyA = a._id ? a._id.toString() : a.id;
     const keyB = b._id ? b._id.toString() : b.id;
@@ -130,11 +146,9 @@ const LiveAttendance = () => {
                   const key = item._id ? item._id.toString() : item.id;
                   const att = attendanceMap[key];
                   const dateStr = att && att.date ? new Date(att.date).toLocaleDateString() : "—";
-                  const inTime = att?.inTime || "—";
-                  const outTime = att?.outTime || "—";
+                  const { firstIn, lastOut } = getFirstInLastOut(att);
                   const status = att?.status || "—";
                   const dept = item.headDepartment?.name || "—";
-
                   const statusColor = status === 'absent' ? 'bg-red-100 text-red-700' : status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
 
                   return (
@@ -157,8 +171,8 @@ const LiveAttendance = () => {
                       <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
                       <td className="px-4 py-3">{dateStr}</td>
                       <td className="px-4 py-3">{dept}</td>
-                      <td className="px-4 py-3 text-green-600 font-medium">{inTime}</td>
-                      <td className="px-4 py-3 text-red-600 font-medium">{outTime}</td>
+                      <td className="px-4 py-3 text-green-600 font-medium">{firstIn}</td>
+                      <td className="px-4 py-3 text-red-600 font-medium">{lastOut}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
                           <span className={`w-2 h-2 rounded-full animate-ping ${status === 'present' ? 'bg-green-500' : status === 'absent' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>

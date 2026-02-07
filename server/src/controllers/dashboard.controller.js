@@ -31,7 +31,8 @@ export const dashboardSummary = async (req, res) => {
 
       Attendance.find(
   { date: { $gte: today, $lt: tomorrow } },
-  { employee: 1, status: 1, punchLogs: 1 }
+  { employee: 1, status: 1, punchLogs: 1 },
+  
 ).lean(),
 
       HeadDepartment.find().select("name").lean(),
@@ -152,35 +153,94 @@ export const dashboardSummary = async (req, res) => {
       };
     });
 
-    /* ================= LAST 7 DAYS TREND ================= */
-    const attendanceTrend = [];
-    const labels = [];
+ /* ================= LAST 7 DAYS TREND ================= */
 
-    for (let i = 6; i >= 0; i--) {
-      const day = new Date(today);
-      day.setDate(today.getDate() - i);
+const start7Days = new Date(today);
+start7Days.setDate(today.getDate() - 6);
 
-      const next = new Date(day);
-      next.setDate(day.getDate() + 1);
+const startYear = new Date(today.getFullYear(), 0, 1);
 
-      const list = await Attendance.find({
-        date: { $gte: day, $lt: next },
-      }).select("status").lean();
-
-      attendanceTrend.push({
-        present: list.filter(a => a.status === "present").length,
-        absent: list.filter(a => a.status === "absent").length,
-      });
-
-      labels.push(
-  day.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  })
-);
-
+const trendData = await Attendance.aggregate([
+  {
+    $match: {
+      date: { $gte: startYear, $lt: tomorrow }
     }
+  },
+  {
+    $group: {
+      _id: {
+        year: { $year: "$date" },
+        month: { $month: "$date" },
+        day: { $dayOfMonth: "$date" },
+        status: "$status"
+      },
+      count: { $sum: 1 }
+    }
+  }
+]);
+
+const buildTrend = (rangeDays) => {
+  const arr = [];
+
+  for (let i = rangeDays - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+
+    const present = trendData.filter(t =>
+      t._id.day === d.getDate() &&
+      t._id.month === d.getMonth() + 1 &&
+      t._id.year === d.getFullYear() &&
+      t._id.status === "present"
+    ).reduce((a, b) => a + b.count, 0);
+
+    arr.push({
+      label: d.toLocaleDateString("en-US", {
+        day: "2-digit",
+        month: "short"
+      }),
+      value: present
+    });
+  }
+
+  return arr;
+};
+
+const sevenDayTrend = buildTrend(7);
+
+const monthlyTrend = [];
+
+for (let i = 11; i >= 0; i--) {
+  const d = new Date(today);
+  d.setMonth(today.getMonth() - i);
+
+  const month = d.getMonth() + 1;
+  const year = d.getFullYear();
+
+  const present = trendData.filter(t =>
+    t._id.month === month &&
+    t._id.year === year &&
+    t._id.status === "present"
+  ).reduce((a, b) => a + b.count, 0);
+
+  monthlyTrend.push({
+    label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
+    value: present
+  });
+}
+
+const yearlyTrend = [];
+
+for (let y = today.getFullYear() - 4; y <= today.getFullYear(); y++) {
+  const present = trendData.filter(t =>
+    t._id.year === y && t._id.status === "present"
+  ).reduce((a, b) => a + b.count, 0);
+
+  yearlyTrend.push({
+    label: String(y),
+    value: present
+  });
+}
+
 
 // RECENT EMPLOYEES
 
@@ -238,8 +298,11 @@ const recentEmployees = recentEmployeesRaw.map(emp => {
       recentEmployees,
       monthly,
       attendanceTrend: {
-        labels,
-        datasets: attendanceTrend,
+
+
+         sevenDay: sevenDayTrend,
+  monthly: monthlyTrend,
+  yearly: yearlyTrend
       },
       upcomingHolidays: upcomingHolidaysRaw,
       departments: departmentCards,
