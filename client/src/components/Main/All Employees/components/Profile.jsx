@@ -216,6 +216,11 @@ const Profile = () => {
             </button>
 
             <div className="flex items-center gap-3 no-print">
+               <button onClick={() => navigate(`/employee/${id}/edit`)}
+                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <MdEdit size={18} />
+                <span className="text-sm font-medium">Edit</span>
+              </button>
               <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <MdPrint size={18} />
                 <span className="text-sm font-medium">Print</span>
@@ -224,6 +229,7 @@ const Profile = () => {
                 <MdShare size={18} />
                 <span className="text-sm font-medium">Share</span>
               </button>
+             
             </div>
           </div>
         </div>
@@ -275,6 +281,7 @@ const Profile = () => {
                     <p className="text-white/80 text-sm">Monthly Salary</p>
                   </div>
                 </div>
+                
 
                 {/* Contact Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
@@ -589,7 +596,7 @@ const Profile = () => {
         </strong>
       </span>
 
-      {emp.vehicleInfo?.vehicleDocument && (
+      {/* {emp.vehicleInfo?.vehicleDocument && (
         <a
           href={`${API_URL}${emp.vehicleInfo.vehicleDocument}`}
           target="_blank"
@@ -599,7 +606,7 @@ const Profile = () => {
           <MdDownload />
           View Document
         </a>
-      )}
+      )} */}
     </div>
   </div>
 )}
@@ -722,10 +729,13 @@ const Profile = () => {
               <p style={{ margin: '3px 0', fontSize: '14px' }}><strong>Department:</strong> {emp.headDepartment?.name || 'N/A'}</p>
               <p style={{ margin: '3px 0', fontSize: '14px' }}><strong>Status:</strong> {emp.status === 'active' ? 'Active' : 'Inactive'}</p>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '0' }}>₹{emp.salary?.toLocaleString()}</p>
-              <p style={{ fontSize: '12px', color: '#6b7280', margin: '3px 0 0 0' }}>Monthly Salary</p>
-            </div>
+              
+              {emp.qrCode && (
+                <div className='p-2'>
+                  {/* <p style={{ fontSize: '12px', fontWeight: '500', marginBottom: '5px', textAlign: "center" }}>QR Code</p> */}
+                  <img src={emp.qrCode} alt="QR Code"  />
+                </div>
+              )}
           </div>
 
           <div style={{ marginBottom: '20px' }}>
@@ -802,36 +812,40 @@ const Profile = () => {
             </table>
           </div>
 
+
+{ isDriver && ( 
           <div style={{ marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', borderBottom: '1px solid #e5e7eb', paddingBottom: '5px', marginBottom: '10px' }}>Attendance Summary</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', borderBottom: '1px solid #e5e7eb', paddingBottom: '5px', marginBottom: '10px' }}>Driver Vehicle Information</h3>
             <div style={{ display: 'flex', gap: '20px' }}>
               <div style={{ flex: 1, padding: '10px', backgroundColor: '#f3f4f6', borderRadius: '4px', textAlign: 'center' }}>
-                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>Total Records</p>
-                <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '0' }}>{emp.attendance?.length || 0}</p>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>  Vehicle Name</p>
+                <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '0' }}> {emp.vehicleInfo?.vehicleName || 'N/A'}</p>
               </div>
               <div style={{ flex: 1, padding: '10px', backgroundColor: '#f3f4f6', borderRadius: '4px', textAlign: 'center' }}>
-                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>Last Attendance</p>
-                <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}>{emp.attendance?.length ? new Date(emp.attendance.at(-1).date).toLocaleDateString() : 'N/A'}</p>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>Vehicle Number</p>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}>{emp.vehicleInfo?.vehicleNumber || 'N/A'}</p>
               </div>
               <div style={{ flex: 1, padding: '10px', backgroundColor: '#f3f4f6', borderRadius: '4px', textAlign: 'center' }}>
-                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>Tenure</p>
-                <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}>{calculateTenure()}</p>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>     Insurance Status</p>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}> {getInsuranceStatus(emp.vehicleInfo?.insuranceExpiry).label}</p>
+              </div>
+              <div style={{ flex: 1, padding: '10px', backgroundColor: '#f3f4f6', borderRadius: '4px', textAlign: 'center' }}>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 5px 0' }}>     Insurance Expiry</p>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}> {emp.vehicleInfo?.insuranceExpiry
+              ? formatDate(emp.vehicleInfo.insuranceExpiry)
+              : 'N/A'}</p>
               </div>
             </div>
           </div>
+          )}
 
-          {(emp.barcode || emp.qrCode) && (
+
+          {emp.barcode && (
             <div style={{ marginTop: '30px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
               {emp.barcode && (
                 <div style={{ display: 'inline-block', marginRight: '20px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '500', marginBottom: '5px' }}>Barcode</p>
                   <img src={emp.barcode} alt="Barcode" style={{ maxWidth: '200px', height: 'auto' }} />
-                </div>
-              )}
-              {emp.qrCode && (
-                <div style={{ display: 'inline-block' }}>
-                  <p style={{ fontSize: '12px', fontWeight: '500', marginBottom: '5px' }}>QR Code</p>
-                  <img src={emp.qrCode} alt="QR Code" style={{ width: '100px', height: '100px' }} />
                 </div>
               )}
             </div>
