@@ -4,8 +4,8 @@ const AI_BASE = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 // Read env variable directly to avoid module caching issues
 const getAIBase = () => {
   const url = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-  // console.log('AI_SERVICE_URL from env:', process.env.AI_SERVICE_URL);
-  // console.log('Using AI service at:', url);
+  console.log('AI_SERVICE_URL from env:', process.env.AI_SERVICE_URL);
+  console.log('Using AI service at:', url);
   return url;
 };
 
