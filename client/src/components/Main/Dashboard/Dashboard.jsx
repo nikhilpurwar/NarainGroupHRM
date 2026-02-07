@@ -56,12 +56,12 @@ useEffect(() => {
       });
   }, []);
 
-  if (loading)
-    return (
-      <div className="p-6 text-center">
-        <Spinner />
-      </div>
-    );
+  // if (loading)
+  //   return (
+  //     <div className="p-6 text-center">
+  //       <Spinner />
+  //     </div>
+  //   );
 
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
