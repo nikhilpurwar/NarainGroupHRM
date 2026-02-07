@@ -216,6 +216,11 @@ const Profile = () => {
             </button>
 
             <div className="flex items-center gap-3 no-print">
+               <button onClick={() => navigate(`/employee/${id}/edit`)}
+                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <MdEdit size={18} />
+                <span className="text-sm font-medium">Edit</span>
+              </button>
               <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <MdPrint size={18} />
                 <span className="text-sm font-medium">Print</span>
@@ -224,6 +229,7 @@ const Profile = () => {
                 <MdShare size={18} />
                 <span className="text-sm font-medium">Share</span>
               </button>
+             
             </div>
           </div>
         </div>
@@ -589,7 +595,7 @@ const Profile = () => {
         </strong>
       </span>
 
-      {emp.vehicleInfo?.vehicleDocument && (
+      {/* {emp.vehicleInfo?.vehicleDocument && (
         <a
           href={`${API_URL}${emp.vehicleInfo.vehicleDocument}`}
           target="_blank"
@@ -599,7 +605,7 @@ const Profile = () => {
           <MdDownload />
           View Document
         </a>
-      )}
+      )} */}
     </div>
   </div>
 )}
