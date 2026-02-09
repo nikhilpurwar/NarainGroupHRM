@@ -276,14 +276,27 @@ const recentEmployees = recentEmployeesRaw.map(emp => {
          
 
     /* ================= MONTHLY ================= */
-    const monthly = monthlySummaries.reduce(
-      (acc, s) => {
-        acc.present += s.totalPresent || 0;
-        acc.absent += s.totalAbsent || 0;
-        return acc;
-      },
-      { present: 0, absent: 0 }
+    const monthlyPresent = trendData
+      .filter(t =>
+        t._id.year === today.getFullYear() &&
+        t._id.month === today.getMonth() + 1 &&
+        t._id.status === "present"
+      )
+      .reduce((a, b) => a + b.count, 0);
+
+    const monthlyAbsent = monthlySummaries.reduce(
+      (sum, s) => sum + (s.totalAbsent || 0),
+      0
     );
+
+    // const monthly = monthlySummaries.reduce(
+    //   (acc, s) => {
+    //     acc.present += s.totalPresent || 0;
+    //     acc.absent += s.totalAbsent || 0;
+    //     return acc;
+    //   },
+    //   { present: 0, absent: 0 }
+    // );
 
     /* ================= RESPONSE ================= */
     res.json({
@@ -296,7 +309,10 @@ const recentEmployees = recentEmployeesRaw.map(emp => {
       inEmployees: inSet.size,
       outEmployees: outSet.size,
       recentEmployees,
-      monthly,
+     monthly: {
+        present: monthlyPresent,
+        absent: monthlyAbsent,
+      },
       attendanceTrend: {
 
 
