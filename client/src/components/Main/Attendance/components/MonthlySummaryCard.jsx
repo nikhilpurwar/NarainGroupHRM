@@ -29,8 +29,8 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
 
     // Derive present/absent counts from the Status row so card always
     // matches what the attendance grid shows (ignoring holidays)
-    let computedPresent = 0
-    let computedAbsent = 0
+    // let computedPresent = 0
+    // let computedAbsent = 0
 
     // Determine employee created/join date (if provided in summary) so
     // absents before join are not counted. Try common field names.
@@ -43,36 +43,35 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
         createdDate.setHours(0,0,0,0)
     }
 
-    if (table && days && days.length && table['Status']) {
-        const statusRow = table['Status'] || []
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+    // if (table && days && days.length && table['Status']) {
+    //     const statusRow = table['Status'] || []
+    //     const today = new Date()
+    //     today.setHours(0, 0, 0, 0)
 
-        for (let i = 0; i < days.length; i++) {
-            const d = days[i]
-            const iso = d.iso
-            const dayDate = new Date(iso)
-            dayDate.setHours(0, 0, 0, 0)
-            const dayOfWeek = dayDate.getDay()
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-            const holiday = isHoliday(iso)
+    //     for (let i = 0; i < days.length; i++) {
+    //         const d = days[i]
+    //         const iso = d.iso
+    //         const dayDate = new Date(iso)
+    //         dayDate.setHours(0, 0, 0, 0)
+    //         const dayOfWeek = dayDate.getDay()
+    //         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    //         const holiday = isHoliday(iso)
 
-            // Ignore days before the employee joined
-            if (createdDate && dayDate < createdDate) continue
+    //         // Ignore days before the employee joined
+    //         if (createdDate && dayDate < createdDate) continue
 
-            const rawStatus = statusRow[i]
-            if (!rawStatus) continue
-            if (holiday) continue
+    //         const rawStatus = statusRow[i]
+    //         if (!rawStatus) continue
+    //         if (holiday) continue
 
-            const st = String(rawStatus).toLowerCase()
-            // Treat halfday as present for UI summary, like the grid header
-            if (st === 'present' || st === 'halfday') computedPresent++
-            else if (st === 'absent') computedAbsent++
-        }
-    }
-
-    const totalPresent = computedPresent || summary?.totalPresent || 0
-    const totalAbsent = computedAbsent || summary?.totalAbsent || 0
+    //         const st = String(rawStatus).toLowerCase()
+    //         // Treat halfday as present for UI summary, like the grid header
+    //         if (st === 'present' || st === 'halfday') computedPresent++
+    //         else if (st === 'absent') computedAbsent++
+    //     }
+    // }
+const totalPresent = summary?.totalPresent || 0
+const totalAbsent  = summary?.totalAbsent  || 0
 
     // Derive worked / regular / OT hours from the table so it always
     // matches what the grid shows (manual + punch + scanner), and only

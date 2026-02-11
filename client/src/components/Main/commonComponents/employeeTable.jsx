@@ -16,6 +16,71 @@ import Spinner from "../../utility/Spinner";
 const DEFAULT_AVATAR =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
 
+const TableSkeletonRow = ({ delay = 0, showActions }) => {
+  return (
+    <tr
+      style={{ animationDelay: `${delay}ms` }}
+      className="border-b animate-pulse"
+    >
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-6" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-20" />
+      </td>
+
+      {/* Name cell */}
+      <td className="px-4 py-4 flex items-center gap-3">
+        <div className="skeleton w-11 h-11 rounded-full" />
+        <div className="space-y-2">
+          <div className="skeleton h-4 w-40" />
+          <div className="skeleton h-3 w-28 opacity-70" />
+        </div>
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-28" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-24" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-20" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-32" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-32" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-4 w-32" />
+      </td>
+
+      <td className="px-4 py-4">
+        <div className="skeleton h-6 w-20 rounded-full" />
+      </td>
+
+      {showActions && (
+        <td className="px-4 py-4">
+          <div className="flex gap-2">
+            <div className="skeleton w-9 h-9 rounded-lg" />
+            <div className="skeleton w-9 h-9 rounded-lg" />
+            <div className="skeleton w-9 h-9 rounded-lg" />
+          </div>
+        </td>
+      )}
+    </tr>
+  );
+};
+
+
 const EmployeeTable = ({
   employees = [],
   onDelete = () => {},
@@ -49,6 +114,18 @@ const EmployeeTable = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+//   const TableSkeletonRow = ({ columns = 11 }) => {
+//   return (
+//     <tr className="animate-pulse">
+//       {Array.from({ length: columns }).map((_, i) => (
+//         <td key={i} className="px-4 py-3">
+//           <div className="h-4 bg-gray-200 rounded w-full"></div>
+//         </td>
+//       ))}
+//     </tr>
+//   );
+// };
 
 const formatDate = (date) => {
   if (!date) return "—";
@@ -289,121 +366,50 @@ useEffect(() => {
 
   // When table requires action columns (present/absent) fetch monthly summaries for employees on current page
   useEffect(() => {
-    let mounted = true;
-    if (!renderActions || currentData.length === 0) return;
+  let mounted = true
+  if (!renderActions || currentData.length === 0) return
 
-    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
-    const fetchForPage = async () => {
-      try {
-        const token =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem("token") || localStorage.getItem("token")
-            : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 
-        // Try bulk monthly summary lookup first (fast)
-        const ids = currentData.map((e) => e._id || e.id).filter(Boolean);
-        if (ids.length) {
-          const monthKey = `${currentYear}-${currentMonth}`;
-          const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
-            params: { month: monthKey, employeeIds: ids.join(",") },
-            headers,
-          });
-          if (res.data?.success) {
-            const map = {};
-            const bodyMap = res.data.data?.map || {};
-            // bodyMap keyed by employee _id
-            for (const id of ids) {
-              const v = bodyMap[id];
-              if (v) {
-                map[id] = {
-                  present: v.totalPresent || 0,
-                  absent: v.totalAbsent || 0,
-                };
-              } else {
-                map[id] = { present: 0, absent: 0 };
-              }
-            }
-            // Also try to enrich with MonthlySalary.presentDays when available (prefer presentDays)
-            try {
-              const salaryRes = await axios.get(`${apiUrl.replace('/api/attendance-report','')}/api/salary/monthly`, {
-                params: { month: monthKey, pageSize: 500, page: 1 },
-                headers,
-              });
-              if (salaryRes.data?.success && Array.isArray(salaryRes.data.data?.items)) {
-                const items = salaryRes.data.data.items;
-                for (const it of items) {
-                  const empId = it.id || it._id || it.empId || null;
-                  if (!empId) continue;
-                  const matchKey = String(it.id || it._id || it.empId);
-                  if (map[matchKey]) {
-                    const pd = (typeof it.presentDays !== 'undefined') ? it.presentDays : (typeof it.present !== 'undefined' ? it.present : null);
-                    if (pd !== null) map[matchKey].present = pd;
-                  }
-                }
-              }
-            } catch (e) {
-              // ignore salary fetch failures
-            }
-            if (!mounted) return;
-            setSummaryMap(map);
-            return;
-          }
+  const fetchSummaries = async () => {
+    try {
+      const token =
+        sessionStorage.getItem("token") || localStorage.getItem("token")
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+      const ids = currentData.map(e => e._id || e.id).filter(Boolean)
+      if (!ids.length) return
+
+      const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
+        params: {
+          month: `${currentYear}-${currentMonth}`,
+          employeeIds: ids.join(",")
+        },
+        headers
+      })
+
+      if (!mounted) return
+
+      const map = {}
+      const backendMap = res.data?.data?.map || {}
+
+      ids.forEach(id => {
+        const s = backendMap[id]
+        map[id] = {
+          present: s?.totalPresent || 0,
+          absent: s?.totalAbsent || 0
         }
+      })
 
-        // Fallback: per-employee attendance-report (slower)
-        const promises = currentData.map((e) => {
-          const id = e._id || e.id;
-          return axios
-            .get(`${apiUrl}/api/attendance-report`, {
-              params: {
-                employeeId: id,
-                month: currentMonth,
-                year: currentYear,
-              },
-              headers,
-            })
-            .then((r) => {
-              const data = r.data?.data || {};
-              const table = data.table || {};
-              const days = data.days || [];
+      setSummaryMap(map)
+    } catch (err) {
+      console.error("Monthly summary fetch failed", err)
+    }
+  }
 
-              let present = 0;
-              let absent = 0;
-
-              const statusRow = table["Status"] || [];
-              for (let i = 0; i < days.length; i++) {
-                const raw = statusRow[i];
-                if (!raw) continue;
-                const st = String(raw).toLowerCase();
-                if (st === "present" || st === "halfday") present++;
-                else if (st === "absent") absent++;
-              }
-
-              return { id, present, absent };
-            })
-            .catch(() => ({ id, present: 0, absent: 0 }));
-        });
-
-        const results = await Promise.all(promises);
-        if (!mounted) return;
-        const map = {};
-        for (const r of results) {
-          map[r.id] = {
-            present: r.present || 0,
-            absent: r.absent || 0,
-          };
-        }
-        setSummaryMap(map);
-      } catch (err) {
-        console.error("Error fetching monthly summaries for page", err);
-      }
-    };
-    fetchForPage();
-    return () => {
-      mounted = false;
-    };
-  }, [renderActions, currentData, currentMonth, currentYear]);
+  fetchSummaries()
+  return () => { mounted = false }
+}, [renderActions, currentData, currentMonth, currentYear])
 
   const countsMap = useMemo(() => summaryMap, [summaryMap]);
 
@@ -681,9 +687,9 @@ useEffect(() => {
       )}
 
       <div className=" bg-white py-4 rounded-xl shadow-md  overflow-x-auto">
-        {loading ? (
+        {/* {loading ? (
           <Spinner />
-        ) : (
+        ) : ( */}
           <table className="w-full table-auto">
             <thead>
               <tr className="bg-gray-100 text-gray-800 text-left">
@@ -711,9 +717,20 @@ useEffect(() => {
               </tr>
             </thead>
 
-            <tbody>
-              {currentData.length ? (
-                currentData.map((emp, i) => {
+
+ <tbody>
+             {loading ? (
+      <>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <TableSkeletonRow
+            key={i}
+            delay={i * 80}
+            columns={renderActions ? 13 : 11}
+          />
+        ))}
+      </>
+    ) : currentData.length ? (
+      currentData.map((emp, i) => {
                   const statusClass =
                     emp.attendanceStatus === "present"
                       ? "bg-green-100"
@@ -723,7 +740,7 @@ useEffect(() => {
                   return (
                     <tr
                       key={emp.id || emp._id}
-                      className={`border-b transition ${statusClass}`}
+                      className={`border-b transition ${statusClass} fade-in`}
                     >
                       <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
                       <td
@@ -942,7 +959,7 @@ useEffect(() => {
               )}
             </tbody>
           </table>
-        )}
+        
 
      
             { /* DeleteConfirmationModal */}

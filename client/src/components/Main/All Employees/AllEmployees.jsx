@@ -62,13 +62,13 @@ const handleDelete = async (id) => {
     }
   };
 
-  if (loading)
-      return (
-        <div className="p-6 text-center">
-          <Spinner />
-        </div>
-      );
-    if (error) return <div className="p-6 text-red-500">{error}</div>;
+  // if (loading)
+  //     return (
+  //       <div className="p-6 text-center">
+  //         <Spinner />
+  //       </div>
+  //     );
+  //   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
