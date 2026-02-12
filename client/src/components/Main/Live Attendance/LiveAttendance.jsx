@@ -12,6 +12,37 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 const API = `${API_URL}/api/employees`;
 const ATTENDANCE_API = `${API_URL}/api/attendance-report`;
 
+const SkeletonRow = () => (
+  <tr className="border-b">
+    <td className="px-2 py-3">
+      <div className="h-6 w-4 bg-gray-300 rounded-full animate-pulse mx-auto"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-2 py-3">
+      <div className="h-6 w-24 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-16 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-16 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-6 w-20 bg-gray-300 rounded-md animate-pulse"></div>
+    </td>
+  </tr>
+);
+
+
+
 const LiveAttendance = () => {
   const dispatch = useDispatch()
   const employees = useSelector(s => s.employees.data || [])
@@ -107,19 +138,17 @@ const LiveAttendance = () => {
     return !att || att.status === 'absent';
   });
 
-    if (loading)
-    return (
-      <div className="p-6 text-center">
-        <Spinner />
-      </div>
-    );
+    // if (loading)
+    // return (
+    //   <div className="p-6 text-center">
+    //     <Spinner />
+    //   </div>
+    // );
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="h-full bg-white p-6 overflow-x-auto">
-      {loading ? (
-        <Spinner />
-      ) : (
+      
         <div>
           <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
             Total Employees Present : {presentEmployees.length}
@@ -140,12 +169,14 @@ const LiveAttendance = () => {
               </tr>
             </thead>
 
-            <tbody>
-              {presentEmployees.length > 0 ? (
-                presentEmployees.map((item, index) => {
-                  const key = item._id ? item._id.toString() : item.id;
+           <tbody>
+          {loading
+            ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
+            : presentEmployees.length
+              ? presentEmployees.map((item, index) => {
+                  const key = item._id || item.id;
                   const att = attendanceMap[key];
-                  const dateStr = att && att.date ? new Date(att.date).toLocaleDateString() : "—";
+                  const dateStr = att?.date ? new Date(att.date).toLocaleDateString() : "—";
                   const { firstIn, lastOut } = getFirstInLastOut(att);
                   const status = att?.status || "—";
                   const dept = item.headDepartment?.name || "—";
@@ -161,12 +192,12 @@ const LiveAttendance = () => {
                       className="border-b hover:bg-green-50 transition cursor-pointer"
                     >
                       <td className="px-4 py-3">{index + 1}</td>
-                      <td
-                        title="Click too view profile"
-                        className="px-4 py-3 font-medium text-gray-700"
-                      >
+                      <td 
+                       title="Click too view profile"
+                       className="px-4 py-3 font-medium text-gray-700"
+                       >
                         {item.empId}
-                      </td>
+                        </td>
 
                       <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
                       <td className="px-4 py-3">{dateStr}</td>
@@ -182,16 +213,14 @@ const LiveAttendance = () => {
                     </tr>
                   );
                 })
-              ) : (
+              : (
                 <tr>
                   <td colSpan="8" className="text-center py-6 text-gray-500">
-                    <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
-                      No live attendance found
-                    </div>
+                    No live attendance found
                   </td>
                 </tr>
               )}
-            </tbody>
+        </tbody>
           </table>
 
           {/* Absent Employees Table */}         
@@ -268,7 +297,7 @@ const LiveAttendance = () => {
             </tbody>
           </table> */}
         </div>
-      )}
+      
     </div>
   );
 };

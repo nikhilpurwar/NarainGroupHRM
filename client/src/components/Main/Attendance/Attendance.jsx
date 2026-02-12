@@ -16,6 +16,8 @@ import { MdOutlineQrCodeScanner, MdKeyboardBackspace } from "react-icons/md"
 import { FaUserCheck } from "react-icons/fa"
 import { IoMdLogOut, IoMdAddCircle } from "react-icons/io"
 import { io as clientIO } from "socket.io-client"
+import { startLoading, stopLoading } from "../../../store/loadingSlice"
+import { useGlobalLoading } from "../../../hooks/useGlobalLoading"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 const API = `${API_URL}/api/attendance-report`
@@ -31,8 +33,8 @@ const Attendance = () => {
   })
 
   const [report, setReport] = useState(null)
-  const [loading, setLoading] = useState(false)
   const [empsLoading, setEmpsLoading] = useState(false)
+  const loading = useGlobalLoading()
     const dispatch = useDispatch()
     const navigate = useNavigate()
   const employees = useSelector(s => s.employees.data || [])
@@ -54,11 +56,13 @@ const Attendance = () => {
     const loadEmployees = async () => {
       try {
         setEmpsLoading(true)
+        dispatch(startLoading());
         await dispatch(ensureEmployees())
       } catch (e) {
         console.error('ensureEmployees failed', e)
       } finally {
         setEmpsLoading(false)
+        dispatch(stopLoading());
       }
     }
 
@@ -143,7 +147,7 @@ const Attendance = () => {
 
     try {
       fetchInProgressRef.current = true
-      setLoading(true)
+      dispatch(startLoading())
       lastRequestedRef.current = requestedKey
       const res = await axios.get(API, { params })
       setReport(res.data?.data || null)
@@ -154,7 +158,7 @@ const Attendance = () => {
       toast.error("Failed to load report")
     } finally {
       fetchInProgressRef.current = false
-      setLoading(false)
+     dispatch(stopLoading())
     }
   }
 
