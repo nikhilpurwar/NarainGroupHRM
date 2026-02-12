@@ -56,13 +56,13 @@ const Attendance = () => {
     const loadEmployees = async () => {
       try {
         setEmpsLoading(true)
-        dispatch(startLoading());
+        // dispatch(startLoading());
         await dispatch(ensureEmployees())
       } catch (e) {
         console.error('ensureEmployees failed', e)
       } finally {
         setEmpsLoading(false)
-        dispatch(stopLoading());
+        // dispatch(stopLoading());
       }
     }
 

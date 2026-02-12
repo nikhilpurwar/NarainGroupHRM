@@ -8,7 +8,6 @@ export const dashboardSummary = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
@@ -22,7 +21,6 @@ export const dashboardSummary = async (req, res) => {
       subDepartments,
       activeEmployeesList,
       recentEmployeesRaw,
-      monthlySummaries,
       upcomingHolidaysRaw,
     ] = await Promise.all([
       Employee.countDocuments(),
@@ -30,30 +28,29 @@ export const dashboardSummary = async (req, res) => {
       Employee.countDocuments({ status: "inactive" }),
 
       Attendance.find(
-  { date: { $gte: today, $lt: tomorrow } },
-  { employee: 1, status: 1, punchLogs: 1 },
-  
-).lean(),
+        { date: { $gte: today, $lt: tomorrow } },
+        { employee: 1, status: 1, punchLogs: 1 }
+      ).lean(),
 
       HeadDepartment.find().select("name").lean(),
       SubDepartment.find().select("name headDepartment").lean(),
 
       Employee.find({ status: "active" })
-        .select("_id subDepartment")
+        .select("_id subDepartment joiningDate")
         .lean(),
 
       Employee.find({ status: "active" })
-  .select("_id name empId subDepartment") // ✅ ADD empId
-  .sort({ createdAt: -1 })
-  .limit(5)
-  .populate("subDepartment", "name")
-  .lean(),
+        .select("_id name empId subDepartment shiftEnd createdAt")
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate("subDepartment", "name")
+        .lean(),
 
-      MonthlySummary.find({
-        year: today.getFullYear(),
-        month: today.getMonth() + 1,
-      }).lean(),
-
+      //     MonthlySummary.find({
+      //   year: today.getFullYear(),
+      //   month: today.getMonth() + 1,
+      // }).lean(),
+      
       Holiday.find({
         date: {
           $gte: today,
@@ -89,42 +86,29 @@ export const dashboardSummary = async (req, res) => {
 
     /* ================= FAST LOOKUP MAPS ================= */
     const attendanceMap = new Map();
-    attendanceToday.forEach(a => {
-      attendanceMap.set(String(a.employee), a.status);
-    });
+    attendanceToday.forEach(a => attendanceMap.set(String(a.employee), a.status));
 
     const employeesBySubDept = new Map();
     activeEmployeesList.forEach(e => {
       const key = String(e.subDepartment);
-      if (!employeesBySubDept.has(key)) {
-        employeesBySubDept.set(key, []);
-      }
+      if (!employeesBySubDept.has(key)) employeesBySubDept.set(key, []);
       employeesBySubDept.get(key).push(String(e._id));
     });
 
     const todayAttendanceByEmp = new Map();
-    attendanceToday.forEach(a => {
-      todayAttendanceByEmp.set(String(a.employee), a.status);
-    });
+    attendanceToday.forEach(a => todayAttendanceByEmp.set(String(a.employee), a.status));
 
     /* ================= DEPARTMENTS ================= */
     const departmentCards = headDepartments.map(dept => {
-      const subs = subDepartments.filter(
-        s => String(s.headDepartment) === String(dept._id)
-      );
-
-      let headPresent = 0;
-      let headAbsent = 0;
-      let headTotalEmployees = 0;
+      const subs = subDepartments.filter(s => String(s.headDepartment) === String(dept._id));
+      let headPresent = 0, headAbsent = 0, headTotalEmployees = 0;
 
       const subDeptCards = subs.map(sub => {
         const empIds = employeesBySubDept.get(String(sub._id)) || [];
         const totalEmployees = empIds.length;
         headTotalEmployees += totalEmployees;
 
-        let presentCount = 0;
-        let absentCount = 0;
-
+        let presentCount = 0, absentCount = 0;
         empIds.forEach(id => {
           const st = todayAttendanceByEmp.get(id);
           if (st === "present") presentCount++;
@@ -134,171 +118,150 @@ export const dashboardSummary = async (req, res) => {
         headPresent += presentCount;
         headAbsent += absentCount;
 
-        return {
-          _id: sub._id,
-          name: sub.name,
-          totalEmployees,
-          present: presentCount,
-          absent: absentCount,
-        };
+        return { _id: sub._id, name: sub.name, totalEmployees, present: presentCount, absent: absentCount };
       });
 
+      return { _id: dept._id, name: dept.name, totalEmployees: headTotalEmployees, present: headPresent, absent: headAbsent, subDepartments: subDeptCards };
+    });
+
+    /* ================= TREND DATA ================= */
+    const startYear = new Date(today.getFullYear(), 0, 1);
+    const trendData = await Attendance.aggregate([
+      { $match: { date: { $gte: startYear, $lt: tomorrow } } },
+      { $group: { _id: { year: { $year: "$date" }, month: { $month: "$date" }, day: { $dayOfMonth: "$date" }, status: "$status" }, count: { $sum: 1 } } }
+    ]);
+
+    const buildTrend = (rangeDays) => {
+      const arr = [];
+      for (let i = rangeDays - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const presentCount = trendData.filter(t =>
+          t._id.day === d.getDate() &&
+          t._id.month === d.getMonth() + 1 &&
+          t._id.year === d.getFullYear() &&
+          t._id.status === "present"
+        ).reduce((a, b) => a + b.count, 0);
+
+        arr.push({ label: d.toLocaleDateString("en-US", { day: "2-digit", month: "short" }), value: presentCount });
+      }
+      return arr;
+    };
+
+    const sevenDayTrend = buildTrend(7);
+
+    /* ================= MONTHLY TREND & TOTAL ================= */
+    const employeeJoiningMap = {};
+    activeEmployeesList.forEach(emp => employeeJoiningMap[String(emp._id)] = emp.joiningDate ? new Date(emp.joiningDate) : null);
+
+    const startMonth = new Date(today);
+    startMonth.setMonth(today.getMonth() - 11);
+    const startYearMonth = startMonth.getFullYear();
+    const startMonthNumber = startMonth.getMonth() + 1;
+
+    // Fetch last 12 months of summaries
+    const last12MonthSummaries = await MonthlySummary.find({
+      $or: [
+        { year: { $gt: startYearMonth } },
+        { year: startYearMonth, month: { $gte: startMonthNumber } }
+      ]
+    }).lean();
+
+    const monthlyTrend = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(today);
+      d.setMonth(today.getMonth() - i);
+
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      const monthStart = new Date(year, month - 1, 1);
+
+      const monthRecords = last12MonthSummaries.filter(s => {
+        if (s.year !== year || s.month !== month) return false;
+        const joinDate = employeeJoiningMap[String(s.employee)];
+        return !joinDate || joinDate <= monthStart;
+      });
+
+      const presentCount = monthRecords.reduce((sum, s) => sum + (s.totalPresent || 0), 0);
+      monthlyTrend.push({ label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }), value: presentCount });
+    }
+
+    // Fetch current month summaries
+const currentMonthSummaries = await MonthlySummary.find({
+  year: today.getFullYear(),
+  month: today.getMonth() + 1,
+}).lean();
+
+// Compute totals
+const monthly = currentMonthSummaries.reduce((acc, s) => {
+  const joinDate = employeeJoiningMap[String(s.employee)];
+  const monthStart = new Date(s.year, s.month - 1, 1);
+
+  // Only include employees who had joined before this month
+  if (!joinDate || joinDate <= monthStart) {
+    acc.present += s.totalPresent || 0;
+    acc.absent += s.totalAbsent || 0;
+  }
+
+  return acc;
+}, { present: 0, absent: 0 });
+
+// console.log("===== CURRENT MONTH TOTAL =====");
+// console.log("Present:", monthly.present, "Absent:", monthly.absent);
+
+
+// console.log("===== MONTHLY TOTAL =====");
+// console.log("Present:", monthly.present, "Absent:", monthly.absent);
+
+    /* ================= YEARLY TREND ================= */
+  // Fetch last 12 months (or 5 years) of summaries
+const monthlySummaries = await MonthlySummary.find({
+  year: { $gte: today.getFullYear() - 4, $lte: today.getFullYear() }
+}).lean();
+
+// Map yearly present totals
+const yearlyMap = {};
+
+// Loop through summaries
+monthlySummaries.forEach(s => {
+  const year = s.year;
+  if (!yearlyMap[year]) yearlyMap[year] = 0;
+  yearlyMap[year] += s.totalPresent || 0;
+});
+
+// Build yearly trend
+const yearlyTrend = [];
+for (let y = today.getFullYear() - 4; y <= today.getFullYear(); y++) {
+  yearlyTrend.push({ label: String(y), value: yearlyMap[y] || 0 });
+}
+
+
+
+    /* ================= RECENT EMPLOYEES ================= */
+    const now = new Date();
+    const recentEmployees = recentEmployeesRaw.map(emp => {
+      const attendanceStatus = attendanceMap.get(String(emp._id));
+      const shiftEnd = emp.shiftEnd ? new Date(`${now.toDateString()} ${emp.shiftEnd}`) : null;
+
+      let status = "pending";
+      if (attendanceStatus === "present") status = "present";
+      else if (attendanceStatus === "out") status = "out";
+      else if (shiftEnd && now >= shiftEnd) status = "absent";
+
       return {
-        _id: dept._id,
-        name: dept.name,
-        totalEmployees: headTotalEmployees,
-        present: headPresent,
-        absent: headAbsent,
-        subDepartments: subDeptCards,
+        _id: emp._id,
+        empId: emp.empId,
+        name: emp.name,
+        subDepartmentName: emp.subDepartment?.name || "N/A",
+        shiftEnd: emp.shiftEnd,
+        status,
       };
     });
 
- /* ================= LAST 7 DAYS TREND ================= */
-
-const start7Days = new Date(today);
-start7Days.setDate(today.getDate() - 6);
-
-const startYear = new Date(today.getFullYear(), 0, 1);
-
-const trendData = await Attendance.aggregate([
-  {
-    $match: {
-      date: { $gte: startYear, $lt: tomorrow }
-    }
-  },
-  {
-    $group: {
-      _id: {
-        year: { $year: "$date" },
-        month: { $month: "$date" },
-        day: { $dayOfMonth: "$date" },
-        status: "$status"
-      },
-      count: { $sum: 1 }
-    }
-  }
-]);
-
-const buildTrend = (rangeDays) => {
-  const arr = [];
-
-  for (let i = rangeDays - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-
-    const present = trendData.filter(t =>
-      t._id.day === d.getDate() &&
-      t._id.month === d.getMonth() + 1 &&
-      t._id.year === d.getFullYear() &&
-      t._id.status === "present"
-    ).reduce((a, b) => a + b.count, 0);
-
-    arr.push({
-      label: d.toLocaleDateString("en-US", {
-        day: "2-digit",
-        month: "short"
-      }),
-      value: present
-    });
-  }
-
-  return arr;
-};
-
-const sevenDayTrend = buildTrend(7);
-
-const monthlyTrend = [];
-
-for (let i = 11; i >= 0; i--) {
-  const d = new Date(today);
-  d.setMonth(today.getMonth() - i);
-
-  const month = d.getMonth() + 1;
-  const year = d.getFullYear();
-
-  const present = trendData.filter(t =>
-    t._id.month === month &&
-    t._id.year === year &&
-    t._id.status === "present"
-  ).reduce((a, b) => a + b.count, 0);
-
-  monthlyTrend.push({
-    label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
-    value: present
-  });
-}
-
-const yearlyTrend = [];
-
-for (let y = today.getFullYear() - 4; y <= today.getFullYear(); y++) {
-  const present = trendData.filter(t =>
-    t._id.year === y && t._id.status === "present"
-  ).reduce((a, b) => a + b.count, 0);
-
-  yearlyTrend.push({
-    label: String(y),
-    value: present
-  });
-}
+// ================= MONTHLY TOTAL =================
 
 
-// RECENT EMPLOYEES
-
-const recentEmployees = recentEmployeesRaw.map(emp => {
-  const attendanceStatus = attendanceMap.get(String(emp._id));
-
-  const shiftEnd = emp.shiftEnd
-    ? new Date(`${now.toDateString()} ${emp.shiftEnd}`)
-    : null;
-
-  let status = "pending";
-
-  if (attendanceStatus === "present") {
-    status = "present";
-  } 
-  else if (attendanceStatus === "out") {
-    status = "out";
-  } 
-  else if (shiftEnd && now >= shiftEnd) {
-    status = "absent";
-  }
-
-  return {
-    _id: emp._id,
-    empId: emp.empId,
-    name: emp.name,
-    subDepartmentName: emp.subDepartment?.name || "N/A",
-    shiftEnd: emp.shiftEnd, // optional but good
-    status,
-  };
-});
-
-         
-
-    /* ================= MONTHLY ================= */
-    // const monthlyPresent = trendData
-    //   .filter(t =>
-    //     t._id.year === today.getFullYear() &&
-    //     t._id.month === today.getMonth() + 1 &&
-    //     t._id.status === "present"
-    //   )
-    //   .reduce((a, b) => a + b.count, 0);
-
-    // const monthlyAbsent = monthlySummaries.reduce(
-    //   (sum, s) => sum + (s.totalAbsent || 0),
-    //   0
-    // );
-
-    const monthly = monthlySummaries.reduce(
-      (acc, s) => {
-        acc.present += s.totalPresent || 0;
-        acc.absent += s.totalAbsent || 0;
-        return acc;
-      },
-      { present: 0, absent: 0 }
-    );
     
-
     /* ================= RESPONSE ================= */
     res.json({
       totalEmployees,
@@ -310,18 +273,8 @@ const recentEmployees = recentEmployeesRaw.map(emp => {
       inEmployees: inSet.size,
       outEmployees: outSet.size,
       recentEmployees,
-     monthly,
-    //  : {
-    //     present: monthlyPresent,
-    //     absent: monthlyAbsent,
-    //   },
-      attendanceTrend: {
-
-
-         sevenDay: sevenDayTrend,
-  monthly: monthlyTrend,
-  yearly: yearlyTrend
-      },
+      monthly,
+      attendanceTrend: { sevenDay: sevenDayTrend, monthly: monthlyTrend, yearly: yearlyTrend },
       upcomingHolidays: upcomingHolidaysRaw,
       departments: departmentCards,
     });

@@ -3,13 +3,18 @@ import axios from "axios"
 import { toast } from "react-toastify"
 import { IoCloseSharp, IoCloudUploadOutline } from "react-icons/io5"
 import { Loader } from "lucide-react"
+import { useGlobalLoading } from "../../../../hooks/useGlobalLoading"
+import { useDispatch } from "react-redux"
+import { startLoading, stopLoading } from "../../../../store/loadingSlice"
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 
 const AddEditAdvance = ({ data, onClose, onSuccess }) => {
   const isEdit = Boolean(data)
 
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading] = useState(false)
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
   const [employees, setEmployees] = useState([])
   const [search, setSearch] = useState("")
   const [showDropdown, setShowDropdown] = useState(false)
@@ -130,8 +135,8 @@ const handleSubmit = async (e) => {
   })
 
   try {
-    setLoading(true)
-
+   // setLoading(true)
+    dispatch(startLoading())
     if (isEdit) {
       await axios.put(`${API}/api/advance/${data._id}`, fd)
       toast.success("Advance updated successfully")
@@ -145,7 +150,8 @@ const handleSubmit = async (e) => {
   } catch (err) {
     toast.error("Operation failed")
   } finally {
-    setLoading(false)
+    // setLoading(false)
+    dispatch(stopLoading())
   }
 }
 useEffect(() => {

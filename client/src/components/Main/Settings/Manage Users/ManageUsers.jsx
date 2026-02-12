@@ -3,10 +3,13 @@ import axios from "axios";
 import { FiEdit } from "react-icons/fi";
 import { IoIosAddCircle } from "react-icons/io";
 import { MdDeleteOutline } from "react-icons/md";
-import { IoToggle, IoToggleOutline } from "react-icons/io5";
 import { toast } from "react-toastify";
 import AddEditUsers from "./components/AddEditUsers";
 import ConfirmDelete from "../DeleteConfirmation";
+import { useDispatch } from "react-redux";
+import { useGlobalLoading } from "../../../../hooks/useGlobalLoading";
+import { startLoading, stopLoading } from "../../../../store/loadingSlice";
+import SkeletonRows from "../../../SkeletonRows";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 const API = `${API_URL}/api/users`;
@@ -19,7 +22,9 @@ const badgeStyles = {
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const loading = useGlobalLoading(); // Redux global loading
+  const dispatch = useDispatch();
+
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
@@ -30,44 +35,40 @@ const ManageUsers = () => {
 
   const StatusToggle3D = ({ isActive, onClick, isPending = false }) => {
     return (
-    <button
-      onClick={onClick}
-      type="button"
-      disabled={isPending}
-      title={isActive ? "Set Inactive" : "Set Active"}
-      className={`
-        relative w-9 h-5 rounded-full
-        flex items-center
-        transition-all duration-300 ease-out
-        ${isPending ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
-        ${
-          isActive
-            ? "bg-gradient-to-r from-green-400 to-green-600 shadow-[0_3px_8px_rgba(34,197,94,0.45)]"
-            : "bg-gradient-to-r from-red-400 to-red-600 shadow-[0_3px_8px_rgba(239,68,68,0.45)]"
-        }
-      `}
-    >
-      {/* Knob */}
-      <span
+      <button
+        onClick={onClick}
+        type="button"
+        disabled={isPending}
+        title={isActive ? "Set Inactive" : "Set Active"}
         className={`
-          absolute top-[4px] left-[4px]
-          w-3 h-3 rounded-full
-          bg-gradient-to-b from-white via-gray-100 to-gray-300
-          shadow-[0_2px_4px_rgba(0,0,0,0.4)]
-          transition-transform duration-300
-          ${isActive ? "translate-x-4" : "translate-x-0"}
+          relative w-9 h-5 rounded-full flex items-center transition-all duration-300 ease-out
+          ${isPending ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
+          ${
+            isActive
+              ? "bg-gradient-to-r from-green-400 to-green-600 shadow-[0_3px_8px_rgba(34,197,94,0.45)]"
+              : "bg-gradient-to-r from-red-400 to-red-600 shadow-[0_3px_8px_rgba(239,68,68,0.45)]"
+          }
         `}
-      />
-
-      {/* Spinner */}
-      {isPending && (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-        </span>
-      )}
-    </button>
+      >
+        <span
+          className={`
+            absolute top-[4px] left-[4px]
+            w-3 h-3 rounded-full
+            bg-gradient-to-b from-white via-gray-100 to-gray-300
+            shadow-[0_2px_4px_rgba(0,0,0,0.4)]
+            transition-transform duration-300
+            ${isActive ? "translate-x-4" : "translate-x-0"}
+          `}
+        />
+        {isPending && (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+          </span>
+        )}
+      </button>
     );
   };
+
   const toggleStatusOptimistic = async (user) => {
     const id = user._id;
     const prev = user.isActive ? "active" : "inactive";
@@ -79,18 +80,10 @@ const ManageUsers = () => {
 
     try {
       await axios.patch(`${API}/${id}/toggle`);
-
-      // ✅ Conditional toast
-      if (next === "active") {
-        toast.success("User activated successfully");
-      } else {
-        toast.success("User deactivated successfully");
-      }
+      toast.success(`User ${next === "active" ? "activated" : "deactivated"} successfully`);
     } catch (err) {
       console.error(err);
       toast.error("Toggle failed");
-
-      // ❌ Revert on error
       setLocalStatusMap((s) => ({ ...s, [id]: prev }));
     } finally {
       setPendingToggles((p) => {
@@ -98,7 +91,6 @@ const ManageUsers = () => {
         delete np[id];
         return np;
       });
-
       fetchUsers();
     }
   };
@@ -106,13 +98,13 @@ const ManageUsers = () => {
   /* ================= FETCH ================= */
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      dispatch(startLoading());
       const res = await axios.get(API);
       setUsers(res.data?.data || []);
     } catch {
       toast.error("Failed to load users");
     } finally {
-      setLoading(false);
+      dispatch(stopLoading());
     }
   };
 
@@ -135,16 +127,6 @@ const ManageUsers = () => {
     setDeleteItem(user);
     setShowDelete(true);
   };
-
-  // const handleToggleStatus = async (user) => {
-  //   try {
-  //     const res = await axios.patch(`${API}/${user._id}/toggle`);
-  //     toast.success(res.data.message);
-  //     fetchUsers();
-  //   } catch {
-  //     toast.error("Toggle failed");
-  //   }
-  // };
 
   const confirmDelete = async () => {
     try {
@@ -177,44 +159,43 @@ const ManageUsers = () => {
           </button>
         </div>
 
-        {/* Loader */}
-        {loading && (
-          <div className="flex justify-center items-center p-10">
-            <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && users.length === 0 && (
-          <div className="w-sm flex flex-col items-center gap-4 py-6 text-gray-500 border-dashed border-2 border-gray-300 rounded-lg my-6 mx-auto">
-            No users found
-            <button
-              onClick={handleAdd}
-              className="flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
-            >
-              <IoIosAddCircle size={22} />
-              Add User
-            </button>
-          </div>
-        )}
-
         {/* Table */}
-        {!loading && users.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-4 text-left">S.No</th>
-                  <th className="p-4 text-left">Name</th>
-                  <th className="p-4 text-left">Email</th>
-                  <th className="p-4 text-left">User Type</th>
-                  <th className="p-4 text-left">Status</th>
-                  <th className="p-4 text-left">Actions</th>
-                </tr>
-              </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-4 text-left">S.No</th>
+                <th className="p-4 text-left">Name</th>
+                <th className="p-4 text-left">Email</th>
+                <th className="p-4 text-left">User Type</th>
+                <th className="p-4 text-left">Status</th>
+                <th className="p-4 text-left">Actions</th>
+              </tr>
+            </thead>
 
-              <tbody>
-                {users.map((user, index) => (
+            <tbody>
+              {/* Skeleton Loader */}
+              {loading && <SkeletonRows rows={5} coln={6} />}
+
+              {/* Empty State */}
+              {!loading && users.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-500">
+                    No users found
+                    <button
+                      onClick={handleAdd}
+                      className="ml-4 flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
+                    >
+                      <IoIosAddCircle size={22} />
+                      Add User
+                    </button>
+                  </td>
+                </tr>
+              )}
+
+              {/* Data Rows */}
+              {!loading &&
+                users.map((user, index) => (
                   <tr key={user._id} className="border-t hover:bg-gray-50">
                     <td className="p-4">{index + 1}</td>
                     <td className="p-4 font-medium">{user.name}</td>
@@ -229,51 +210,47 @@ const ManageUsers = () => {
                       </span>
                     </td>
                     <td className="p-4">
-                
-                          {(() => {
-                          const id = user._id;
-                          const displayed =
-                            localStatusMap[id] ??
-                            (user.isActive ? "active" : "inactive");
-                          const isPending = Boolean(pendingToggles[id]);
-
-                          return (
-                            <StatusToggle3D
-                              isActive={displayed === "active"}
-                              isPending={isPending}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!isPending) toggleStatusOptimistic(user);
-                              }}
-                            />
-                          );
-                        })()}
-                    
-                    </td >
+                      {(() => {
+                        const id = user._id;
+                        const displayed =
+                          localStatusMap[id] ??
+                          (user.isActive ? "active" : "inactive");
+                        const isPending = Boolean(pendingToggles[id]);
+                        return (
+                          <StatusToggle3D
+                            isActive={displayed === "active"}
+                            isPending={isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isPending) toggleStatusOptimistic(user);
+                            }}
+                          />
+                        );
+                      })()}
+                    </td>
                     <td className="p-4 flex items-center gap-2">
-                        
-
                       <button
                         onClick={() => handleEdit(user)}
-                        className=" text-blue-600 rounded-lg hover:bg-blue-200"
+                        className="text-blue-600 rounded-lg hover:bg-blue-200"
                         disabled={!user.isActive}
                       >
                         <FiEdit size={19} />
                       </button>
                       <button
                         onClick={() => handleDelete(user)}
-                        className=" text-red-600 rounded-lg hover:bg-red-200"
+                        className="text-red-600 rounded-lg hover:bg-red-200"
                       >
                         <MdDeleteOutline size={21} />
                       </button>
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Delete Modal */}
       <ConfirmDelete
         isOpen={showDelete}
         title="Delete User"
@@ -285,7 +262,7 @@ const ManageUsers = () => {
         onConfirm={confirmDelete}
       />
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       <AddEditUsers
         isOpen={showModal}
         onClose={() => setShowModal(false)}
