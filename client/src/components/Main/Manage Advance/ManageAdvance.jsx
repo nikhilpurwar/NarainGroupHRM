@@ -10,14 +10,90 @@ import AddEditAdvance from "./components/AddEditAdvance";
 import ViewAdvance from "./components/ViewAdvance";
   import { useLocation } from "react-router-dom";
 import Spinner from "../../utility/Spinner";
+import { useGlobalLoading } from "../../../hooks/useGlobalLoading";
+import { useDispatch } from "react-redux";
+import { startLoading, stopLoading } from "../../../store/loadingSlice";
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 
 const DEFAULT_AVATAR =
   "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
+const SkeletonRow = () => (
+  <tr className="border-b animate-pulse">
+    {/* # */}
+    <td className="px-4 py-3">
+      <div className="h-5 w-5 bg-gray-300 rounded-full mx-auto shimmer"></div>
+    </td>
+
+    {/* Employee */}
+    <td className="px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gray-300 shimmer"></div>
+        <div className="flex flex-col gap-1">
+          <div className="h-4 w-28 bg-gray-300 rounded shimmer"></div>
+          <div className="h-3 w-20 bg-gray-200 rounded shimmer"></div>
+        </div>
+      </div>
+    </td>
+
+    {/* Date */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-16 bg-gray-300 rounded shimmer"></div>
+    </td>
+
+    {/* Installment Start */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-16 bg-gray-200 rounded shimmer"></div>
+    </td>
+
+    {/* Type */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-20 bg-gray-300 rounded shimmer"></div>
+    </td>
+
+    {/* Amount */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-12 bg-gray-200 rounded shimmer"></div>
+    </td>
+
+    {/* Deduction */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-12 bg-gray-300 rounded shimmer"></div>
+    </td>
+
+    {/* Balance */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-12 bg-gray-200 rounded shimmer"></div>
+    </td>
+
+    {/* Installment */}
+    <td className="px-4 py-3">
+      <div className="h-4 w-16 bg-gray-300 rounded shimmer"></div>
+    </td>
+
+    {/* Status */}
+    <td className="px-4 py-3">
+      <div className="h-5 w-10 bg-gray-300 rounded-full mx-auto shimmer"></div>
+    </td>
+
+    {/* Actions */}
+    <td className="px-4 py-3">
+      <div className="flex gap-2 justify-center">
+        <div className="h-6 w-6 bg-gray-300 rounded-full shimmer"></div>
+        <div className="h-6 w-6 bg-gray-300 rounded-full shimmer"></div>
+        <div className="h-6 w-6 bg-gray-300 rounded-full shimmer"></div>
+      </div>
+    </td>
+  </tr>
+);
+
+
 const ManageAdvance = () => {
   const [advances, setAdvances] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  const loading = useGlobalLoading()
+const location = useLocation();
+const dispatch = useDispatch()
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [advanceToDelete, setAdvanceToDelete] = useState(null);
@@ -48,13 +124,15 @@ const ManageAdvance = () => {
   /* ================= FETCH ADVANCES ================= */
   const fetchAdvances = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
+      dispatch(startLoading())
       const res = await axios.get(`${API}/api/advance`);
       setAdvances(res.data?.data || []);
     } catch {
       toast.error("Failed to load advances");
     } finally {
-      setLoading(false);
+      // setLoading(false);
+      dispatch(stopLoading())
     }
   };
 
@@ -282,12 +360,13 @@ const onEdit = (advance) => {
     );
   };
 
-     if (loading)
-    return (
-      <div className="p-6 text-center">
-        <Spinner />
-      </div>
-    );
+    //  if (loading)
+    // return (
+    //   <div className="p-6 text-center">
+    //     <Spinner />
+    //   </div>
+    // );
+
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   /* ================= UI ================= */
@@ -315,10 +394,10 @@ const onEdit = (advance) => {
 
       {/* TABLE */}
       <div className="bg-white shadow-md overflow-x-auto">
-        {loading ? (
-          <div className="flex justify-center items-center p-10">
+{/*      
+          <div className="flex justify-center items-center p-10"> */}
           </div>
-        ) : (
+   
           <table className="w-full table-auto">
             <thead className="">
               <tr className="bg-gray-200 text-left text-sm font-medium text-gray-700">
@@ -371,12 +450,17 @@ const onEdit = (advance) => {
               </tr>
             </thead>
 
-            <tbody>
-              {currentData.length ? (
-                currentData.map((a, i) => (
+          <tbody>
+  {loading
+    ? Array(5)
+        .fill(0)
+        .map((_, i) => <SkeletonRow key={i} />)
+    : currentData.length
+    ? currentData.map((a, i) => 
+        
                   <tr
                     key={a._id}
-                    className="border-b hover:bg-gray-50/50 transition-colors"
+                    className="border-b bg-white hover:bg-gray-50 transition-colors"
                   >
                     <td className="p-4 font-bold text-gray-600">
                       {indexOfFirst + i + 1}
@@ -469,8 +553,7 @@ const onEdit = (advance) => {
                       </div>
                     </td>
                   </tr>
-                ))
-              ) : (
+                ) : 
                 <tr>
                   <td colSpan="11" className="text-center py-12">
                     <div className="flex flex-col items-center gap-3 text-gray-500">
@@ -482,10 +565,11 @@ const onEdit = (advance) => {
                     </div>
                   </td>
                 </tr>
-              )}
+              
+}
             </tbody>
           </table>
-        )}
+        
 
         {/* PAGINATION */}
         {advances.length > 0 && (
@@ -524,7 +608,7 @@ const onEdit = (advance) => {
             </div>
           </div>
         )}
-      </div>
+      {/* </div> */}
 
       {/* MODALS */}
       {showAddEdit && (

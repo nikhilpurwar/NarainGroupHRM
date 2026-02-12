@@ -6,13 +6,18 @@ import { IoIosAddCircle } from "react-icons/io"
 import { toast } from "react-toastify"
 import AddEditTimings from "./components/AddEditTimings"
 import ConfirmDelete from "../DeleteConfirmation"
+import { useGlobalLoading } from "../../../../hooks/useGlobalLoading"
+import { useDispatch } from "react-redux"
+import { startLoading, stopLoading } from "../../../../store/loadingSlice"
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/break-times`
 
 const WorkingHours = () => {
   const [list, setList] = useState([])
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading] = useState(false)
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
   const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null
   const role = storedUser?.role
   const [showModal, setShowModal] = useState(false)
@@ -49,13 +54,15 @@ const confirmDelete = async () => {
   /* ================= FETCH ================= */
   const fetchData = async () => {
     try {
-      setLoading(true)
+      // setLoading(true)
+      dispatch(startLoading())
       const res = await axios.get(API)
       setList(res.data?.data || [])
     } catch {
       toast.error("Failed to load timings")
     } finally {
-      setLoading(false)
+      // setLoading(false)
+      dispatch(stopLoading())
     }
   }
 

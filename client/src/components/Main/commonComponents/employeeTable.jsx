@@ -16,69 +16,76 @@ import Spinner from "../../utility/Spinner";
 const DEFAULT_AVATAR =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
 
-const TableSkeletonRow = ({ delay = 0, showActions }) => {
+const TableSkeletonRow = ({ showActions }) => {
   return (
-    <tr
-      style={{ animationDelay: `${delay}ms` }}
-      className="border-b animate-pulse"
-    >
+    <tr className="animate-pulse border-b">
+
+      {/* index */}
       <td className="px-4 py-4">
-        <div className="skeleton h-4 w-6" />
+        <div className="h-4 w-6 bg-gray-200 rounded" />
       </td>
 
+      {/* emp id */}
       <td className="px-4 py-4">
-        <div className="skeleton h-4 w-20" />
+        <div className="h-4 w-20 bg-gray-200 rounded" />
       </td>
 
-      {/* Name cell */}
+      {/* name + avatar */}
       <td className="px-4 py-4 flex items-center gap-3">
-        <div className="skeleton w-11 h-11 rounded-full" />
+        <div className="w-10 h-10 rounded-full bg-gray-300" />
         <div className="space-y-2">
-          <div className="skeleton h-4 w-40" />
-          <div className="skeleton h-3 w-28 opacity-70" />
+          <div className="h-4 w-32 bg-gray-200 rounded" />
+          <div className="h-3 w-24 bg-gray-200 rounded opacity-70" />
         </div>
       </td>
 
+      <td className="px-4 py-4"><div className="h-4 w-28 bg-gray-200 rounded" /></td>
+      <td className="px-4 py-4"><div className="h-4 w-24 bg-gray-200 rounded" /></td>
+      <td className="px-4 py-4"><div className="h-4 w-20 bg-gray-200 rounded" /></td>
+      <td className="px-4 py-4"><div className="h-4 w-32 bg-gray-200 rounded" /></td>
+      <td className="px-4 py-4"><div className="h-4 w-32 bg-gray-200 rounded" /></td>
+      <td className="px-4 py-4"><div className="h-4 w-32 bg-gray-200 rounded" /></td>
+
+      {/* status toggle skeleton */}
       <td className="px-4 py-4">
-        <div className="skeleton h-4 w-28" />
+        <div className="h-5 w-10 rounded-full bg-gray-300" />
       </td>
 
-      <td className="px-4 py-4">
-        <div className="skeleton h-4 w-24" />
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="skeleton h-4 w-20" />
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="skeleton h-4 w-32" />
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="skeleton h-4 w-32" />
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="skeleton h-4 w-32" />
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="skeleton h-6 w-20 rounded-full" />
-      </td>
-
+      {/* 👇 Attendance page only */}
       {showActions && (
-        <td className="px-4 py-4">
-          <div className="flex gap-2">
-            <div className="skeleton w-9 h-9 rounded-lg" />
-            <div className="skeleton w-9 h-9 rounded-lg" />
-            <div className="skeleton w-9 h-9 rounded-lg" />
-          </div>
-        </td>
+        <>
+          {/* present bubble */}
+          <td className="px-4 py-4 text-center">
+            <div className="h-6 w-10 bg-gray-300 rounded-full mx-auto" />
+          </td>
+
+          {/* absent bubble */}
+          <td className="px-4 py-4 text-center">
+            <div className="h-6 w-10 bg-gray-300 rounded-full mx-auto" />
+          </td>
+        </>
       )}
+
+      {/* action buttons skeleton */}
+<td className="px-4 py-4">
+  {showActions ? (
+    /* Attendance page actions (usually 1–2 buttons wide) */
+    <div className="flex justify-center gap-3">
+      <div className="w-12 h-8 bg-gray-300 rounded-full" />
+    </div>
+  ) : (
+    /* Employee page actions (icon buttons) */
+    <div className="flex justify-center gap-2">
+      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+    </div>
+  )}
+</td>
     </tr>
   );
 };
+
 
 
 const EmployeeTable = ({
@@ -721,12 +728,11 @@ useEffect(() => {
  <tbody>
              {loading ? (
       <>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <TableSkeletonRow
-            key={i}
-            delay={i * 80}
-            columns={renderActions ? 13 : 11}
-          />
+       {Array.from({ length: 8 }).map((_, i) => (
+      <TableSkeletonRow
+        key={i}
+        showActions={!!renderActions}
+      />
         ))}
       </>
     ) : currentData.length ? (
