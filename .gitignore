@@ -28,3 +28,14 @@ server/.env.example
 faceRecognitionPython/requirements.txt
 face_crash_log.txt
 MobileAPP/IMPLEMENTATION_GUIDE.md
+server/SECURITY.md
+server/AUTH_GUIDE.md
+server/SECURITY_CHANGES.md
+server/create-admin.js
+server/activate-user.js
+ACCESS_CONTROL_FLOW_DIAGRAM.md
+EMPLOYEE_PROFILE_ACCESS_CONTROL.md
+IMPLEMENTATION_SUMMARY.md
+QUICK_REFERENCE_PROFILE_ACCESS.md
+README_PROFILE_ACCESS.md
+TESTING_GUIDE_PROFILE_ACCESS.md

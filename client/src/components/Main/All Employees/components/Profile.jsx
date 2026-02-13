@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import {
   MdKeyboardBackspace,
   MdPhone,
@@ -50,17 +52,36 @@ const Profile = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('personal')
   const [showSalaryReport, setShowSalaryReport] = useState(false)
+  const [accessDenied, setAccessDenied] = useState(false)
   const printRef = useRef(null)
+
+  const storedUser = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || 'null') : null
+  const currentUserId = storedUser?._id
+  const currentUserEmail = storedUser?.email
+  const permissions = useSelector(state => state.permissions?.map || {})
+  const canEdit = permissions['/employees']
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const token = typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        
         const res = await axios.get(`${API}/${id}/profile`, { headers })
         setEmp(res.data.data)
+        setAccessDenied(false)
       } catch (err) {
-        console.error(err)
+        if (err.response?.status === 403) {
+          setAccessDenied(true)
+          setEmp(null)
+          toast.error(err.response?.data?.message || 'Access denied. You do not have permission to view this profile.')
+        } else if (err.response?.status === 404) {
+          setEmp(null)
+          toast.error('Employee profile not found.')
+        } else {
+          console.error('Error fetching profile:', err)
+          toast.error('Failed to load profile. Please try again.')
+        }
       } finally {
         setLoading(false)
       }
@@ -79,17 +100,24 @@ const Profile = () => {
     )
   }
 
-  if (!emp) {
+  if (accessDenied || !emp) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50">
-        <div className="text-center">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md">
           <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <MdPerson className="text-red-500 text-4xl" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Employee not found</h3>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            {accessDenied ? 'Access Denied' : 'Profile Not Found'}
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {accessDenied 
+              ? 'You do not have permission to view this profile.'
+              : 'The requested profile could not be found.'}
+          </p>
           <button
             onClick={() => navigate(-1)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
             Go Back
           </button>
@@ -97,6 +125,8 @@ const Profile = () => {
       </div>
     )
   }
+
+
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
@@ -216,11 +246,13 @@ const Profile = () => {
             </button>
 
             <div className="flex items-center gap-3 no-print">
-               <button onClick={() => navigate(`/employee/${id}/edit`)}
-                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <MdEdit size={18} />
-                <span className="text-sm font-medium">Edit</span>
-              </button>
+              {canEdit && (
+                <button onClick={() => navigate(`/employee/${id}/edit`)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                  <MdEdit size={18} />
+                  <span className="text-sm font-medium">Edit</span>
+                </button>
+              )}
               <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <MdPrint size={18} />
                 <span className="text-sm font-medium">Print</span>
@@ -229,7 +261,6 @@ const Profile = () => {
                 <MdShare size={18} />
                 <span className="text-sm font-medium">Share</span>
               </button>
-             
             </div>
           </div>
         </div>

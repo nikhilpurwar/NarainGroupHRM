@@ -23,6 +23,8 @@ import { GiOpenGate } from "react-icons/gi";
 const knownRoutes = [
     { path: '/dashboard', label: 'Dashboard', icon: FaGauge, color: 'bg-blue-100 text-blue-600' },
     { path: '/employees', label: 'All Employees', icon: FaUser, color: 'bg-purple-100 text-purple-600' },
+    {path: '/profile/:id', label: 'User Profile', icon: FiUser, color: 'bg-gray-100 text-gray-600' },
+    // { path: '/employees/:id', label: 'Employee Profile', icon: FiEye, color: 'bg-indigo-100 text-indigo-600' },
     { path: '/attReport', label: 'Attendance', icon: FaFileLines, color: 'bg-green-100 text-green-600' },
     { path: '/liveattend', label: 'Live Attendance', icon: FaChartLine, color: 'bg-red-100 text-red-600' },
     { path: '/advance', label: 'Manage Advance', icon: FaMoneyBillWave , color: 'bg-yellow-100 text-yellow-600' },

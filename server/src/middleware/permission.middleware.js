@@ -1,14 +1,27 @@
 import { findPermissionByCandidates } from '../utils/permissionCache.js'
+import User from '../models/setting.model/user.model.js'
 
 export const checkPermission = async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ success: false, message: 'Not authenticated' })
     
-    // normalize user role to lowercase for case-insensitive checks
     const userRole = (req.user.role || '').toString().toLowerCase()
-    // Admin bypass: admin users can access everything
     if (userRole === 'admin') return next()
+    
     const requestPath = req.path
+    if (requestPath && (requestPath.startsWith('/profile/') || requestPath.match(/^\/[a-f0-9]{24}\/profile$/))) {
+      const profileId = requestPath.includes('/profile/') 
+        ? requestPath.split('/profile/')[1]?.split('/')[0]
+        : requestPath.split('/')[0]?.replace('/', '')
+      
+      if (profileId && req.user.id) {
+        if (profileId === req.user.id.toString()) return next()
+        
+        const user = await User.findById(req.user.id).lean()
+        if (user?.employee && profileId === user.employee.toString()) return next()
+      }
+    }
+    
     const base = req.baseUrl || ''
     const original = req.originalUrl || ''
 
