@@ -25,7 +25,7 @@ const ReportsAttendance = () => {
   const [searchParams] = useSearchParams();
   const queryEmployeeId = searchParams.get("employeeId");
   const dispatch = useDispatch();
-  const employees = useSelector((s) => s.employees.data || []);
+  const employees = useSelector((s) => s.employees.data);
   const attendanceMap = useSelector((s) => s.attendance.map || {});
   const navigate = useNavigate();
 
@@ -104,7 +104,8 @@ const ReportsAttendance = () => {
     init();
     loadEmployeesRef.current = loadEmployees;
     loadHolidaysRef.current = loadHolidays;
-  }, [dispatch, attendanceMap, employees, queryEmployeeId]);
+  }, [dispatch,  queryEmployeeId]);
+ // attendanceMap, employees,
 
   useEffect(() => {
     if (queryEmployeeId) {
@@ -293,298 +294,218 @@ useEffect(() => {
   }, [employees, filters.search]);
 
   return (
-    <div className="relative bg-white p-6 min-h-screen">
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 group flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-gray-100 transition-colors">
-          <MdKeyboardBackspace size={20} />
-        </div>
-        <span className="text-sm font-medium">Back to Employees</span>
-      </button>
-      <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
-        {/* SEARCH */}
-        <div ref={searchWrapRef} className="relative w-full max-w-lg">
-          {/* Search Bar */}
-          <input 
-            ref={searchInputRef}
-            type="text"
-            placeholder="Select or Search by name or emp id..."
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, search: e.target.value }))
-            }
-            onFocus={() => setSearchFocused(true)}
-            className="w-full bg-white rounded-lg px-4 py-2 pr-10
+   <div className="relative bg-white p-6 min-h-screen">
+  {/* Back Button */}
+  <button
+    onClick={() => navigate(-1)}
+    className="mb-4 group flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+  >
+    <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-gray-100 transition-colors">
+      <MdKeyboardBackspace size={20} />
+    </div>
+    <span className="text-sm font-medium">Back to Employees</span>
+  </button>
+
+  {/* Top Bar: Search + Action */}
+  <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
+    {/* Search */}
+    <div ref={searchWrapRef} className="relative w-full max-w-lg">
+      <input
+        ref={searchInputRef}
+        type="text"
+        placeholder="Select or Search by name or emp id..."
+        value={filters.search}
+        onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+        onFocus={() => setSearchFocused(true)}
+        className="w-full bg-white rounded-lg px-4 py-2 pr-10
                    border border-gray-300
                    text-sm
                    focus:ring-2 focus:ring-indigo-500
                    focus:border-indigo-500
                    outline-none transition"
-                   />
-                <IoChevronDown size={18}
-                className={`absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none transition-transform duration-200 ${searchFocused ? "rotate-180" : ""}`}
-                />
-          {/* <button
-          onClick={() => { const first = filteredEmployees[0]; if (first) fetchReport({ employeeId: first._id, month: filters.month, year: filters.year }) }}
-          className="px-8 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium text-sm lg:text-base"
-        >Search</button> */}
-
-          {/* Chevron */}
-
-          {/* Dropdown */}
-          {searchFocused && (
-            <div
-              ref={searchWrapRef}
-              className="absolute z-50 left-0 right-0 mt-1
-                   bg-white rounded-xl
-                   shadow-xl border border-gray-200
-                   max-h-64 overflow-auto"
-            >
-              {filteredEmployees.length ? (
-                filteredEmployees.map((emp) => (
-                  <div
-                    key={emp._id}
-                    onClick={() => {
-                      fetchReport({
-                        employeeId: emp._id,
-                        month: filters.month,
-                        year: filters.year,
-                      });
-                      setFilters((f) => ({ ...f, search: "" }));
-                      setSearchFocused(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3
-                         cursor-pointer
-                         hover:bg-indigo-50 transition
-                         rounded-lg mx-1 my-1"
-                  >
-                    {/* Avatar */}
-                    {emp.avatar ? (
-                      <img
-                        src={emp.avatar}
-                        alt={emp.name}
-                        className="h-9 w-9 rounded-full object-cover shrink-0"
-                      />
-                    ) : (
-                      <div
-                        className="h-9 w-9 rounded-full bg-indigo-100 text-indigo-600
-                                flex items-center justify-center font-semibold text-xs shrink-0"
-                      >
-                        {(
-                          (emp.name || "")
-                            .split(/\s+/)
-                            .slice(0, 2)
-                            .map((n) => n[0])
-                            .join("") || ""
-                        ).toUpperCase()}
-                      </div>
-                    )}
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-800 truncate">
-                        {emp.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {emp.empId} • {emp.mobile}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-8 text-center text-sm text-gray-400">
-                  No matches found
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ACTION BUTTONS */}
-        <div className="flex items-center justify-end gap-2">
-          {(() => {
-            const emp = report?.employee;
-            const punchState = getTodayPunchState(emp);
-
-            if (punchState === "NOT_MARKED") {
-              return (
-                <button
-                  disabled={isProcessingPunch}
-                  onClick={() => handlePunch(emp)}
-                  className="flex items-center gap-2 px-4 py-2
-                       rounded-full text-sm font-medium
-                       bg-green-100 text-green-700
-                       hover:bg-green-600 hover:text-white
-                       transition disabled:opacity-50"
-                >
-                  <FaUserCheck size={18} /> Mark Attendance
-                </button>
-              );
-            }
-
-            if (punchState === "IN") {
-              return (
-                <button
-                  disabled={isProcessingPunch}
-                  onClick={() => handlePunch(emp)}
-                  className="flex items-center gap-2 px-4 py-2
-                       rounded-full text-sm font-medium
-                       bg-red-100 text-red-700
-                       hover:bg-red-600 hover:text-white
-                       transition disabled:opacity-50"
-                >
-                  Punch Out <IoMdLogOut size={20} />
-                </button>
-              );
-            }
-
-            return (
-              <button
-                disabled={isProcessingPunch}
-                onClick={() => handlePunch(emp)}
-                className="flex items-center gap-2 px-4 py-2
-                     rounded-full text-sm font-medium
-                     bg-green-100 text-green-700
-                     hover:bg-green-600 hover:text-white
-                     transition disabled:opacity-50"
-              >
-                Punch In <IoMdLogOut size={20} className="rotate-180" />
-              </button>
-            );
-          })()}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="md:col-span-5">
-          {loading && <Spinner />}
-          {!loading && report && (
-            <div>
-              <EmployeeSummary emp={report.employee} isMobile={false} />
-              <AttendanceFilter
-                filters={filters}
-                setFilters={setFilters}
-                onSearch={() => {
-                  if (report?.employee?._id)
-                    fetchReport({
-                      employeeId: report.employee._id,
-                      month: filters.month,
-                      year: filters.year,
-                    });
-                }}
-                reportData={report}
-                isMobile={false}
-              />
-              <MonthlySummaryCard
-                summary={report.summary}
-                days={report.days}
-                table={report.table}
-                holidays={holidays}
-                isMobile={false}
-                employee={report.employee}
-              />
-              <AttendanceTable
-                days={report.days}
-                data={report.table}
-                isMobile={false}
-                attendanceRaw={report.employee.attendance}
-                onCellClick={handleCellClick}
-                holidays={holidays}
-              />
-            </div>
-          )}
-          {!initializing && !loading && !report && !filters.search && (
-            <div className="md:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                {/* Header */}
-                <div className="px-4 py-3 border-b sticky top-0 bg-white z-10">
-                  <h4 className="font-semibold text-gray-800 text-sm tracking-wide">
-                    Matches ({filteredEmployees.length})
-                  </h4>
-                </div>
-
-                {/* List */}
-                <div className="max-h-[22rem] overflow-auto divide-y">
-                  {filteredEmployees.map((emp) => (
-                    <div
-                      key={emp._id}
-                      onClick={() =>
-                        fetchReport({
-                          employeeId: emp._id,
-                          month: filters.month,
-                          year: filters.year,
-                        })
-                      }
-                      className="flex items-center gap-3 px-4 py-3 cursor-pointer transition
-                     hover:bg-gray-50 active:bg-gray-100"
-                    >
-                      {/* Avatar or Initials */}
-                      {emp.avatar ? (
-                        <img
-                          src={emp.avatar}
-                          alt={emp.name}
-                          className="h-10 w-10 rounded-full object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-sm shrink-0">
-                          {(
-                            (emp.name || "")
-                              .split(/\s+/)
-                              .slice(0, 2)
-                              .map((n) => n.charAt(0))
-                              .join("") || ""
-                          ).toUpperCase()}
-                        </div>
-                      )}
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 truncate">
-                          {emp.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {emp.empId} • {emp.mobile}
-                        </p>
-                      </div>
-
-                      {/* Indicator */}
-                      <span className="h-2 w-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100" />
-                    </div>
-                  ))}
-                  
-                  {filteredEmployees.length === 0 && (
-                    <div className="text-center text-sm text-gray-400 py-10">
-                      No matches found
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <ManualAttendanceModal
-        isOpen={manualModalOpen}
-        onClose={() => setManualModalOpen(false)}
-        employees={employees}
-        onSubmit={handleManualAttendanceSubmit}
       />
-      {selectedPunchDate && (
-        <PunchRecordsModal
-          isOpen={punchModalOpen}
-          onClose={() => {
-            setPunchModalOpen(false);
-            setSelectedPunchDate(null);
+      <IoChevronDown
+        size={18}
+        className={`absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none transition-transform duration-200 ${
+          searchFocused ? "rotate-180" : ""
+        }`}
+      />
+
+      {/* Dropdown list only visible when search focused and employees fetched */}
+     {/* Dropdown list */}
+  {searchFocused && employees && employees.length > 0 && (
+
+  <div
+    className="absolute z-50 left-0 right-0 mt-1
+      bg-white rounded-xl shadow-xl border border-gray-200
+      max-h-64 overflow-auto"
+  >
+    {filteredEmployees.length ? (
+      filteredEmployees.map((emp) => (
+        <div
+          key={emp._id}
+          onClick={() => {
+            fetchReport({
+              employeeId: emp._id,
+              month: filters.month,
+              year: filters.year,
+            });
+            setFilters((f) => ({ ...f, search: "" }));
+            setSearchFocused(false);
           }}
-          attendance={selectedPunchDate.attendance}
-          date={selectedPunchDate.date}
-          employeeName={report?.employee?.name}
-          shiftHours={report?.employee?.shift || 8}
-        />
+          className="flex items-center gap-3 px-4 py-3
+            cursor-pointer
+            hover:bg-indigo-50 transition
+            rounded-lg mx-1 my-1"
+        >
+          {emp.avatar ? (
+            <img
+              src={emp.avatar}
+              alt={emp.name}
+              className="h-9 w-9 rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <div
+              className="h-9 w-9 rounded-full bg-indigo-100 text-indigo-600
+                flex items-center justify-center font-semibold text-xs shrink-0"
+            >
+              {((emp.name || "")
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((n) => n[0])
+                .join("") || ""
+              ).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-800 truncate">{emp.name}</p>
+            <p className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</p>
+          </div>
+        </div>
+      ))
+    ) : (
+      <div className="py-8 text-center text-sm text-gray-400">
+        No matches found
+      </div>
+    )}
+  </div>
+)}
+
+    </div>
+
+    {/* Action buttons */}
+    <div className="flex items-center justify-end gap-2">
+      {(() => {
+        const emp = report?.employee;
+        const punchState = getTodayPunchState(emp);
+        const baseClass = "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition disabled:opacity-50";
+
+        if (punchState === "NOT_MARKED")
+          return (
+            <button disabled={isProcessingPunch} onClick={() => handlePunch(emp)} className={`${baseClass} bg-green-100 text-green-700 hover:bg-green-600 hover:text-white`}>
+              <FaUserCheck size={18} /> Mark Attendance
+            </button>
+          );
+        if (punchState === "IN")
+          return (
+            <button disabled={isProcessingPunch} onClick={() => handlePunch(emp)} className={`${baseClass} bg-red-100 text-red-700 hover:bg-red-600 hover:text-white`}>
+              Punch Out <IoMdLogOut size={20} />
+            </button>
+          );
+        return (
+          <button disabled={isProcessingPunch} onClick={() => handlePunch(emp)} className={`${baseClass} bg-green-100 text-green-700 hover:bg-green-600 hover:text-white`}>
+            Punch In <IoMdLogOut size={20} className="rotate-180" />
+          </button>
+        );
+      })()}
+    </div>
+  </div>
+
+  {/* Report Content */}
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+    <div className="md:col-span-5">
+      {/* Skeleton Loader */}
+      {(loading || initializing) && (
+        <div className="animate-pulse space-y-4">
+          <div className="h-20 bg-gray-200 rounded-lg w-full"></div>
+          <div className="h-12 bg-gray-200 rounded-lg w-full mt-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="h-28 bg-gray-200 rounded-lg"></div>
+            <div className="h-28 bg-gray-200 rounded-lg"></div>
+            <div className="h-28 bg-gray-200 rounded-lg"></div>
+          </div>
+          <div className="mt-4 overflow-auto">
+            <div className="h-8 bg-gray-200 rounded-lg mb-2 w-2/5"></div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded-lg mb-2 w-full"></div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actual report */}
+      {!loading && report && (
+        <>
+          <EmployeeSummary emp={report.employee} isMobile={false} />
+          <AttendanceFilter
+            filters={filters}
+            setFilters={setFilters}
+            onSearch={() => {
+              if (report?.employee?._id)
+                fetchReport({ employeeId: report.employee._id, month: filters.month, year: filters.year });
+            }}
+            reportData={report}
+            isMobile={false}
+          />
+          <MonthlySummaryCard
+            summary={report.summary}
+            days={report.days}
+            table={report.table}
+            holidays={holidays}
+            isMobile={false}
+            employee={report.employee}
+          />
+          <AttendanceTable
+            days={report.days}
+            data={report.table}
+            isMobile={false}
+            attendanceRaw={report.employee.attendance}
+            onCellClick={handleCellClick}
+            holidays={holidays}
+          />
+        </>
+      )}
+
+      {/* No Data */}
+      {!initializing && !loading && !report && !filters.search && (
+        <div className="text-center text-gray-400 py-10">
+          No data available
+        </div>
       )}
     </div>
+  </div>
+
+  <ManualAttendanceModal
+    isOpen={manualModalOpen}
+    onClose={() => setManualModalOpen(false)}
+    employees={employees}
+    onSubmit={handleManualAttendanceSubmit}
+  />
+  {selectedPunchDate && (
+    <PunchRecordsModal
+      isOpen={punchModalOpen}
+      onClose={() => {
+        setPunchModalOpen(false);
+        setSelectedPunchDate(null);
+      }}
+      attendance={selectedPunchDate.attendance}
+      date={selectedPunchDate.date}
+      employeeName={report?.employee?.name}
+      shiftHours={report?.employee?.shift || 8}
+    />
+  )}
+</div>
+
   );
 };
 

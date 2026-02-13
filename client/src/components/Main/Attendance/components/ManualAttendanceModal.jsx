@@ -3,14 +3,13 @@ import { IoChevronDown, IoCloseSharp } from 'react-icons/io5'
 import { Loader } from 'lucide-react'
 
 const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
-  const [loading, setLoading] = useState(false)
   const todayIso = new Date().toLocaleDateString('en-CA')
 
-const [employeeId, setEmployeeId] = useState("")
-const [search, setSearch] = useState("");
-const [searchFocused, setSearchFocused] = useState(false);
-const searchWrapRef = useRef(null);
-const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [employeeId, setEmployeeId] = useState("")
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [search, setSearch] = useState("")
+  const [searchFocused, setSearchFocused] = useState(false)
+  const searchWrapRef = useRef(null)
 
   const [date, setDate] = useState(todayIso)
   const [inHour, setInHour] = useState('')
@@ -19,9 +18,11 @@ const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [outHour, setOutHour] = useState('')
   const [outMinute, setOutMinute] = useState('00')
   const [outMeridiem, setOutMeridiem] = useState('PM')
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  // Reset modal fields on open/close
   useEffect(() => {
     if (isOpen) {
       setError('')
@@ -32,16 +33,22 @@ const [selectedEmployee, setSelectedEmployee] = useState(null)
       setOutHour('')
       setOutMinute('00')
       setOutMeridiem('PM')
-      // // Preselect first employee if available
-      // if (employees && employees.length > 0) {
-      //   setEmployeeId(employees[0]._id || employees[0].id || '')
-      // } else {
-      //   setEmployeeId('')
-      // }
+      setSearch('')
+      setSelectedEmployee(null)
+      setEmployeeId('')
     }
-  }, [isOpen, todayIso, employees])
+  }, [isOpen, todayIso])
 
-  if (!isOpen) return null
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
+        setSearchFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const isTodaySelected = date === todayIso
 
@@ -56,160 +63,122 @@ const [selectedEmployee, setSelectedEmployee] = useState(null)
     return `${hhStr}:${mmStr}:00 ${mer}`
   }
 
-// useEffect(() => {
-//   const handleClickOutside = (e) => {
-//     if (
-//       searchWrapRef.current &&
-//       !searchWrapRef.current.contains(e.target)
-//     ) {
-//       setSearchFocused(false)
-//     }
-//   }
+  const filteredEmployees = (employees || []).filter(emp => {
+    if (!searchFocused) return true
+    return (
+      emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.empId?.toLowerCase().includes(search.toLowerCase())
+    )
+  })
 
-//   document.addEventListener("mousedown", handleClickOutside)
-//   return () => document.removeEventListener("mousedown", handleClickOutside)
-// }, [])
+  const handleSubmit = async (e) => {
+  e.preventDefault()
+  setError('')
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
+  // Validation
+  if (!employeeId) { setError('Please select an employee'); return }
+  if (!date) { setError('Please select a date'); return }
+  if (!inHour) { setError('Please enter Punch-In hour'); return }
+  if (!inMinute) { setError('Please enter Punch-In minute'); return }
+  if (!inMeridiem) { setError('Please select Punch-In AM/PM'); return }
 
-  if (!employeeId) return setError('Please select an employee');
-  if (!date) return setError('Please select a date');
-  if (!inHour) return setError('Please enter Punch-In hour');
-  if (!inMinute) return setError('Please enter Punch-In minute');
-  if (!inMeridiem) return setError('Please select Punch-In AM/PM');
-
-  const inTime = buildAmPmTime(inHour, inMinute, inMeridiem);
-
- let outTime = '';
+  const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
+  let outTime = ''
   if (!isTodaySelected) {
-    if (!outHour) return setError('Please enter Punch-Out hour for past date');
-    if (!outMinute) return setError('Please enter Punch-Out minute for past date');
-    if (!outMeridiem) return setError('Please select Punch-Out AM/PM for past date');
-    outTime = buildAmPmTime(outHour, outMinute, outMeridiem);
+    if (!outHour || !outMinute || !outMeridiem) { 
+      setError('Please complete Punch-Out time for past date'); 
+      return 
+    }
+    outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
   }
 
+  setSubmitting(true)
+
   try {
-    setSubmitting(true);
-    await onSubmit({ employeeId, date, inTime, outTime });
-    onClose();
+    // Submit attendance
+    await onSubmit({ employeeId, date, inTime, outTime })
+
+    // Show success toast (you can use any toast library, e.g., react-hot-toast)
+    // toast.success("Attendance submitted successfully!")
+
+    // Close modal only after success
+    onClose()
+
   } catch (err) {
-    setError(err.message || 'Failed to submit');
+    setError(err.message || "Failed to submit attendance")
+
+    // Optional: show error toast
+    // toast.error(err.message || "Failed to submit attendance")
   } finally {
-    setSubmitting(false);
+    setSubmitting(false)
   }
 }
 
-  const filteredEmployees = (employees || []).filter(emp => {
-  if (!searchFocused) return true   // show all when not typing
 
-  return (
-    emp.name?.toLowerCase().includes(search.toLowerCase()) ||
-    emp.empId?.toLowerCase().includes(search.toLowerCase())
-  )
-})
+
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
       <div className="card-hover bg-white rounded-xl shadow-xl w-[95%] max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4 mb-8">
           <h2 className="text-xl font-semibold">Add Attendance (Past Date)</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-700 hover:text-black"
-          >
+          <button type="button" onClick={onClose} className="text-gray-700 hover:text-black">
             <IoCloseSharp size={24} />
           </button>
         </div>
 
-        {/* Body / Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* Employee Dropdown */}
-          <div className="relative">
-            <label className="block text-sm font-medium mb-1">
-              Select Employee <span className="text-red-500">*</span>
-            </label>
-
+          <div ref={searchWrapRef} className="relative">
+            <label className="block text-sm font-medium mb-1">Select Employee <span className="text-red-500">*</span></label>
             <div
               className="relative"
-              onClick={() => {
-  setSearchFocused(true)
-  // if (searchFocused)
-   setSearch("")   // reset filter when opening
-}}
+              onClick={() => { setSearchFocused(true); if (!searchFocused) setSearch('') }}
             >
               <input
                 type="text"
                 placeholder="Select or Search by name or emp id..."
-           value={
-  searchFocused
-    ? search
-    : selectedEmployee
-    ? `${selectedEmployee.name} (${selectedEmployee.empId})`
-    : ""
-}
-
+                value={searchFocused ? search : selectedEmployee ? `${selectedEmployee.name} (${selectedEmployee.empId})` : ""}
                 onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => {
-  setSearchFocused(true)
-  //  setSearch("")
-}}
-
+                onFocus={() => { setSearchFocused(true); if (!searchFocused) setSearch('') }}
                 className="w-full border rounded-lg px-3 py-2 pr-10 text-sm"
               />
-
-              {/* Dropdown / Dropup Icon */}
               <IoChevronDown
-                className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-transform duration-200 ${
-                  searchFocused ? 'rotate-180' : ''
-                }`}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-transform duration-200 ${searchFocused ? 'rotate-180' : ''}`}
                 size={18}
               />
             </div>
 
-            {/* Dropdown List */}
             {searchFocused && (
-              <div
-                ref={searchWrapRef}
-                 onMouseDown={(e) => e.stopPropagation()}
-                className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto"
-              >
+              <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto">
                 {filteredEmployees.length ? (
                   filteredEmployees.map(emp => (
                     <div
                       key={emp._id}
-                    onClick={() => {
-  setEmployeeId(emp._id)
-  setSelectedEmployee(emp)
-  setSearchFocused(false)
-}}
+                      onClick={() => { setEmployeeId(emp._id); setSelectedEmployee(emp); setSearchFocused(false) }}
                       className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
-                    > 
-                    <div className='flex col-span-2 gap-5'>
-                      <div className="font-medium">{emp.name}</div>
-                      <div className="text-xs py-1 text-gray-500">{emp.empId}</div>
-                    </div>
+                    >
+                      <div className='flex col-span-2 gap-5'>
+                        <div className="font-medium">{emp.name}</div>
+                        <div className="text-xs py-1 text-gray-500">{emp.empId}</div>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <div className="px-3 py-2 text-sm text-gray-400">
-                    No employee found
-                  </div>
+                  <div className="px-3 py-2 text-sm text-gray-400">No employee found</div>
                 )}
               </div>
             )}
           </div>
 
-
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -218,87 +187,47 @@ const handleSubmit = async (e) => {
               onChange={(e) => {
                 const newDate = e.target.value
                 setDate(newDate)
-                // Clear any previously entered Punch-Out when switching to today
                 if (newDate === todayIso) {
-                  setOutHour('')
-                  setOutMinute('00')
-                  setOutMeridiem('PM')
+                  setOutHour(''); setOutMinute('00'); setOutMeridiem('PM')
                 }
               }}
             />
           </div>
 
-          {/* Times Row */}
+          {/* Punch-In / Punch-Out */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Punch-In */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Punch-In Time <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Punch-In Time <span className="text-red-500">*</span></label>
               <div className="flex items-center gap-2">
-                <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={inHour}
-                  onChange={(e) => setInHour(e.target.value)}
-                >
+                <select value={inHour} onChange={(e) => setInHour(e.target.value)} className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">HH</option>
-                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
                 <span className="text-gray-600">:</span>
-                <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={inMinute}
-                  onChange={(e) => setInMinute(e.target.value)}
-                >
-                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
+                <select value={inMinute} onChange={(e) => setInMinute(e.target.value)} className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <select
-                  className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={inMeridiem}
-                  onChange={(e) => setInMeridiem(e.target.value)}
-                >
+                <select value={inMeridiem} onChange={(e) => setInMeridiem(e.target.value)} className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>
                 </select>
               </div>
             </div>
 
+            {/* Punch-Out */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Punch-Out Time
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Punch-Out Time</label>
               <div className="flex items-center gap-2">
-                <select
-                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  value={outHour}
-                  onChange={(e) => setOutHour(e.target.value)}
-                  disabled={isTodaySelected}
-                >
+                <select value={outHour} onChange={(e) => setOutHour(e.target.value)} disabled={isTodaySelected} className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
                   <option value="">HH</option>
-                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
                 <span className="text-gray-600">:</span>
-                <select
-                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  value={outMinute}
-                  onChange={(e) => setOutMinute(e.target.value)}
-                  disabled={isTodaySelected}
-                >
-                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
+                <select value={outMinute} onChange={(e) => setOutMinute(e.target.value)} disabled={isTodaySelected} className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
+                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <select
-                  className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  value={outMeridiem}
-                  onChange={(e) => setOutMeridiem(e.target.value)}
-                  disabled={isTodaySelected}
-                >
+                <select value={outMeridiem} onChange={(e) => setOutMeridiem(e.target.value)} disabled={isTodaySelected} className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
                   <option value="AM">AM</option>
                   <option value="PM">PM</option>
                 </select>
@@ -306,35 +235,20 @@ const handleSubmit = async (e) => {
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 mt-1">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
 
-          {/* Footer Buttons */}
+          {/* Footer */}
           <div className="mt-16 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium"
-              disabled={submitting}
-            >
-              Cancel
+            <button type="button" onClick={onClose} disabled={submitting} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">Cancel</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2">
+              {submitting && <Loader size={16} className="animate-spin" />}
+              {submitting ? 'Submitting...' : 'Submit'}
             </button>
-           <button
-  type="submit"
-  disabled={submitting} // disable while submitting
-  className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
->
-  {submitting && <Loader size={16} className="animate-spin" />}
-  {submitting ? 'Submitting...' : 'Submit'}
-</button>
-
           </div>
         </form>
       </div>
     </div>
   )
 }
-
 
 export default ManualAttendanceModal
