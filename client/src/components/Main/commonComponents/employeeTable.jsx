@@ -67,21 +67,21 @@ const TableSkeletonRow = ({ showActions }) => {
       )}
 
       {/* action buttons skeleton */}
-<td className="px-4 py-4">
-  {showActions ? (
-    /* Attendance page actions (usually 1–2 buttons wide) */
-    <div className="flex justify-center gap-3">
-      <div className="w-12 h-8 bg-gray-300 rounded-full" />
-    </div>
-  ) : (
-    /* Employee page actions (icon buttons) */
-    <div className="flex justify-center gap-2">
-      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
-      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
-      <div className="w-9 h-9 bg-gray-300 rounded-lg" />
-    </div>
-  )}
-</td>
+      <td className="px-4 py-4">
+        {showActions ? (
+          /* Attendance page actions (usually 1–2 buttons wide) */
+          <div className="flex justify-center gap-3">
+            <div className="w-12 h-8 bg-gray-300 rounded-full" />
+          </div>
+        ) : (
+          /* Employee page actions (icon buttons) */
+          <div className="flex justify-center gap-2">
+            <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+            <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+            <div className="w-9 h-9 bg-gray-300 rounded-lg" />
+          </div>
+        )}
+      </td>
     </tr>
   );
 };
@@ -90,13 +90,13 @@ const TableSkeletonRow = ({ showActions }) => {
 
 const EmployeeTable = ({
   employees = [],
-  onDelete = () => {},
-//   rowsPerPage = 5,
+  onDelete = () => { },
+  //   rowsPerPage = 5,
   initialDepartment = "",
-  onEdit = () => {},
-  onToggleStatus = () => {},
-  onNameClick = () => {},
-  onView = () => {},
+  onEdit = () => { },
+  onToggleStatus = () => { },
+  onNameClick = () => { },
+  onView = () => { },
   renderActions, // optional custom action renderer (emp) => JSX
   showFilters = true,
   filtersOptions = {}, // { departments:[], subDepartments:[], groups:[] }
@@ -122,189 +122,188 @@ const EmployeeTable = ({
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-//   const TableSkeletonRow = ({ columns = 11 }) => {
-//   return (
-//     <tr className="animate-pulse">
-//       {Array.from({ length: columns }).map((_, i) => (
-//         <td key={i} className="px-4 py-3">
-//           <div className="h-4 bg-gray-200 rounded w-full"></div>
-//         </td>
-//       ))}
-//     </tr>
-//   );
-// };
+  //   const TableSkeletonRow = ({ columns = 11 }) => {
+  //   return (
+  //     <tr className="animate-pulse">
+  //       {Array.from({ length: columns }).map((_, i) => (
+  //         <td key={i} className="px-4 py-3">
+  //           <div className="h-4 bg-gray-200 rounded w-full"></div>
+  //         </td>
+  //       ))}
+  //     </tr>
+  //   );
+  // };
 
-const formatDate = (date) => {
-  if (!date) return "—";
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
+  const formatDate = (date) => {
+    if (!date) return "—";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
   // When user clicks delete button
   const handleDeleteClick = (emp) => {
-  setEmployeeToDelete(emp);
-  setShowDeleteConfirm(true);
-};
+    setEmployeeToDelete(emp);
+    setShowDeleteConfirm(true);
+  };
 
-const closeDeleteModal = () => {
-  setShowDeleteConfirm(false);
-  setEmployeeToDelete(null);
-};
+  const closeDeleteModal = () => {
+    setShowDeleteConfirm(false);
+    setEmployeeToDelete(null);
+  };
 
-// DELETE EMPLOYEE CONFIRMATION MODAL
-const DeleteEmployeeConfirmationModal = () => {
-  if (!showDeleteConfirm || !employeeToDelete) return null;
+  // DELETE EMPLOYEE CONFIRMATION MODAL
+  const DeleteEmployeeConfirmationModal = () => {
+    if (!showDeleteConfirm || !employeeToDelete) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-red-100 rounded-lg">
-            <Trash2 className="text-red-600" size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Delete Employee
-            </h3>
-            <p className="text-sm text-gray-600">
-              This action cannot be undone
-            </p>
-          </div>
-        </div>
-
-        {/* Employee Info */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          {/* Header */}
           <div className="flex items-center gap-3 mb-4">
-            <img
-              src={employeeToDelete.avatar || DEFAULT_AVATAR}
-              alt="Employee"
-              className="w-12 h-12 rounded-full border"
-            />
+            <div className="p-3 bg-red-100 rounded-lg">
+              <Trash2 className="text-red-600" size={24} />
+            </div>
             <div>
-              <p className="font-semibold text-gray-900">
-                {employeeToDelete.name}
-              </p>
-              <p className="text-sm text-gray-500">
-                Employee ID: {employeeToDelete.empId}
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Employee
+              </h3>
+              <p className="text-sm text-gray-600">
+                This action cannot be undone
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 gap-x-19  text-sm">
-            <div>
-              <span className="text-gray-600">Department:</span>
-              <span className="ml-1 font-medium whitespace-nowrap">
-                {employeeToDelete.headDepartment?.name || "—"}
-              </span>
+          {/* Employee Info */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <img
+                src={employeeToDelete.avatar || DEFAULT_AVATAR}
+                alt="Employee"
+                className="w-12 h-12 rounded-full border"
+              />
+              <div>
+                <p className="font-semibold text-gray-900">
+                  {employeeToDelete.name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Employee ID: {employeeToDelete.empId}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <span className="text-gray-600">Sub Dept:</span>
-              <span className="ml-1 font-medium">
-                {employeeToDelete.subDepartment?.name || "—"}
-              </span>
-            </div>
+            <div className="grid grid-cols-2 gap-3 gap-x-19  text-sm">
+              <div>
+                <span className="text-gray-600">Department:</span>
+                <span className="ml-1 font-medium whitespace-nowrap">
+                  {employeeToDelete.headDepartment?.name || "—"}
+                </span>
+              </div>
 
-            <div>
-              <span className="text-gray-600">Status:</span>
-              <span
-                className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                  employeeToDelete.status === "active"
-                    ? "bg-green-200 text-green-700"
-                    : "bg-red-100 text-red-600"
-                }`}
-              >
-                {employeeToDelete.status}
-              </span>
-            </div>
+              <div>
+                <span className="text-gray-600">Sub Dept:</span>
+                <span className="ml-1 font-medium">
+                  {employeeToDelete.subDepartment?.name || "—"}
+                </span>
+              </div>
 
-            <div>
-              <span className="text-gray-600">Joined:</span>
-              <span className="ml-1">
-               {" "}
-          <strong>
-              {formatDate(employeeToDelete?.createdAt)}
-          </strong>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={closeDeleteModal}
-            disabled={deleting}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleConfirmDelete}
-            disabled={deleting}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50"
-          >
-            {deleting ? (
-              <>
-                <svg
-                  className="animate-spin h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+              <div>
+                <span className="text-gray-600">Status:</span>
+                <span
+                  className={`ml-1 px-2 py-1 rounded-full text-xs ${employeeToDelete.status === "active"
+                      ? "bg-green-200 text-green-700"
+                      : "bg-red-100 text-red-600"
+                    }`}
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Deleting...
-              </>
-            ) : (
-              <>
-                <Trash2 size={16} />
-                Delete Permanently
-              </>
-            )}
-          </button>
+                  {employeeToDelete.status}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-600">Joined:</span>
+                <span className="ml-1">
+                  {" "}
+                  <strong>
+                    {formatDate(employeeToDelete?.createdAt)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={closeDeleteModal}
+              disabled={deleting}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50"
+            >
+              {deleting ? (
+                <>
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 size={16} />
+                  Delete Permanently
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 
-const handleConfirmDelete = () => {
-  if (!employeeToDelete) return;
+  const handleConfirmDelete = () => {
+    if (!employeeToDelete) return;
 
-  // ✅ ONLY notify parent
-  onDelete(employeeToDelete._id);
-  
+    // ✅ ONLY notify parent
+    onDelete(employeeToDelete._id);
 
-  // ✅ close modal immediately
-  closeDeleteModal();
-};
 
-useEffect(() => {
-  if (initialDepartment) {
-    setDepartment(initialDepartment);
-  }
-}, [initialDepartment]);
+    // ✅ close modal immediately
+    closeDeleteModal();
+  };
+
+  useEffect(() => {
+    if (initialDepartment) {
+      setDepartment(initialDepartment);
+    }
+  }, [initialDepartment]);
 
   // Fetch all schema options from backend
   useEffect(() => {
@@ -373,50 +372,50 @@ useEffect(() => {
 
   // When table requires action columns (present/absent) fetch monthly summaries for employees on current page
   useEffect(() => {
-  let mounted = true
-  if (!renderActions || currentData.length === 0) return
+    let mounted = true
+    if (!renderActions || currentData.length === 0) return
 
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
+    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 
-  const fetchSummaries = async () => {
-    try {
-      const token =
-        sessionStorage.getItem("token") || localStorage.getItem("token")
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const fetchSummaries = async () => {
+      try {
+        const token =
+          sessionStorage.getItem("token") || localStorage.getItem("token")
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
-      const ids = currentData.map(e => e._id || e.id).filter(Boolean)
-      if (!ids.length) return
+        const ids = currentData.map(e => e._id || e.id).filter(Boolean)
+        if (!ids.length) return
 
-      const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
-        params: {
-          month: `${currentYear}-${currentMonth}`,
-          employeeIds: ids.join(",")
-        },
-        headers
-      })
+        const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
+          params: {
+            month: `${currentYear}-${currentMonth}`,
+            employeeIds: ids.join(",")
+          },
+          headers
+        })
 
-      if (!mounted) return
+        if (!mounted) return
 
-      const map = {}
-      const backendMap = res.data?.data?.map || {}
+        const map = {}
+        const backendMap = res.data?.data?.map || {}
 
-      ids.forEach(id => {
-        const s = backendMap[id]
-        map[id] = {
-          present: s?.totalPresent || 0,
-          absent: s?.totalAbsent || 0
-        }
-      })
+        ids.forEach(id => {
+          const s = backendMap[id]
+          map[id] = {
+            present: s?.totalPresent || 0,
+            absent: s?.totalAbsent || 0
+          }
+        })
 
-      setSummaryMap(map)
-    } catch (err) {
-      console.error("Monthly summary fetch failed", err)
+        setSummaryMap(map)
+      } catch (err) {
+        console.error("Monthly summary fetch failed", err)
+      }
     }
-  }
 
-  fetchSummaries()
-  return () => { mounted = false }
-}, [renderActions, currentData, currentMonth, currentYear])
+    fetchSummaries()
+    return () => { mounted = false }
+  }, [renderActions, currentData, currentMonth, currentYear])
 
   const countsMap = useMemo(() => summaryMap, [summaryMap]);
 
@@ -442,11 +441,10 @@ useEffect(() => {
                 transition-all duration-300 ease-out
                 focus:outline-none
                 flex items-center
-                ${
-                  isActive
-                    ? "bg-gradient-to-r from-green-400 to-green-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(34,197,94,0.45)]"
-                    : "bg-gradient-to-r from-red-400 to-red-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(239,68,68,0.45)]"
-                }
+                ${isActive
+            ? "bg-gradient-to-r from-green-400 to-green-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(34,197,94,0.45)]"
+            : "bg-gradient-to-r from-red-400 to-red-600 shadow-[inset_0_-1px_2px_rgba(0,0,0,0.35),0_4px_10px_rgba(239,68,68,0.45)]"
+          }
             `}
       >
         {/* Toggle Knob */}
@@ -697,279 +695,279 @@ useEffect(() => {
         {/* {loading ? (
           <Spinner />
         ) : ( */}
-          <table className="w-full table-auto">
-            <thead>
-              <tr className="bg-gray-100 text-gray-800 text-left">
-                <th className="px-4 py-3">#</th>
-                <th className="px-4 py-3">Emp ID</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Father Name</th>
-                <th className="px-4 py-3">Mobile</th>
-                <th className="px-4 py-3">Salary</th>
-                <th className="px-4 py-3">Department</th>
-                <th className="px-4 py-3">Sub Dept.</th>
-                <th className="px-4 py-3">Designation</th>
-                <th className="px-4 py-3">Status</th>
-                {renderActions && (
-                  <>
-                    <th title="Total Present this Month" className="px-4 py-3">
-                      Present
-                    </th>
-                    <th title="Total Absent this Month" className="px-4 py-3">
-                      Absent
-                    </th>
-                  </>
-                )}
-                <th className="px-4 py-3">Action</th>
-              </tr>
-            </thead>
-
-
- <tbody>
-             {loading ? (
-      <>
-       {Array.from({ length: 8 }).map((_, i) => (
-      <TableSkeletonRow
-        key={i}
-        showActions={!!renderActions}
-      />
-        ))}
-      </>
-    ) : currentData.length ? (
-      currentData.map((emp, i) => {
-                  const statusClass =
-                    emp.attendanceStatus === "present"
-                      ? "bg-green-100"
-                      : emp.attendanceStatus === "absent"
-                        ? "bg-red-100"
-                        : "";
-                  return (
-                    <tr
-                      key={emp.id || emp._id}
-                      className={`border-b transition ${statusClass} fade-in`}
-                    >
-                      <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
-                      <td
-                        // onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
-                        className="px-4 py-3"
-                      >
-                        {emp.empId}
-                      </td>
-                      <td
-                        title={
-                          renderActions
-                            ? "Click to View Attendace Report"
-                            : "Click to View Profile"
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNameClick(emp);
-                        }}
-                        className="px-4 py-3 my-1 flex items-center gap-3 hover:bg-gray-200 hover:rounded-4xl cursor-pointer"
-                      >
-                        {emp.avatar ? (
-                          <img
-                            src={emp.avatar || DEFAULT_AVATAR}
-                            alt="Profile"
-                            className="w-10 h-10 rounded-full border"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-gray-300 text-gray-700 font-bold">
-                            {emp.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()}
-                          </div>
-                        )}
-                        <span className="font-semibold text-gray-900 text-left hover:underline cursor-pointer">
-                          {emp.name.split(" ")[0]} <br />{" "}
-                          {emp.name.split(" ")[1]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">{emp.fatherName || "—"}</td>
-                      <td className="px-4 py-3">{emp.mobile || "—"}</td>
-                      <td className="px-4 py-3">
-                        {typeof emp.salary === "number"
-                          ? `₹${emp.salary}`
-                          : emp.salary
-                            ? `₹${emp.salary}`
-                            : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {emp.headDepartment?.name || emp.headDepartment || ""}
-                      </td>
-                      <td className="px-4 py-3">
-                        {emp.subDepartment?.name || emp.subDepartment || ""}
-                      </td>
-                      <td className="px-4 py-3">
-                        {emp.designation?.name || emp.designation || ""}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!renderActions
-                          ? (() => {
-                              const id = emp._id || emp.id;
-                              const displayed =
-                                localStatusMap[id] ?? emp.status;
-                              const isPending = Boolean(pendingToggles[id]);
-                              return (
-                                <StatusToggle3D
-                                  isActive={displayed === "active"}
-                                  isPending={isPending}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!isPending)
-                                      toggleStatusOptimistic(
-                                        id,
-                                        localStatusMap[id] ?? emp.status,
-                                      );
-                                  }}
-                                />
-                              );
-                            })()
-                          : (() => {
-                              const id = emp._id || emp.id;
-                              const displayed =
-                                localStatusMap[id] ?? emp.status;
-                              const isPending = Boolean(pendingToggles[id]);
-                              return (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!isPending)
-                                      toggleStatusOptimistic(
-                                        id,
-                                        localStatusMap[id] ?? emp.status,
-                                      );
-                                  }}
-                                  disabled={isPending}
-                                  className={`px-3 py-1 rounded-full text-sm ${displayed === "active" ? "bg-green-200 text-green-600" : "bg-red-100 text-red-600"} ${isPending ? "opacity-60 cursor-not-allowed" : ""}`}
-                                >
-                                  <span
-                                    className={`inline-flex items-center ${isPending ? "gap-2" : ""}`}
-                                  >
-                                    {isPending && (
-                                      <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-                                    )}
-                                    <span>
-                                      {displayed === "active"
-                                        ? "Active"
-                                        : "Inactive"}
-                                    </span>
-                                  </span>
-                                </button>
-                              );
-                            })()}
-                      </td>
-
-                      {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}
-                      {renderActions && (
-                        <>
-                          <td
-                            title="Total Present this Month"
-                            className="px-8 text-center text-green-700 font-bold"
-                          >
-                            {(() => {
-                              const key = emp._id || emp.id;
-                              const v = countsMap[key];
-                              return v && typeof v.present === "number" ? (
-                                <div className="border-b-2 bg-green-200 rounded-full shadow-2xl">
-                                  {v.present}
-                                </div>
-                              ) : (
-                                <div className="flex space-x-0.5">
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
-                                </div>
-                              );
-                            })()}
-                          </td>
-                          <td
-                            title="Total Absent this Month"
-                            className="px-8 text-center text-red-600 font-bold"
-                          >
-                            {(() => {
-                              const key = emp._id || emp.id;
-                              const v = countsMap[key];
-                              return v && typeof v.absent === "number" ? (
-                                <div className="border-b-2 bg-red-200 rounded-full shadow-2xl">
-                                  {v.absent}
-                                </div>
-                              ) : (
-                                <div className="flex space-x-0.5">
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                  <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
-                                </div>
-                              );
-                            })()}
-                          </td>
-                        </>
-                      )}
-                      <td className="text-center">
-                        {renderActions ? (
-                          <div className="flex justify-start items-center">
-                            {renderActions(emp)}
-                          </div>
-                        ) : (
-                          <div className="flex justify-center items-center gap-2 mr-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (typeof onView === "function") onView(emp);
-                                else onNameClick(emp);
-                              }}
-                              className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
-                              title="View Details"
-                            >
-                              <Eye size={20} />
-                            </button>
-                            <button
-                              title="Edit Employee"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(emp);
-                              }}
-                              className="p-1 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
-                            >
-                              <FiEdit size={18} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClick(emp);
-                              }}
-                              title="Delete Employee"
-                              className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
-                            >
-                              <MdDeleteOutline size={22} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan={renderActions ? 13 : 11}
-                    className="text-center py-6 text-gray-500"
-                  >
-                    <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
-                      No employees found
-                    </div>
-                  </td>
-                </tr>
+        <table className="w-full table-auto">
+          <thead>
+            <tr className="bg-gray-100 text-gray-800 text-left">
+              <th className="px-4 py-3">#</th>
+              <th className="px-4 py-3">Emp ID</th>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Father Name</th>
+              <th className="px-4 py-3">Mobile</th>
+              <th className="px-4 py-3">Salary</th>
+              <th className="px-4 py-3">Department</th>
+              <th className="px-4 py-3">Sub Dept.</th>
+              <th className="px-4 py-3">Designation</th>
+              <th className="px-4 py-3">Status</th>
+              {renderActions && (
+                <>
+                  <th title="Total Present this Month" className="px-4 py-3">
+                    Present
+                  </th>
+                  <th title="Total Absent this Month" className="px-4 py-3">
+                    Absent
+                  </th>
+                </>
               )}
-            </tbody>
-          </table>
-        
+              <th className="px-4 py-3">Action</th>
+            </tr>
+          </thead>
 
-     
-            { /* DeleteConfirmationModal */}
-     <DeleteEmployeeConfirmationModal />
+
+          <tbody>
+            {loading ? (
+              <>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <TableSkeletonRow
+                    key={i}
+                    showActions={!!renderActions}
+                  />
+                ))}
+              </>
+            ) : currentData.length ? (
+              currentData.map((emp, i) => {
+                const statusClass =
+                  emp.attendanceStatus === "present"
+                    ? "bg-green-100"
+                    : emp.attendanceStatus === "absent"
+                      ? "bg-red-100"
+                      : "";
+                return (
+                  <tr
+                    key={emp.id || emp._id}
+                    className={`border-b transition ${statusClass} fade-in`}
+                  >
+                    <td className="px-4 py-3">{indexOfFirst + i + 1}</td>
+                    <td
+                      // onClick={(e) => { e.stopPropagation(); onNameClick(emp) }}
+                      className="px-4 py-3"
+                    >
+                      {emp.empId}
+                    </td>
+                    <td
+                      title={
+                        renderActions
+                          ? "Click to View Attendace Report"
+                          : "Click to View Profile"
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNameClick(emp);
+                      }}
+                      className="px-4 py-3 my-1 flex items-center gap-3 hover:bg-gray-200 hover:rounded-4xl cursor-pointer"
+                    >
+                      {emp.avatar ? (
+                        <img
+                          src={emp.avatar || DEFAULT_AVATAR}
+                          alt="Profile"
+                          className="w-10 h-10 rounded-full border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-gray-300 text-gray-700 font-bold">
+                          {emp.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()}
+                        </div>
+                      )}
+                      <span className="font-semibold text-gray-900 text-left hover:underline cursor-pointer">
+                        {emp.name.split(" ")[0]} <br />{" "}
+                        {emp.name.split(" ")[1]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{emp.fatherName || "—"}</td>
+                    <td className="px-4 py-3">{emp.mobile || "—"}</td>
+                    <td className="px-4 py-3">
+                      {typeof emp.salary === "number"
+                        ? `₹${emp.salary}`
+                        : emp.salary
+                          ? `₹${emp.salary}`
+                          : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {emp.headDepartment?.name || emp.headDepartment || ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      {emp.subDepartment?.name || emp.subDepartment || ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      {emp.designation?.name || emp.designation || ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      {!renderActions
+                        ? (() => {
+                          const id = emp._id || emp.id;
+                          const displayed =
+                            localStatusMap[id] ?? emp.status;
+                          const isPending = Boolean(pendingToggles[id]);
+                          return (
+                            <StatusToggle3D
+                              isActive={displayed === "active"}
+                              isPending={isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isPending)
+                                  toggleStatusOptimistic(
+                                    id,
+                                    localStatusMap[id] ?? emp.status,
+                                  );
+                              }}
+                            />
+                          );
+                        })()
+                        : (() => {
+                          const id = emp._id || emp.id;
+                          const displayed =
+                            localStatusMap[id] ?? emp.status;
+                          const isPending = Boolean(pendingToggles[id]);
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isPending)
+                                  toggleStatusOptimistic(
+                                    id,
+                                    localStatusMap[id] ?? emp.status,
+                                  );
+                              }}
+                              disabled={isPending}
+                              className={`px-3 py-1 rounded-full text-sm ${displayed === "active" ? "bg-green-200 text-green-600" : "bg-red-100 text-red-600"} ${isPending ? "opacity-60 cursor-not-allowed" : ""}`}
+                            >
+                              <span
+                                className={`inline-flex items-center ${isPending ? "gap-2" : ""}`}
+                              >
+                                {isPending && (
+                                  <span className="w-3 h-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                                )}
+                                <span>
+                                  {displayed === "active"
+                                    ? "Active"
+                                    : "Inactive"}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })()}
+                    </td>
+
+                    {/* shows total Present and Absent of current month (computed from employee.attendance when available) */}
+                    {renderActions && (
+                      <>
+                        <td
+                          title="Total Present this Month"
+                          className="px-8 text-center text-green-700 font-bold"
+                        >
+                          {(() => {
+                            const key = emp._id || emp.id;
+                            const v = countsMap[key];
+                            return v && typeof v.present === "number" ? (
+                              <div className="border-b-2 bg-green-200 rounded-full shadow-2xl">
+                                {v.present}
+                              </div>
+                            ) : (
+                              <div className="flex space-x-0.5">
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td
+                          title="Total Absent this Month"
+                          className="px-8 text-center text-red-600 font-bold"
+                        >
+                          {(() => {
+                            const key = emp._id || emp.id;
+                            const v = countsMap[key];
+                            return v && typeof v.absent === "number" ? (
+                              <div className="border-b-2 bg-red-200 rounded-full shadow-2xl">
+                                {v.absent}
+                              </div>
+                            ) : (
+                              <div className="flex space-x-0.5">
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce"></span>
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                <span className="w-1 h-1 bg-gray-900 rounded-full animate-bounce [animation-delay:-0.6s]"></span>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                      </>
+                    )}
+                    <td className="text-center">
+                      {renderActions ? (
+                        <div className="flex justify-start items-center">
+                          {renderActions(emp)}
+                        </div>
+                      ) : (
+                        <div className="flex justify-center items-center gap-2 mr-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (typeof onView === "function") onView(emp);
+                              else onNameClick(emp);
+                            }}
+                            className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                            title="View Details"
+                          >
+                            <Eye size={20} />
+                          </button>
+                          <button
+                            title="Edit Employee"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(emp);
+                            }}
+                            className="p-1 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                          >
+                            <FiEdit size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(emp);
+                            }}
+                            title="Delete Employee"
+                            className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110 cursor-pointer"
+                          >
+                            <MdDeleteOutline size={22} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td
+                  colSpan={renderActions ? 13 : 11}
+                  className="text-center py-6 text-gray-500"
+                >
+                  <div className="w-sm flex flex-col mx-auto items-center border-dashed border-2 border-gray-300 rounded-lg p-6 gap-4">
+                    No employees found
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+
+
+        { /* DeleteConfirmationModal */}
+        <DeleteEmployeeConfirmationModal />
 
 
         {filtered.length > 0 && (

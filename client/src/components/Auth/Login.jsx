@@ -12,7 +12,7 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
 
   const validate = () => {
     let newErrors = {};
@@ -48,14 +48,17 @@ const Login = () => {
       if (!res.ok) throw new Error(data.message || 'Login failed')
       // store token and user based on keepLoggedIn
       try {
+        console.log('keepLoggedIn:', keepLoggedIn);
         if (keepLoggedIn) {
+          console.log('Storing in localStorage');
           localStorage.setItem('token', data.data.token)
           localStorage.setItem('user', JSON.stringify(data.data.user))
           sessionStorage.removeItem('token')
           sessionStorage.removeItem('user')
           sessionStorage.removeItem('expiresAt')
         } else {
-          const expiresAt = Date.now() + 2 * 60 * 1000 // 2 minutes
+          console.log('Storing in sessionStorage');
+          const expiresAt = Date.now() + 10 * 50000 // 5 min
           sessionStorage.setItem('token', data.data.token)
           sessionStorage.setItem('user', JSON.stringify(data.data.user))
           sessionStorage.setItem('expiresAt', String(expiresAt))
@@ -150,7 +153,7 @@ const Login = () => {
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                // checked={keepLoggedIn}
+                checked={keepLoggedIn}
                 onChange={(e) => setKeepLoggedIn(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
               />

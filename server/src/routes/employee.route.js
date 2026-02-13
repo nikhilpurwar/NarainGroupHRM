@@ -19,16 +19,16 @@ import {
   confirmRecognition,
   validateFaceCache,
 } from "../controllers/employee.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, checkUserActive } from "../middleware/auth.middleware.js";
 import { checkPermission } from "../middleware/permission.middleware.js";
 import { uploadVehiclePdf } from "../middleware/uploadVehiclePdf.js";
 
 const router = express.Router();
 
-router.post("/", authenticate, checkPermission, uploadVehiclePdf.single("vehicleDocument"), createEmployee);
-router.get("/", authenticate, checkPermission, getEmployees);
-router.get("/barcodes", authenticate, checkPermission, getBarcodes);
-router.get("/qrcodes", authenticate, checkPermission, getQRCodes);
+router.post("/", authenticate, checkUserActive, checkPermission, uploadVehiclePdf.single("vehicleDocument"), createEmployee);
+router.get("/", authenticate, checkUserActive, checkPermission, getEmployees);
+router.get("/barcodes", authenticate, checkUserActive, checkPermission, getBarcodes);
+router.get("/qrcodes", authenticate, checkUserActive, checkPermission, getQRCodes);
 router.get("/face-recognition", getEmployeesForFaceRecognition); // Get employees with face data
 router.get("/face/test", testFaceService); // Test face service
 router.post("/face/test", testFaceService); // Test face service
@@ -40,11 +40,11 @@ router.post("/recognition-feedback", recognitionFeedback); // Feedback from mobi
 router.post("/confirm-recognition", confirmRecognition); // Client-confirmed recognition -> update template
 router.get("/attendance/barcode", addAttendance); // For barcode scanner GET
 router.post("/attendance/barcode", addAttendance); // For barcode scanner POST
-router.get("/:id", authenticate, getEmployeeById);
-router.get("/:id/profile", authenticate, getEmployeeProfile);
-router.put("/:id", authenticate, checkPermission, uploadVehiclePdf.single("vehicleDocument"), updateEmployee);
-router.delete("/:id", authenticate, checkPermission, deleteEmployee);
-router.post("/:id/attendance", authenticate, addAttendance);
-router.get("/:id/attendance", authenticate, getAttendance);
+router.get("/:id", authenticate, checkUserActive, getEmployeeById);
+router.get("/:id/profile", authenticate, checkUserActive, getEmployeeProfile);
+router.put("/:id", authenticate, checkUserActive, checkPermission, uploadVehiclePdf.single("vehicleDocument"), updateEmployee);
+router.delete("/:id", authenticate, checkUserActive, checkPermission, deleteEmployee);
+router.post("/:id/attendance", authenticate, checkUserActive, addAttendance);
+router.get("/:id/attendance", authenticate, checkUserActive, getAttendance);
 
 export default router;

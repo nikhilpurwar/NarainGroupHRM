@@ -1,5 +1,6 @@
 import Employee from "../models/employee.model.js";
 import User from "../models/setting.model/user.model.js";
+import { findPermissionByCandidates } from '../utils/permissionCache.js'
 import Attendance from "../models/attendance.model.js";
 import Holiday from "../models/setting.model/holidays.model.js";
 import Advance from "../models/advance.model.js";
@@ -231,23 +232,50 @@ export const getEmployeeById = async (req, res) => {
 
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
 
-    // If requester is not Admin, allow access only to their own employee profile
-    try {
-      const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
-          const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
-          if (role !== 'admin') {
-        const requesterEmail = requester?.email
-        // Allow if user's email matches employee.empId or employee.email
-        if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
-          return res.status(403).json({ success: false, message: 'Forbidden' })
-        }
-      }
-    } catch (e) {
-      // if user lookup fails, deny access for non-admins
-          if (!(req.user && (req.user.role || '').toString().toLowerCase() === 'admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+    const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
+    const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
+    const requesterEmail = requester?.email
+
+    // Admin bypass
+    if (role === 'admin') return res.json({ success: true, data: emp });
+
+    // Own profile check: ALWAYS allow users to view their own profile
+    // Check 1: Match by email/empId
+    if (requesterEmail && (emp.empId === requesterEmail || emp.email === requesterEmail)) {
+      return res.json({ success: true, data: emp });
+    }
+    // Check 2: Match by user.employee reference (primary method)
+    if (requester?.employee && String(requester.employee) === String(emp._id)) {
+      return res.json({ success: true, data: emp });
+    }
+    // Check 3: Match by user ID to employee ID (fallback)
+    if (req.user?.id && String(req.user.id) === String(emp._id)) {
+      return res.json({ success: true, data: emp });
     }
 
-    res.json({ success: true, data: emp });
+    // Not own profile - check permission for viewing others
+    const requestPath = req.path
+    const base = req.baseUrl || ''
+    const original = req.originalUrl || ''
+    const candidates = []
+    if (requestPath) candidates.push(requestPath)
+    if (base) candidates.push(base + requestPath)
+    if (original) candidates.push(original.split('?')[0])
+    const strippedBase = (base || '').replace(/^\/api/, '').replace(/^\/settings/, '')
+    if (strippedBase) candidates.push(strippedBase)
+    const normalized = Array.from(new Set(candidates.map(c => c.replace(/\/+$|\/+/g, '/').replace(/\/+$/g, '')))).filter(Boolean)
+
+    const perm = findPermissionByCandidates(normalized)
+    if (!perm || !perm.allowedRoles || (Array.isArray(perm.allowedRoles) && perm.allowedRoles.length === 0)) {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not have permission to view this profile.' })
+    }
+    
+    const allowedLower = perm.allowedRoles.map(r => (r || '').toString().toLowerCase())
+    if (!allowedLower.includes(role)) {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not have permission to view this profile.' })
+    }
+
+    return res.json({ success: true, data: emp });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1545,20 +1573,51 @@ export const getEmployeeProfile = async (req, res) => {
       .populate('subDepartment')
       .populate('designation');
     if (!emp) return res.status(404).json({ success: false, message: "Not found" });
-    // Same access control as getEmployeeById
-    try {
-      const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
-      const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
-      if (role !== 'admin') {
-        const requesterEmail = requester?.email
-        if (!requesterEmail || (emp.empId !== requesterEmail && emp.email !== requesterEmail)) {
-          return res.status(403).json({ success: false, message: 'Forbidden' })
-        }
-      }
-    } catch (e) {
-      if (!(req.user && (req.user.role || '').toString().toLowerCase() === 'admin')) return res.status(403).json({ success: false, message: 'Forbidden' })
+    
+    const requester = req.user && req.user.id ? await User.findById(req.user.id).lean() : null
+    const role = (requester?.role || (req.user && req.user.role) || '').toString().toLowerCase()
+    const requesterEmail = requester?.email
+
+    // Admin bypass
+    if (role === 'admin') return res.json({ success: true, data: emp })
+
+    // Own profile check: ALWAYS allow users to view their own profile
+    // Check 1: Match by email/empId
+    if (requesterEmail && (emp.empId === requesterEmail || emp.email === requesterEmail)) {
+      return res.json({ success: true, data: emp })
     }
-    res.json({ success: true, data: emp });
+    // Check 2: Match by user.employee reference (primary method)
+    if (requester?.employee && String(requester.employee) === String(emp._id)) {
+      return res.json({ success: true, data: emp })
+    }
+    // Check 3: Match by user ID to employee ID (fallback)
+    if (req.user?.id && String(req.user.id) === String(emp._id)) {
+      return res.json({ success: true, data: emp })
+    }
+
+    // Not own profile - check permission for viewing others
+    const requestPath = req.path
+    const base = req.baseUrl || ''
+    const original = req.originalUrl || ''
+    const candidates = []
+    if (requestPath) candidates.push(requestPath)
+    if (base) candidates.push(base + requestPath)
+    if (original) candidates.push(original.split('?')[0])
+    const strippedBase = (base || '').replace(/^\/api/, '').replace(/^\/settings/, '')
+    if (strippedBase) candidates.push(strippedBase)
+    const normalized = Array.from(new Set(candidates.map(c => c.replace(/\/+$|\/+/g, '/').replace(/\/+$/g, '')))).filter(Boolean)
+
+    const perm = findPermissionByCandidates(normalized)
+    if (!perm || !perm.allowedRoles || (Array.isArray(perm.allowedRoles) && perm.allowedRoles.length === 0)) {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not have permission to view this profile.' })
+    }
+    
+    const allowedLower = perm.allowedRoles.map(r => (r || '').toString().toLowerCase())
+    if (!allowedLower.includes(role)) {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not have permission to view this profile.' })
+    }
+
+    return res.json({ success: true, data: emp })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
