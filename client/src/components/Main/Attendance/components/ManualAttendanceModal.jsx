@@ -70,65 +70,36 @@ const [selectedEmployee, setSelectedEmployee] = useState(null)
 //   return () => document.removeEventListener("mousedown", handleClickOutside)
 // }, [])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    setError('')
-    
-    if (!employeeId) {
-      setError('Please select an employee')
-      return
-    }
-    if (!date) {
-      setError('Please select a date')
-      return
-    }
-    if (!inHour) {
-      setError('Please enter Punch-In hour')
-      return
-    }
-    if (!inMinute) {
-      setError('Please enter Punch-In minute')
-       setLoading(true)
-      return
-    }
-    if (!inMeridiem) {
-      setError('Please select Punch-In AM/PM')
-     
-      setLoading(false)
-      return
-    }
-    
-    
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
 
+  if (!employeeId) return setError('Please select an employee');
+  if (!date) return setError('Please select a date');
+  if (!inHour) return setError('Please enter Punch-In hour');
+  if (!inMinute) return setError('Please enter Punch-In minute');
+  if (!inMeridiem) return setError('Please select Punch-In AM/PM');
 
-    const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
+  const inTime = buildAmPmTime(inHour, inMinute, inMeridiem);
 
-    // For back-date (not today) require Punch-Out fields as well
-    let outTime = ''
-    if (!isTodaySelected) {
-      if (!outHour) {
-        setError('Please enter Punch-Out hour for past date')
-        return
-      }
-      if (!outMinute) {
-        setError('Please enter Punch-Out minute for past date')
-        return
-      }
-      if (!outMeridiem) {
-        setError('Please select Punch-Out AM/PM for past date')
-        return
-      }
-      outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
-    }
-
-    try {
-      setSubmitting(true)
-      await onSubmit({ employeeId, date, inTime, outTime })
-    } finally {
-      setSubmitting(false)
-    }
+ let outTime = '';
+  if (!isTodaySelected) {
+    if (!outHour) return setError('Please enter Punch-Out hour for past date');
+    if (!outMinute) return setError('Please enter Punch-Out minute for past date');
+    if (!outMeridiem) return setError('Please select Punch-Out AM/PM for past date');
+    outTime = buildAmPmTime(outHour, outMinute, outMeridiem);
   }
+
+  try {
+    setSubmitting(true);
+    await onSubmit({ employeeId, date, inTime, outTime });
+    onClose();
+  } catch (err) {
+    setError(err.message || 'Failed to submit');
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   const filteredEmployees = (employees || []).filter(emp => {
   if (!searchFocused) return true   // show all when not typing

@@ -371,51 +371,78 @@ const EmployeeTable = ({
   const [summaryMap, setSummaryMap] = useState({});
 
   // When table requires action columns (present/absent) fetch monthly summaries for employees on current page
-  useEffect(() => {
-    let mounted = true
-    if (!renderActions || currentData.length === 0) return
+useEffect(() => {
+  let mounted = true
+  if (!renderActions || currentData.length === 0) return
+  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
 
-    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
+  const fetchSummaries = async () => {
+    try {
+      const token =
+        sessionStorage.getItem("token") || localStorage.getItem("token")
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
-    const fetchSummaries = async () => {
-      try {
-        const token =
-          sessionStorage.getItem("token") || localStorage.getItem("token")
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const results = await Promise.all(
+        currentData.map(async emp => {
+          const id = emp._id || emp.id
 
-        const ids = currentData.map(e => e._id || e.id).filter(Boolean)
-        if (!ids.length) return
+          const res = await axios.get(`${apiUrl}/api/attendance-report`, {
+            params: {
+              employeeId: id,
+              month: currentMonth,
+              year: currentYear
+            },
+            headers
+          })
 
-        const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
-          params: {
-            month: `${currentYear}-${currentMonth}`,
-            employeeIds: ids.join(",")
-          },
-          headers
-        })
+          const { days = [], table = {}, holidays = [] } = res.data?.data || {}
 
-        if (!mounted) return
+          let present = 0
+          let absent = 0
 
-        const map = {}
-        const backendMap = res.data?.data?.map || {}
+          const statusRow = table['Status'] || []
 
-        ids.forEach(id => {
-          const s = backendMap[id]
-          map[id] = {
-            present: s?.totalPresent || 0,
-            absent: s?.totalAbsent || 0
+          for (let i = 0; i < days.length; i++) {
+            const iso = days[i].iso
+            const dayDate = new Date(iso)
+            dayDate.setHours(0,0,0,0)
+
+            // skip holidays
+            if (holidays.some(h => h.date?.split('T')[0] === iso)) continue
+
+            // skip before joining
+            if (emp.createdAt && dayDate < new Date(emp.createdAt)) continue
+
+            const st = String(statusRow[i] || '').toLowerCase()
+
+            if (st === 'present' || st === 'halfday') present++
+            else if (st === 'absent') absent++
           }
+
+          return { id, present, absent }
         })
+      )
 
-        setSummaryMap(map)
-      } catch (err) {
-        console.error("Monthly summary fetch failed", err)
-      }
+      if (!mounted) return
+
+      const map = {}
+      results.forEach(r => {
+        map[r.id] = { present: r.present, absent: r.absent }
+      })
+
+      setSummaryMap(map)
+
+    } catch (err) {
+      console.error("Summary recompute failed", err)
     }
+  }
 
-    fetchSummaries()
-    return () => { mounted = false }
-  }, [renderActions, currentData, currentMonth, currentYear])
+  fetchSummaries()
+  return () => { mounted = false }
+}, [renderActions, currentData, currentMonth, currentYear]) // <-- error pointing here
+
+
+
 
   const countsMap = useMemo(() => summaryMap, [summaryMap]);
 
