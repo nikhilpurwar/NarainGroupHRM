@@ -3,61 +3,44 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
 import { io as clientIO } from "socket.io-client";
-import { useDispatch, useSelector } from 'react-redux'
-import { ensureEmployees } from '../../../store/employeesSlice'
-import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice'
-import Spinner from "../../utility/Spinner";
+import { useDispatch, useSelector } from "react-redux";
+import { ensureEmployees } from '../../../store/employeesSlice';
+import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice';
+import { startLoading, stopLoading } from "../../../store/loadingSlice"; // global loader
+import SkeletonRows from "../../SkeletonRows"; // skeleton rows
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
-const API = `${API_URL}/api/employees`;
-const ATTENDANCE_API = `${API_URL}/api/attendance-report`;
-
-const SkeletonRow = () => (
-  <tr className="border-b">
-    <td className="px-2 py-3">
-      <div className="h-6 w-4 bg-gray-300 rounded-full animate-pulse mx-auto"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-2 py-3">
-      <div className="h-6 w-24 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-28 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-16 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-16 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-    <td className="px-4 py-3">
-      <div className="h-6 w-20 bg-gray-300 rounded-md animate-pulse"></div>
-    </td>
-  </tr>
-);
-
-
 
 const LiveAttendance = () => {
-  const dispatch = useDispatch()
-  const employees = useSelector(s => s.employees.data || [])
-  const attendanceMap = useSelector(s => s.attendance.map || {})
-  const attendanceIso = useSelector(s => s.attendance.attendanceIso)
-  const loading = useSelector(s => s.employees.status === 'loading' || s.attendance.status === 'loading')
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-    const [error, setError] = useState(null);
 
+  const employees = useSelector(s => s.employees.data || []);
+  const attendanceMap = useSelector(s => s.attendance.map || {});
+  const attendanceIso = useSelector(s => s.attendance.attendanceIso);
+
+  const globalLoading = useSelector(s => s.loading.global); // global loader
+  const [error, setError] = useState(null);
+
+  /* ================= FETCH EMPLOYEES & ATTENDANCE ================= */
   useEffect(() => {
-    // ensure cached data is available; will fetch in background if stale
-    dispatch(ensureEmployees())
-    dispatch(ensureTodayAttendance())
+    const fetchData = async () => {
+      try {
+        dispatch(startLoading());
+        await dispatch(ensureEmployees());
+        await dispatch(ensureTodayAttendance());
+      } catch (err) {
+        setError("Failed to load attendance data");
+        toast.error("Failed to load attendance data");
+      } finally {
+        dispatch(stopLoading());
+      }
+    };
+
+    fetchData();
   }, [dispatch]);
 
+  /* ================= SOCKET.IO LIVE UPDATES ================= */
   useEffect(() => {
     const socket = clientIO(API_URL, {
       transports: ["websocket", "polling"],
@@ -67,35 +50,24 @@ const LiveAttendance = () => {
       reconnectionAttempts: 5
     });
 
-    socket.on("connect", () => {
-      console.log("✓ Socket.IO connected");
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Socket.IO connection error:", err);
-    });
+    socket.on("connect", () => console.log("✓ Socket.IO connected"));
+    socket.on("connect_error", (err) => console.error("Socket.IO connection error:", err));
 
     socket.on("attendance:updated", (payload) => {
       if (!payload || !payload.employee) return;
-      dispatch(updateAttendanceEntry({ employeeId: payload.employee, attendance: payload.attendance }))
+      dispatch(updateAttendanceEntry({ employeeId: payload.employee, attendance: payload.attendance }));
     });
 
-    socket.on("disconnect", () => {
-      console.log("Socket.IO disconnected");
-    });
+    socket.on("disconnect", () => console.log("Socket.IO disconnected"));
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [API_URL]);
+    return () => socket.disconnect();
+  }, [API_URL, dispatch]);
 
-  const presentCount = Object.values(attendanceMap).filter(a => a && a.status !== 'absent').length;
-
+  /* ================= HELPERS ================= */
   const getLastActivityTime = (att) => {
     if (!att) return 0;
     if (Array.isArray(att.punchLogs) && att.punchLogs.length > 0) {
-      const last = att.punchLogs[att.punchLogs.length - 1];
-      return new Date(last.punchTime).getTime();
+      return new Date(att.punchLogs[att.punchLogs.length - 1].punchTime).getTime();
     }
     if (att.updatedAt) return new Date(att.updatedAt).getTime();
     if (att.date) return new Date(att.date).getTime();
@@ -103,126 +75,104 @@ const LiveAttendance = () => {
   };
 
   const getFirstInLastOut = (att) => {
-  if (!att?.punchLogs?.length) return { firstIn: "—", lastOut: "—" };
+    if (!att?.punchLogs?.length) return { firstIn: "—", lastOut: "—" };
+    const ins = att.punchLogs.filter(p => p.punchType === "IN");
+    const outs = att.punchLogs.filter(p => p.punchType === "OUT");
+    return {
+      firstIn: ins.length ? new Date(ins[0].punchTime).toLocaleTimeString() : "—",
+      lastOut: outs.length ? new Date(outs[outs.length - 1].punchTime).toLocaleTimeString() : "—"
+    };
+  };
 
-  const ins = att.punchLogs.filter(p => p.punchType === "IN");
-  const outs = att.punchLogs.filter(p => p.punchType === "OUT");
-
-  const firstIn = ins.length
-    ? new Date(ins[0].punchTime).toLocaleTimeString()
-    : "—";
-
-  const lastOut = outs.length
-    ? new Date(outs[outs.length - 1].punchTime).toLocaleTimeString()
-    : "—";
-
-  return { firstIn, lastOut };
-};
   const sortedEmployees = [...employees].sort((a, b) => {
-    const keyA = a._id ? a._id.toString() : a.id;
-    const keyB = b._id ? b._id.toString() : b.id;
-    const attA = attendanceMap[keyA];
-    const attB = attendanceMap[keyB];
-    return getLastActivityTime(attB) - getLastActivityTime(attA);
+    const keyA = a._id || a.id;
+    const keyB = b._id || b.id;
+    return getLastActivityTime(attendanceMap[keyB]) - getLastActivityTime(attendanceMap[keyA]);
   });
 
   const presentEmployees = sortedEmployees.filter(emp => {
-    const key = emp._id ? emp._id.toString() : emp.id;
-    const att = attendanceMap[key];
+    const att = attendanceMap[emp._id || emp.id];
     return att && att.status !== 'absent';
   });
 
   const absentEmployees = sortedEmployees.filter(emp => {
-    const key = emp._id ? emp._id.toString() : emp.id;
-    const att = attendanceMap[key];
+    const att = attendanceMap[emp._id || emp.id];
     return !att || att.status === 'absent';
   });
 
-    // if (loading)
-    // return (
-    //   <div className="p-6 text-center">
-    //     <Spinner />
-    //   </div>
-    // );
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="h-full bg-white p-6 overflow-x-auto">
-      
-        <div>
-          <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
-            Total Employees Present : {presentEmployees.length}
-          </div>
+      <div>
+        <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
+          Total Employees Present: {presentEmployees.length}
+        </div>
 
-          {/* Present Employees Table */}
-          <table className="w-full table-auto border border-blue-200 rounded-b-xl mb-8">
-            <thead>
-              <tr className="bg-gray-100 text-gray-800 text-left">
-                <th className="px-4 py-3">#</th>
-                <th className="px-4 py-3">Emp ID</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Department</th>
-                <th className="px-4 py-3">First IN</th>
-                <th className="px-4 py-3">Last OUT</th>
-                <th className="px-4 py-3">Status</th>
+        {/* Present Employees Table */}
+        <table className="w-full table-auto border border-blue-200 rounded-b-xl mb-8">
+          <thead>
+            <tr className="bg-gray-100 text-gray-800 text-left">
+              <th className="px-4 py-3">#</th>
+              <th className="px-4 py-3">Emp ID</th>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Department</th>
+              <th className="px-4 py-3">First IN</th>
+              <th className="px-4 py-3">Last OUT</th>
+              <th className="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Skeleton Loader */}
+            {globalLoading && <SkeletonRows rows={4} coln={8} />}
+
+            {/* Attendance Data */}
+            {!globalLoading && presentEmployees.length > 0 &&
+              presentEmployees.map((item, index) => {
+                const key = item._id || item.id;
+                const att = attendanceMap[key];
+                const { firstIn, lastOut } = getFirstInLastOut(att);
+                const dateStr = att?.date ? new Date(att.date).toLocaleDateString() : "—";
+                const dept = item.headDepartment?.name || "—";
+                const status = att?.status || "—";
+                const statusColor = status === 'absent' ? 'bg-red-100 text-red-700' : status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+
+                return (
+                  <tr
+                    key={key}
+                    title="Click to view profile"
+                    onClick={() => navigate(`/profile/${item._id}`)}
+                    className="border-b hover:bg-green-50 transition cursor-pointer"
+                  >
+                    <td className="px-4 py-3">{index + 1}</td>
+                    <td className="px-4 py-3 font-medium text-gray-700">{item.empId}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
+                    <td className="px-4 py-3">{dateStr}</td>
+                    <td className="px-4 py-3">{dept}</td>
+                    <td className="px-4 py-3 text-green-600 font-medium">{firstIn}</td>
+                    <td className="px-4 py-3 text-red-600 font-medium">{lastOut}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
+                        <span className={`w-2 h-2 rounded-full animate-ping ${status === 'present' ? 'bg-green-500' : status === 'absent' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            }
+
+            {/* Empty State */}
+            {!globalLoading && presentEmployees.length === 0 && (
+              <tr>
+                <td colSpan={8} className="text-center py-6 text-gray-500">
+                  No live attendance found
+                </td>
               </tr>
-            </thead>
-
-           <tbody>
-          {loading
-            ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
-            : presentEmployees.length
-              ? presentEmployees.map((item, index) => {
-                  const key = item._id || item.id;
-                  const att = attendanceMap[key];
-                  const dateStr = att?.date ? new Date(att.date).toLocaleDateString() : "—";
-                  const { firstIn, lastOut } = getFirstInLastOut(att);
-                  const status = att?.status || "—";
-                  const dept = item.headDepartment?.name || "—";
-                  const statusColor = status === 'absent' ? 'bg-red-100 text-red-700' : status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
-
-                  return (
-                    <tr
-                      key={key}
-                      title="Click too view profile"
-                      onClick={() => {
-                        navigate(`/profile/${item._id}`);
-                      }}
-                      className="border-b hover:bg-green-50 transition cursor-pointer"
-                    >
-                      <td className="px-4 py-3">{index + 1}</td>
-                      <td 
-                       title="Click too view profile"
-                       className="px-4 py-3 font-medium text-gray-700"
-                       >
-                        {item.empId}
-                        </td>
-
-                      <td className="px-4 py-3 font-semibold text-gray-900">{item.name}</td>
-                      <td className="px-4 py-3">{dateStr}</td>
-                      <td className="px-4 py-3">{dept}</td>
-                      <td className="px-4 py-3 text-green-600 font-medium">{firstIn}</td>
-                      <td className="px-4 py-3 text-red-600 font-medium">{lastOut}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-                          <span className={`w-2 h-2 rounded-full animate-ping ${status === 'present' ? 'bg-green-500' : status === 'absent' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
-                          {status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              : (
-                <tr>
-                  <td colSpan="8" className="text-center py-6 text-gray-500">
-                    No live attendance found
-                  </td>
-                </tr>
-              )}
-        </tbody>
-          </table>
-
+            )}
+          </tbody>
+        </table>
           {/* Absent Employees Table */}         
           {/* <div className="flex justify-between items-center p-4 text-white bg-gray-900 rounded-t-xl font-semibold text-2xl">
             Total Employees Absent : {absentEmployees.length}

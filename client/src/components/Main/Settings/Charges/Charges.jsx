@@ -1,78 +1,86 @@
-import React, { useEffect, useState } from "react"
-import axios from "axios"
-import { FiEdit } from "react-icons/fi"
-import { MdDeleteOutline } from "react-icons/md"
-import { IoIosAddCircle } from "react-icons/io"
-import { toast } from "react-toastify"
-import AddEditCharge from "./components/AddEditCharges"
-import ConfirmDelete from "../DeleteConfirmation"
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { FiEdit } from "react-icons/fi";
+import { MdDeleteOutline } from "react-icons/md";
+import { IoIosAddCircle } from "react-icons/io";
+import { toast } from "react-toastify";
+import AddEditCharge from "./components/AddEditCharges";
+import ConfirmDelete from "../DeleteConfirmation";
+import { useDispatch } from "react-redux";
+import { useGlobalLoading } from "../../../../hooks/useGlobalLoading";
+import { startLoading, stopLoading } from "../../../../store/loadingSlice";
+import SkeletonRows from "../../../SkeletonRows";
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
-const API = `${API_URL}/api/charges`
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
+const API = `${API_URL}/api/charges`;
 
 const Charges = () => {
-  const [charges, setCharges] = useState([])
-  const [loading, setLoading] = useState(false)
-  const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null
-  const role = storedUser?.role
-  const [showModal, setShowModal] = useState(false)
-  const [isEdit, setIsEdit] = useState(false)
-  const [selectedCharge, setSelectedCharge] = useState(null)
-  const [showDelete, setShowDelete] = useState(false)
-const [deleteItem, setDeleteItem] = useState(null)
-const [deleteLoading, setDeleteLoading] = useState(false)
+  const [charges, setCharges] = useState([]);
+  const loading = useGlobalLoading(); // Redux global loading
+  const dispatch = useDispatch();
 
+  const storedUser =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
+  const role = storedUser?.role;
+
+  const [showModal, setShowModal] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [selectedCharge, setSelectedCharge] = useState(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   /* ================= FETCH ================= */
   const fetchCharges = async () => {
     try {
-      setLoading(true)
-      const res = await axios.get(API)
-      setCharges(res.data?.data || [])
+      dispatch(startLoading());
+      const res = await axios.get(API);
+      setCharges(res.data?.data || []);
     } catch {
-      toast.error("Failed to load charges")
+      toast.error("Failed to load charges");
     } finally {
-      setLoading(false)
+      dispatch(stopLoading());
     }
-  }
+  };
 
   useEffect(() => {
-    fetchCharges()
-  }, [])
+    fetchCharges();
+  }, []);
 
   /* ================= HANDLERS ================= */
   const handleAdd = () => {
-    setIsEdit(false)
-    setSelectedCharge(null)
-    setShowModal(true)
-  }
+    setIsEdit(false);
+    setSelectedCharge(null);
+    setShowModal(true);
+  };
 
   const handleEdit = (item) => {
-    setIsEdit(true)
-    setSelectedCharge(item)
-    setShowModal(true)
-  }
+    setIsEdit(true);
+    setSelectedCharge(item);
+    setShowModal(true);
+  };
 
-const handleDelete = (charge) => {
-  setDeleteItem(charge)
-  setShowDelete(true)
-}
+  const handleDelete = (charge) => {
+    setDeleteItem(charge);
+    setShowDelete(true);
+  };
 
-const confirmDelete = async () => {
-  try {
-    setDeleteLoading(true)
-    await axios.delete(`${API}/${deleteItem._id}`)
-    toast.success("Charge deleted successfully")
-    fetchCharges()
-  } catch {
-    toast.error("Delete failed")
-  } finally {
-    setDeleteLoading(false)
-    setShowDelete(false)
-    setDeleteItem(null)
-  }
-}
-
+  const confirmDelete = async () => {
+    try {
+      setDeleteLoading(true);
+      await axios.delete(`${API}/${deleteItem._id}`);
+      toast.success("Charge deleted successfully");
+      fetchCharges();
+    } catch {
+      toast.error("Delete failed");
+    } finally {
+      setDeleteLoading(false);
+      setShowDelete(false);
+      setDeleteItem(null);
+    }
+  };
 
   /* ================= UI ================= */
   return (
@@ -100,43 +108,42 @@ const confirmDelete = async () => {
           refreshList={fetchCharges}
         />
 
-        {/* Loader */}
-        {loading && (
-          <div className="flex justify-center items-center p-10">
-            <div className="h-8 w-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && charges.length === 0 && (
-          <div className="w-sm flex flex-col items-center gap-4 py-6 text-gray-500 border-dashed border-2 border-gray-300 rounded-lg my-6 mx-auto">
-            No charges found
-            <button
-              onClick={handleAdd}
-              className="flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
-            >
-              <IoIosAddCircle size={22} />
-              Add Charges
-            </button>
-          </div>
-        )}
-
         {/* Table */}
-        {!loading && charges.length > 0 && (
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">Deduction / Charges</th>
-                <th className="px-4 py-2 text-left">Value Type</th>
-                <th className="px-4 py-2 text-left">Value</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Action</th>
-              </tr>
-            </thead>
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-4 py-2 text-left">#</th>
+              <th className="px-4 py-2 text-left">Deduction / Charges</th>
+              <th className="px-4 py-2 text-left">Value Type</th>
+              <th className="px-4 py-2 text-left">Value</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-left">Action</th>
+            </tr>
+          </thead>
 
-            <tbody>
-              {charges.map((c, i) => (
+          <tbody>
+            {/* Skeleton Loader */}
+            {loading && <SkeletonRows rows={5} coln={6} />}
+
+            {/* Empty State */}
+            {!loading && charges.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-gray-500">
+                  No charges found
+                  <button
+                    onClick={handleAdd}
+                    className="ml-4 flex items-center gap-2 bg-gray-700 text-white rounded-full px-4 py-2 hover:bg-gray-900"
+                  >
+                    <IoIosAddCircle size={22} />
+                    Add Charges
+                  </button>
+                </td>
+              </tr>
+            )}
+
+            {/* Data Rows */}
+            {!loading &&
+              charges.map((c, i) => (
                 <tr key={c._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 border-t">{i + 1}</td>
                   <td className="px-4 py-3 border-t">{c.deduction}</td>
@@ -159,23 +166,24 @@ const confirmDelete = async () => {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        )}
-       <ConfirmDelete
-  isOpen={showDelete}
-  title="Delete Charge"
-  message="This charge will be permanently removed."
-  itemName={deleteItem?.deduction}
-  value={`${deleteItem?.value} (${deleteItem?.value_type})`}
-  loading={deleteLoading}
-  onCancel={() => setShowDelete(false)}
-  onConfirm={confirmDelete}
-/>
+          </tbody>
+        </table>
+
+        {/* Delete Modal */}
+        <ConfirmDelete
+          isOpen={showDelete}
+          title="Delete Charge"
+          message="This charge will be permanently removed."
+          itemName={deleteItem?.deduction}
+          value={`${deleteItem?.value} (${deleteItem?.value_type})`}
+          loading={deleteLoading}
+          onCancel={() => setShowDelete(false)}
+          onConfirm={confirmDelete}
+        />
 
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Charges
+export default Charges;

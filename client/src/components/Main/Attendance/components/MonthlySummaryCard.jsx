@@ -43,6 +43,7 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
         createdDate.setHours(0,0,0,0)
     }
 
+
     // if (table && days && days.length && table['Status']) {
     //     const statusRow = table['Status'] || []
     //     const today = new Date()
@@ -70,8 +71,26 @@ const MonthlySummaryCard = ({ summary, isMobile, days = [], table = {}, holidays
     //         else if (st === 'absent') computedAbsent++
     //     }
     // }
-const totalPresent = summary?.totalPresent || 0
-const totalAbsent  = summary?.totalAbsent  || 0
+    let computedPresent = 0
+let computedAbsent = 0
+
+if (table && days?.length && table['Status']) {
+  const statusRow = table['Status']
+  for (let i = 0; i < days.length; i++) {
+    const dayDate = new Date(days[i].iso)
+    dayDate.setHours(0,0,0,0)
+    if (createdDate && dayDate < createdDate) continue
+    if (isHoliday(days[i].iso)) continue
+
+    const st = String(statusRow[i] || '').toLowerCase()
+    if (st === 'present' || st === 'halfday') computedPresent++
+    else if (st === 'absent') computedAbsent++
+  }
+}
+
+const totalPresent = computedPresent || summary?.totalPresent || 0
+const totalAbsent = computedAbsent || summary?.totalAbsent || 0
+
 
     // Derive worked / regular / OT hours from the table so it always
     // matches what the grid shows (manual + punch + scanner), and only
