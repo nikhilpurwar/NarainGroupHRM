@@ -98,7 +98,10 @@ const SalaryTableRow = memo(({
         </div>
       </td>
 
+       {/* Auto-pay amount (e.g., Sunday/Festival autopay) */}
+      <td className="px-4 py-3 text-sm font-medium text-gray-900">₹{(item.autoPayAmount || 0).toLocaleString()}</td>
       <td className="px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 border">₹{item.basicPay?.toLocaleString() || '0'}</td>
+
 
       {/* ot hours */}
       {/* <td className="px-4 py-3 text-center bg-gray-50">
@@ -181,9 +184,6 @@ const SalaryTableRow = memo(({
       </td>
 
       <td className="px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 border">₹{item.otPay?.toLocaleString() || '0'}</td>
-      {/* Auto-pay amount (e.g., Sunday/Festival autopay) */}
-      <td className="px-4 py-3 text-sm font-medium text-gray-900">₹{(item.autoPayAmount || 0).toLocaleString()}</td>
-
       {/* total hours */}
       <td className="px-4 py-3 text-center">
         <div className="flex flex-col items-center">

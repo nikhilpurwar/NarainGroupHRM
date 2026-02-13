@@ -347,6 +347,19 @@ const DailySalary = () => {
     fetchDailySalaryData();
   }, [fetchDailySalaryData]);
 
+  // Days in the reporting period — mirror server logic in salary.service
+  const daysInPeriod = (() => {
+    try {
+      const MS_PER_DAY = 24 * 60 * 60 * 1000;
+      const from = new Date(filters.fromDate);
+      const to = new Date(filters.toDate);
+      to.setHours(23, 59, 59, 999);
+      return Math.max(1, Math.round((to - from) / MS_PER_DAY));
+    } catch (e) {
+      return 30;
+    }
+  })();
+
   return (
     <div className="container-fluid px-4 py-6">
       {/* Page Header */}
@@ -565,7 +578,7 @@ const DailySalary = () => {
                       Sub Department
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
-                      Salary/ Day
+                      Salary
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-wrap">
                       Salary/ Hour
@@ -663,10 +676,33 @@ const DailySalary = () => {
                               return <>₹{Number(explicitPerHour).toLocaleString()}</>;
                             }
 
-                            // derive from per-day
-                            const shiftHours = item.shiftHours ?? item.shiftHoursFromRule ?? item.shiftHoursRule ?? 8;
-                            const salaryPerDay = item.salaryPerDay ?? item.salary_per_day ?? item.salaryDay ?? (item.salary ?? item.dailySalary ?? 0);
-                            const perHour = salaryPerDay ? Number((Number(salaryPerDay) / shiftHours).toFixed(2)) : 0;
+                            // Follow server logic in salary.service:
+                            // - Daily employees: salaryPerDay = employee.salary
+                            // - Monthly employees: salaryPerDay = employee.salary / daysInPeriod
+                            // Then per-hour = salaryPerDay / shiftHours
+                            const shiftHours = Number(item.shiftHours ?? item.shiftHoursFromRule ?? item.shiftHoursRule ?? 8) || 8;
+
+                            const isDaily = String(item.empType || '').toLowerCase().includes('daily');
+
+                            if (isDaily) {
+                              const dailyCandidates = [item.dailySalary, item.salaryPerDay, item.salary_per_day, item.salaryDay, item.salary, item.daily?.salary];
+                              const dailySalary = dailyCandidates.find(v => v !== undefined && v !== null) ?? 0;
+                              const perHour = dailySalary ? Number((Number(dailySalary) / shiftHours).toFixed(2)) : 0;
+                              return <>₹{Number(perHour).toLocaleString()}</>;
+                            }
+
+                            // Monthly / other types: prorate by daysInPeriod (from filters)
+                            const monthlySalaryCandidates = [
+                              item.salary,
+                              item.monthlySalary,
+                              item.monthSalary,
+                              item.monthlySalaryAmount,
+                              item.monthly?.amount,
+                              item.monthlyAmount
+                            ];
+                            const monthlySalary = monthlySalaryCandidates.find(v => v !== undefined && v !== null) ?? 0;
+
+                            const perHour = monthlySalary ? Number(((Number(monthlySalary) / daysInPeriod) / shiftHours).toFixed(2)) : 0;
                             return <>₹{Number(perHour).toLocaleString()}</>;
                           })()}
                         </td>

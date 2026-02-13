@@ -540,13 +540,14 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     // worked-hour basic pay. We keep basicHours (frontend) based only
     // on actual attendance; autopay hours are not merged into
     // basicHours so hours display stays separate.
-    basicPay = basicHours * hourlyRate + sundayAutopayPay + festivalAutopayPay
+    // basicPay = basicHours * hourlyRate + sundayAutopayPay + festivalAutopayPay
+    basicPay = basicHours * hourlyRate 
   }
 
   // OT pay always computed from payable OT hours dictated by rules
   otPay = otHours * otRate
 
-  const totalPay = basicPay + otPay
+  const totalPay = basicPay + otPay + sundayAutopayPay + festivalAutopayPay
 
   /* ------------------------------------------------------------------------ */
   /*                         ADVANCE / LOAN DETAILS                            */
