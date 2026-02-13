@@ -320,19 +320,15 @@ const handleSubmit = async (e) => {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-               disabled={loading}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60"
-            >
-             {loading ? (
-    <>
-      <Loader className="mr-2" size={16} />
-      Saving...
-    </>
-  ) : (submitting ? 'Submitting...' : 'Submit')
-}
-            </button>
+           <button
+  type="submit"
+  disabled={submitting} // disable while submitting
+  className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+>
+  {submitting && <Loader size={16} className="animate-spin" />}
+  {submitting ? 'Submitting...' : 'Submit'}
+</button>
+
           </div>
         </form>
       </div>
