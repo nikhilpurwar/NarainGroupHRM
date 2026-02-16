@@ -38,5 +38,24 @@ AttendanceSchema.statics.safeCreate = async function (payload) {
   return this.create(payload)
 }
 
+// // Invalidate daily salary cache when attendance affecting a date changes
+// import dailyCache from '../services/dailySalaryCache.service.js'
+
+// AttendanceSchema.post('save', function (doc) {
+//   try { dailyCache.invalidateByDate(doc.date).catch(() => {}) } catch (e) {}
+// })
+
+// AttendanceSchema.post('remove', function (doc) {
+//   try { dailyCache.invalidateByDate(doc.date).catch(() => {}) } catch (e) {}
+// })
+
+// // For findOneAndUpdate / findOneAndDelete operations
+// AttendanceSchema.post('findOneAndUpdate', function (doc) {
+//   if (doc && doc.date) dailyCache.invalidateByDate(doc.date).catch(() => {})
+// })
+// AttendanceSchema.post('findOneAndDelete', function (doc) {
+//   if (doc && doc.date) dailyCache.invalidateByDate(doc.date).catch(() => {})
+// })
+
 const Attendance = mongoose.model('Attendance', AttendanceSchema)
 export default Attendance

@@ -4,6 +4,7 @@ import Advance from '../models/advance.model.js'
 import SalaryRule from '../models/setting.model/salaryRule.model.js'
 import { SubDepartment } from '../models/department.model.js'
 import MonthlySalaryModel from '../models/salary.model/monthlySalary.model.js'
+// import DailySalaryModel from '../models/salary.model/dailySalary.model.js'
 import BreakTime from '../models/setting.model/workingHours.model.js'
 import Charge from '../models/setting.model/charge.model.js'
 import Holiday from '../models/setting.model/holidays.model.js'
@@ -654,6 +655,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     id: employee._id,
     empId: employee.empId,
     empName: employee.name,
+    // avatar: employee.avatar || employee.avtar || '',
     empType,
     headDepartment: employee.headDepartment,
     subDepartment: employee.subDepartment,
@@ -744,7 +746,28 @@ export async function computeSalaryReport({ fromDate, toDate, employeeId, page =
   const monthEnd = new Date(from.getFullYear(), from.getMonth() + 1, 0)
   const isFullMonth = from.getTime() === monthStart.getTime() && to.getDate() === monthEnd.getDate()
 
+  // // Detect single-day requests for daily cache
+  // const singleDay = (() => {
+  //   const a = new Date(from)
+  //   a.setHours(0,0,0,0)
+  //   const b = new Date(to)
+  //   b.setHours(0,0,0,0)
+  //   return a.getTime() === b.getTime()
+  // })()
+
+  // const dateKeyForSingle = singleDay ? `${from.getFullYear()}-${String(from.getMonth()+1).padStart(2,'0')}-${String(from.getDate()).padStart(2,'0')}` : null
+
   // If the requested range covers an entire calendar month, attempt to read cached report
+  // // First try single-day cache when applicable
+  // if (singleDay && useCache && dateKeyForSingle) {
+  //   const cachedDaily = await DailySalaryModel.findOne({ dateKey: dateKeyForSingle }).lean()
+  //   if (cachedDaily) {
+  //     const start = skip
+  //     const pageItems = (cachedDaily.items || []).slice(start, start + pageSize)
+  //     return { items: pageItems, summary: cachedDaily.summary || {}, totalRecords: cachedDaily.totalRecords || (cachedDaily.items || []).length }
+  //   }
+  // }
+
   if (isFullMonth && useCache) {
     const monthKey = `${from.getFullYear()}-${from.getMonth() + 1}`
     const cached = await MonthlySalaryModel.findOne({ monthKey }).lean()
@@ -787,9 +810,26 @@ export async function computeSalaryReport({ fromDate, toDate, employeeId, page =
     totalNetPay: 0
   })
 
+  // const totalRecords = await Employee.countDocuments(query)
+
+  // // Persist single-day cache for faster subsequent reads
+  // if (singleDay && useCache && dateKeyForSingle) {
+  //   try {
+  //     await DailySalaryModel.findOneAndUpdate(
+  //       { dateKey: dateKeyForSingle },
+  //       { dateKey: dateKeyForSingle, fromDate: from, toDate: to, items, summary, totalRecords },
+  //       { upsert: true, setDefaultsOnInsert: true }
+  //     )
+  //   } catch (err) {
+  //     // ignore cache write errors
+  //     console.error('DailySalary cache write failed', err)
+  //   }
+  // }
+
   return {
     items,
     summary,
+    // totalRecords
     totalRecords: await Employee.countDocuments(query)
   }
 }

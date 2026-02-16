@@ -215,8 +215,8 @@ const EmployeeTable = ({
                 <span className="text-gray-600">Status:</span>
                 <span
                   className={`ml-1 px-2 py-1 rounded-full text-xs ${employeeToDelete.status === "active"
-                      ? "bg-green-200 text-green-700"
-                      : "bg-red-100 text-red-600"
+                    ? "bg-green-200 text-green-700"
+                    : "bg-red-100 text-red-600"
                     }`}
                 >
                   {employeeToDelete.status}

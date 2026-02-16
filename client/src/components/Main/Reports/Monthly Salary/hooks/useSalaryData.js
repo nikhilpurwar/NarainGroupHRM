@@ -102,6 +102,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             id: it.id || it._id || it.empId,
             empId: it.empId || '',
             empName: it.empName || '',
+            // avatar: it.avatar || it.avtar || 'NP',
             empType,
             headDepartment: it.headDepartment || it.department || '',
             subDepartment: it.subDepartment || it.group || '',

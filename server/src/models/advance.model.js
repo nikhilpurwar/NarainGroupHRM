@@ -47,4 +47,16 @@ AdvanceSchema.pre('findOneAndUpdate', function () {
 
 
 const Advance = mongoose.model('Advance', AdvanceSchema)
+// import dailyCache from '../services/dailySalaryCache.service.js'
+
+// AdvanceSchema.post('save', function (doc) {
+//   if (doc && doc.date) dailyCache.invalidateByDate(doc.date).catch(() => {})
+// })
+// AdvanceSchema.post('findOneAndUpdate', function (doc) {
+//   if (doc && doc.date) dailyCache.invalidateByDate(doc.date).catch(() => {})
+// })
+// AdvanceSchema.post('findOneAndDelete', function (doc) {
+//   if (doc && doc.date) dailyCache.invalidateByDate(doc.date).catch(() => {})
+// })
+
 export default Advance

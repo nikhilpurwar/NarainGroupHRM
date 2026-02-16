@@ -60,4 +60,20 @@ employeeSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 const Employee = mongoose.model("Employee", employeeSchema);
 
+// // Invalidate daily salary cache broadly when employee records change
+// import dailyCache from '../services/dailySalaryCache.service.js'
+
+// employeeSchema.post('save', function (doc) {
+//     try { dailyCache.invalidateAll().catch(() => {}) } catch (e) {}
+// })
+// employeeSchema.post('remove', function (doc) {
+//     try { dailyCache.invalidateAll().catch(() => {}) } catch (e) {}
+// })
+// employeeSchema.post('findOneAndUpdate', function (doc) {
+//     try { dailyCache.invalidateAll().catch(() => {}) } catch (e) {}
+// })
+// employeeSchema.post('findOneAndDelete', function (doc) {
+//     try { dailyCache.invalidateAll().catch(() => {}) } catch (e) {}
+// })
+
 export default Employee;
