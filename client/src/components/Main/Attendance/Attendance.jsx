@@ -35,8 +35,8 @@ const Attendance = () => {
   const [report, setReport] = useState(null)
   const [empsLoading, setEmpsLoading] = useState(false)
   const loading = useGlobalLoading()
-    const dispatch = useDispatch()
-    const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
   const employees = useSelector(s => s.employees.data || [])
   const attendanceMap = useSelector(s => s.attendance.map || {})
   const [viewMode, setViewMode] = useState("list")
@@ -71,7 +71,7 @@ const Attendance = () => {
         const res = await axios.get(`${API_URL}/api/holidays`)
         setHolidays(res.data?.data || [])
       } catch (err) {
-        
+
         console.error('Failed to load holidays', err)
       }
     }
@@ -79,7 +79,7 @@ const Attendance = () => {
     // initial load (wrapped to allow awaiting dispatch)
     const init = async () => {
       await loadEmployees()
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
       await loadHolidays()
     }
 
@@ -123,7 +123,7 @@ const Attendance = () => {
       }
 
       // Refresh today's attendance data for live updates
-      try { dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { dispatch(ensureTodayAttendance()) } catch (e) { }
     });
 
     socket.on("disconnect", () => {
@@ -158,7 +158,7 @@ const Attendance = () => {
       toast.error("Failed to load report")
     } finally {
       fetchInProgressRef.current = false
-     dispatch(stopLoading())
+      dispatch(stopLoading())
     }
   }
 
@@ -211,7 +211,7 @@ const Attendance = () => {
           tzOffsetMinutes: new Date().getTimezoneOffset()
         })
       ))
-      
+
       results.forEach((res, idx) => {
         const emp = inEmployees[idx]
         const returnedAtt = res.data?.attendance
@@ -219,10 +219,10 @@ const Attendance = () => {
           dispatch(updateAttendanceEntry({ employeeId: emp._id, attendance: returnedAtt }))
         }
       })
-      
+
       toast.success(`Punched out ${inEmployees.length} employee(s)`)
-      try { await dispatch(ensureEmployees()) } catch (e) {}
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureEmployees()) } catch (e) { }
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
     } catch (err) {
       toast.error('Failed to punch out all employees')
     } finally {
@@ -274,8 +274,8 @@ const Attendance = () => {
       // Update employee list using response type
       const punchType = res.data?.type
       // Refresh cached employees and today's attendance so UI updates instantly
-      try { await dispatch(ensureEmployees()) } catch (e) {}
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureEmployees()) } catch (e) { }
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
 
       // Refresh employees list so badges/counts update across UI
       try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }
@@ -339,11 +339,11 @@ const Attendance = () => {
           // prefer employee id from returned attendance if present
           const empKey = returnedAtt.employee && (returnedAtt.employee._id || returnedAtt.employee) ? String(returnedAtt.employee._id || returnedAtt.employee) : String(employeeId)
           dispatch(updateAttendanceEntry({ employeeId: empKey, attendance: returnedAtt }))
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // force refresh today's attendance cache to ensure map is populated
-      try { await dispatch(fetchTodayAttendance()) } catch (e) {}
+      try { await dispatch(fetchTodayAttendance()) } catch (e) { }
       if (report?.employee?._id === employeeId && returnedAtt) {
         try {
           const attDateIso = returnedAtt.date
@@ -434,7 +434,7 @@ const Attendance = () => {
   return (
     <div className="w-full min-h-screen flex flex-col">
 
-  {/* Back Button
+      {/* Back Button
   {!isMobile && viewMode === "report" && (
     <div className="p-6 pb-0">
       <button
@@ -496,7 +496,7 @@ const Attendance = () => {
             </button>
           )
         })() : (
-          <div className="flex items-center gap-3">            
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
@@ -513,7 +513,7 @@ const Attendance = () => {
               className="flex items-center gap-2 text-center text-lg p-2 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50"
             >
               {/* Punch Out All */}
-              <IoMdLogOut size={30} className="hover:scale-130 transition duration-300"/>
+              <IoMdLogOut size={30} className="hover:scale-130 transition duration-300" />
             </button>
           </div>
         )}
@@ -521,85 +521,85 @@ const Attendance = () => {
 
       {/* Content */}
       <div className="mb-6 flex-1 px-4 sm:px-6">
-        {viewMode === "list" ? (
-          <EmployeeTable
-            employees={displayEmployees}
-            loading={empsLoading}
-            rowsPerPage={isMobile ? 4 : 6}
-            onNameClick={emp => navigate(`/attendence-report?employeeId=${emp._id}&month=${filters.month}&year=${filters.year}`)}
-            onView={emp => navigate(`/employee/${emp._id}`)}
-            renderActions={emp => {
-              if (emp.status !== 'active') {
-                return (
-                  <button
-                    disabled
-                    title="Employee Inactive"
-                    className="text-center text-gray-400 px-3 py-1 rounded-full"
-                  >
-                    <FaUserCheck size={22} />
-                  </button>
-                )
-              }
-              const todayAtt = attendanceMap[emp._id] || attendanceMap[emp._id?.toString()]
-              if (!todayAtt) {
-                return (
-                  <button
-                    title="Mark Attendance"
-                    onClick={e => {
-                      e.stopPropagation()
-                      handlePunch(emp)
-                    }}
-                    className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 transition duration-300 cursor-pointer"
-                  >
-                    <FaUserCheck size={18} />
-                  </button>
-                )
-              }
-              const punchLogs = todayAtt.punchLogs || []
-              if (!punchLogs.length) {
-                return (
-                  <button
-                    title="Mark Attendance"
-                    onClick={e => {
-                      e.stopPropagation()
-                      handlePunch(emp)
-                    }}
-                    className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
-                  >
-                    <FaUserCheck size={14} />
-                  </button>
-                )
-              }
-              const lastPunch = punchLogs[punchLogs.length - 1]?.punchType?.toUpperCase()
-              if (lastPunch === 'IN') {
-                return (
-                  <button
-                    title="Punch Out"
-                    onClick={e => {
-                      e.stopPropagation()
-                      handlePunch(emp)
-                    }}
-                    className="text-center bg-red-600 text-white px-4 py-1 rounded-full hover:bg-red-700 cursor-pointer"
-                  >
-                    <IoMdLogOut size={20} />
-                  </button>
-                )
-              }
+        {/* {viewMode === "list" ? ( */}
+        <EmployeeTable
+          employees={displayEmployees}
+          loading={empsLoading}
+          rowsPerPage={isMobile ? 4 : 6}
+          onNameClick={emp => navigate(`/attendence-report?employeeId=${emp._id}&month=${filters.month}&year=${filters.year}`)}
+          onView={emp => navigate(`/employee/${emp._id}`)}
+          renderActions={emp => {
+            if (emp.status !== 'active') {
               return (
                 <button
-                  title="Punch In"
+                  disabled
+                  title="Employee Inactive"
+                  className="text-center text-gray-400 px-3 py-1 rounded-full"
+                >
+                  <FaUserCheck size={22} />
+                </button>
+              )
+            }
+            const todayAtt = attendanceMap[emp._id] || attendanceMap[emp._id?.toString()]
+            if (!todayAtt) {
+              return (
+                <button
+                  title="Mark Attendance"
                   onClick={e => {
                     e.stopPropagation()
                     handlePunch(emp)
                   }}
-                  className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 hover:scale-110 transition duration-300 cursor-pointer"
+                  className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 transition duration-300 cursor-pointer"
                 >
-                  <IoMdLogOut size={20} className="rotate-180" />
+                  <FaUserCheck size={18} />
                 </button>
               )
-            }}
-          />
-        ) : (
+            }
+            const punchLogs = todayAtt.punchLogs || []
+            if (!punchLogs.length) {
+              return (
+                <button
+                  title="Mark Attendance"
+                  onClick={e => {
+                    e.stopPropagation()
+                    handlePunch(emp)
+                  }}
+                  className="text-center bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 cursor-pointer"
+                >
+                  <FaUserCheck size={14} />
+                </button>
+              )
+            }
+            const lastPunch = punchLogs[punchLogs.length - 1]?.punchType?.toUpperCase()
+            if (lastPunch === 'IN') {
+              return (
+                <button
+                  title="Punch Out"
+                  onClick={e => {
+                    e.stopPropagation()
+                    handlePunch(emp)
+                  }}
+                  className="text-center bg-red-600 text-white px-4 py-1 rounded-full hover:bg-red-700 cursor-pointer"
+                >
+                  <IoMdLogOut size={20} />
+                </button>
+              )
+            }
+            return (
+              <button
+                title="Punch In"
+                onClick={e => {
+                  e.stopPropagation()
+                  handlePunch(emp)
+                }}
+                className="text-center bg-green-600 text-white px-4 py-1 rounded-full hover:bg-green-700 hover:scale-110 transition duration-300 cursor-pointer"
+              >
+                <IoMdLogOut size={20} className="rotate-180" />
+              </button>
+            )
+          }}
+        />
+        {/* ) : (
           <>
             {loading &&
               <div className="flex justify-center items-center p-10">
@@ -646,11 +646,11 @@ const Attendance = () => {
               </>
             )}
           </>
-        )}
+        )} */}
       </div>
 
       {/* Punch Records Modal */}
-      {selectedPunchDate && (
+      {/* {selectedPunchDate && (
         <PunchRecordsModal
           isOpen={punchModalOpen}
           onClose={() => {
@@ -662,7 +662,7 @@ const Attendance = () => {
           employeeName={report?.employee?.name}
           shiftHours={report?.employee?.shift || 8}
         />
-      )}
+      )} */}
 
       {/* Manual Attendance Modal */}
       <ManualAttendanceModal

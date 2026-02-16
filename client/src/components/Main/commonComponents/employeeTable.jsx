@@ -371,75 +371,49 @@ const EmployeeTable = ({
   const [summaryMap, setSummaryMap] = useState({});
 
   // When table requires action columns (present/absent) fetch monthly summaries for employees on current page
-useEffect(() => {
-  let mounted = true
-  if (!renderActions || currentData.length === 0) return
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
+  useEffect(() => {
+    if (!renderActions) return
 
-  const fetchSummaries = async () => {
-    try {
-      const token =
-        sessionStorage.getItem("token") || localStorage.getItem("token")
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
-      const results = await Promise.all(
-        currentData.map(async emp => {
-          const id = emp._id || emp.id
-
-          const res = await axios.get(`${apiUrl}/api/attendance-report`, {
-            params: {
-              employeeId: id,
-              month: currentMonth,
-              year: currentYear
-            },
-            headers
-          })
-
-          const { days = [], table = {}, holidays = [] } = res.data?.data || {}
-
-          let present = 0
-          let absent = 0
-
-          const statusRow = table['Status'] || []
-
-          for (let i = 0; i < days.length; i++) {
-            const iso = days[i].iso
-            const dayDate = new Date(iso)
-            dayDate.setHours(0,0,0,0)
-
-            // skip holidays
-            if (holidays.some(h => h.date?.split('T')[0] === iso)) continue
-
-            // skip before joining
-            if (emp.createdAt && dayDate < new Date(emp.createdAt)) continue
-
-            const st = String(statusRow[i] || '').toLowerCase()
-
-            if (st === 'present' || st === 'halfday') present++
-            else if (st === 'absent') absent++
-          }
-
-          return { id, present, absent }
-        })
-      )
-
-      if (!mounted) return
-
-      const map = {}
-      results.forEach(r => {
-        map[r.id] = { present: r.present, absent: r.absent }
-      })
-
-      setSummaryMap(map)
-
-    } catch (err) {
-      console.error("Summary recompute failed", err)
+    const ids = currentData.map((e) => e._id || e.id).filter(Boolean)
+    if (ids.length === 0) {
+      setSummaryMap({})
+      return
     }
-  }
 
-  fetchSummaries()
-  return () => { mounted = false }
-}, [renderActions, currentData, currentMonth, currentYear]) // <-- error pointing here
+    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5100"
+    let mounted = true
+
+    const fetchBatchSummaries = async () => {
+      try {
+        const token = sessionStorage.getItem("token") || localStorage.getItem("token")
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+        // endpoint expects month in YYYY-M format
+        const monthParam = `${currentYear}-${Number(currentMonth)}`
+
+        const res = await axios.get(`${apiUrl}/api/monthly-summary`, {
+          params: { month: monthParam, employeeIds: ids.join(',') },
+          headers
+        })
+
+        if (!mounted) return
+
+        const map = {}
+        const dataMap = res.data?.data?.map || {}
+        for (const [empId, v] of Object.entries(dataMap)) {
+          map[empId] = { present: v.totalPresent ?? 0, absent: v.totalAbsent ?? 0 }
+        }
+
+        setSummaryMap(map)
+      } catch (err) {
+        console.error('Batch summary fetch failed', err)
+      }
+    }
+
+    fetchBatchSummaries()
+
+    return () => { mounted = false }
+  }, [renderActions, currentMonth, currentYear, JSON.stringify(currentData.map((e) => e._id || e.id))])
 
 
 
