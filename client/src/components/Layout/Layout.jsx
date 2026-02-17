@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Topbar from './components/Topbar'
@@ -39,14 +39,17 @@ const Layout = () => {
     'salary-rules': { path: '/salary-rules', title: 'Salary Rules', subtitle: 'Settings' },
   }
 
-  const pathname = location.pathname
-const match = Object.values(pageConfig).find(cfg =>
-  matchPath({ path: cfg.path, end: false }, pathname)
-)
+    const pathname = location.pathname
 
-  const currentTopbar = match
-    ? { title: match.title, subtitle: match.subtitle }
-    : { title: 'Admin Panel', subtitle: '' }
+    const match = useMemo(() => Object.values(pageConfig).find(cfg =>
+      matchPath({ path: cfg.path, end: false }, pathname)
+    ), [pathname])
+
+    const currentTopbar = useMemo(() => (
+      match
+        ? { title: match.title, subtitle: match.subtitle }
+        : { title: 'Admin Panel', subtitle: '' }
+    ), [match])
 
   // Auto-logout after 2 minutes for non-persistent sessions
   useEffect(() => {
@@ -72,13 +75,15 @@ const match = Object.values(pageConfig).find(cfg =>
     return () => clearInterval(interval)
   }, [navigate])
 
+  const toggleSidebar = useCallback(() => setIsSidebarCollapsed(s => !s), [])
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
 
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
-        toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        toggleSidebar={toggleSidebar}
         onHoverChange={setIsSidebarHovered}
       />
 
@@ -90,7 +95,7 @@ const match = Object.values(pageConfig).find(cfg =>
           subtitle={currentTopbar.subtitle}
           isSidebarCollapsed={isSidebarCollapsed}
           isSidebarHovered={isSidebarHovered}
-          toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          toggleSidebar={toggleSidebar}
           scrollRef={scrollRef}
         />
 
@@ -106,4 +111,4 @@ const match = Object.values(pageConfig).find(cfg =>
   )
 }
 
-export default Layout
+export default memo(Layout)

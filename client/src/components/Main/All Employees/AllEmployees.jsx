@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback, memo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -7,6 +7,8 @@ import { IoIosAddCircle } from "react-icons/io";
 import EmployeeTable from "../commonComponents/employeeTable"
 import { useDispatch, useSelector } from 'react-redux'
 import { ensureEmployees, fetchEmployees } from '../../../store/employeesSlice'
+import useEmployees from '../../../hooks/useEmployees'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { FaBarcode } from "react-icons/fa";
 import { useState } from "react";
 import Spinner from "../../utility/Spinner";
@@ -19,48 +21,51 @@ const AllEmployees = () => {
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
   const API_BASE = `${API_URL}/api/employees`;
-  const [employees, setEmployees] = useState([]);
+  const { data: employeesQuery, isLoading: qLoading, refetch } = useEmployees()
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams();
   const departmentFromUrl = searchParams.get("department");
   const [error,setError] = useState(null)
 
   useEffect(() => {
+    // ensure redux is populated (fallback for older code paths)
     dispatch(ensureEmployees())
   }, [dispatch])
 
-  useEffect(() => {
-    setEmployees(reduxEmployees);
-  }, [reduxEmployees]);
+  const handleAddEmployee = useCallback(() => navigate("/employee/add"), [navigate]);
 
-  const handleAddEmployee = () => navigate("/employee/add");
-
-const handleDelete = async (id) => {
-  try {
-    await axios.delete(`${API_BASE}/${id}`);
-
-    // // ✅ instant UI update
-     setEmployees(prev => prev.filter(emp => emp._id !== id));
-    dispatch(fetchEmployees());
-    toast.success("Employee deleted");
-  } catch (err) {
-    console.error(err);
-    setError(err)
-    toast.error("Delete failed");
-  }
-};
-
-  const handleToggleStatus = async (empId, currentStatus) => {
-    const next = currentStatus === "active" ? "inactive" : "active";
-    try {
-      await axios.put(`${API_BASE}/${empId}`, { status: next });
-      // Force refetch so UI updates immediately
-      dispatch(fetchEmployees())
-      toast.success(`Employee ${next}`);
-    } catch (err) {
-      console.error("Toggle failed", err);
-      toast.error("Failed to update status");
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => axios.delete(`${API_BASE}/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      toast.success('Employee deleted')
+    },
+    onError: (err) => {
+      console.error('Delete failed', err)
+      toast.error('Delete failed')
     }
-  };
+  })
+
+  const handleDelete = useCallback((id) => {
+    deleteMutation.mutate(id)
+  }, [deleteMutation])
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ empId, next }) => axios.put(`${API_BASE}/${empId}`, { status: next }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      toast.success(`Employee ${vars.next}`)
+    },
+    onError: (err) => {
+      console.error('Toggle failed', err)
+      toast.error('Failed to update status')
+    }
+  })
+
+  const handleToggleStatus = useCallback((empId, currentStatus) => {
+    const next = currentStatus === 'active' ? 'inactive' : 'active'
+    toggleMutation.mutate({ empId, next })
+  }, [toggleMutation])
 
   // if (loading)
   //     return (
@@ -95,10 +100,10 @@ const handleDelete = async (id) => {
       </div>
 
       <div className="mb-6">
-        <EmployeeTable
-          employees={employees}
+          <EmployeeTable
+          employees={reduxEmployees}
           // rowsPerPage={10}
-          loading={loading}
+          loading={loading || qLoading}
           onEdit={(emp) => navigate(`/employee/${emp._id}/edit`)}
           onDelete={handleDelete}
           onToggleStatus={(id, status) => handleToggleStatus(id, status)}
@@ -116,4 +121,4 @@ const handleDelete = async (id) => {
   );
 };
 
-export default AllEmployees;
+export default memo(AllEmployees);

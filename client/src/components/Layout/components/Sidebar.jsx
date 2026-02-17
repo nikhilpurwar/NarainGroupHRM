@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react"
 import { NavLink, useNavigate, useLocation } from "react-router-dom"
 import axios from "axios"
 import usePermissions from '../../../hooks/usePermissions'
@@ -62,7 +62,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
       { path: "/liveattend", icon: "fa-chart-line", label: "Live Attendance" },
       { path: "/advance", icon: "fa-money-bill-wave", label: "Manage Advance" },
     ]
-  }, [role])
+  }, [roleNormalized])
 
   // Apply permissions filter if available
   const filterByPermissions = (items) => {
@@ -88,26 +88,26 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
 
   const visibleMainMenu = filterByPermissions(mainMenu)
 
-  const reportsMenu = [
+  const reportsMenu = useMemo(() => [
     { path: "/emp-salary-report", label: "Monthly Salary" },
     { path: "/daily_report", label: "Daily Salary" },
     { path: "/attendence-report", label: "Attendance" },
-  ]
+  ], [])
 
-  const deptMenu = [
+  const deptMenu = useMemo(() => [
     { path: "/departments", label: "Head Departments" },
     { path: "/subdepartment", label: "Sub Departments" },
     { path: "/designation", label: "Designation" },
-  ]
+  ], [])
 
-  const settingsMenu = [
+  const settingsMenu = useMemo(() => [
     { path: "/breaks", label: "Working Hours" },
     { path: "/festival", label: "Holidays" },
     { path: "/charges", label: "Charges" },
     { path: "/user-list", label: "Manage Users" },
     { path: "/permissions", label: "Permissions" },
     { path: "/salary-rules", label: "Salary Rules" },
-  ]
+  ], [])
 
   const visibleReportsMenu = filterByPermissions(reportsMenu)
   const visibleDeptMenu = filterByPermissions(deptMenu)
@@ -125,7 +125,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
       dept: deptMenu.some(m => p.startsWith(m.path)),
       settings: settingsMenu.some(m => p.startsWith(m.path)),
     })
-  }, [location.pathname])
+  }, [location.pathname, reportsMenu, deptMenu, settingsMenu])
 
   /* ---------------- STYLES ---------------- */
 
@@ -135,19 +135,23 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
 
   /* ---------------- LOGOUT ---------------- */
 
-  const doLogout = () => {
+  const doLogout = useCallback(() => {
     try {
       // Clear tokens and user details from both storages
       localStorage.removeItem("token")
       localStorage.removeItem("user")
       sessionStorage.removeItem("token")
       sessionStorage.removeItem("user")
-      try { delete axios.defaults.headers.common["Authorization"] } catch { }
+      try { delete axios.defaults.headers.common["Authorization"] } catch (err) { void err }
       navigate("/login")
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [navigate])
+
+  const handleNavClick = useCallback(() => {
+    if (isMobile && toggleSidebar) toggleSidebar()
+  }, [isMobile, toggleSidebar])
 
   /* ---------------- RENDER ---------------- */
 
@@ -171,7 +175,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
         {/* LOGO */}
         <div className="h-20 flex items-center justify-center border-b border-gray-700 bg-white">
           <img
-            src={effectiveCollapsed ? "/logo1.png" : "/logo2.png"}
+            src={effectiveCollapsed ? "logo1.png" : "logo2.png"}
             alt="logo"
             className={effectiveCollapsed ? "w-14 object-contain" : "h-12 object-contain"}
           />
@@ -184,7 +188,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
               <li key={item.path}>
                 <NavLink
                   to={item.path}
-                  onClick={() => { if (isMobile && toggleSidebar) toggleSidebar() }}
+                  onClick={handleNavClick}
                   className={({ isActive }) =>
                     `${baseLink} ${effectiveCollapsed ? "justify-center" : ""} ${isActive ? activeLink : inactiveLink}`
                   }
@@ -241,7 +245,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, onHoverChange }) => {
 
 /* ---------------- DROPDOWN COMPONENT ---------------- */
 
-const Dropdown = ({ title, icon, open, toggle, collapsed, items }) => {
+const Dropdown = memo(({ title, icon, open, toggle, collapsed, items }) => {
   const baseLink = "flex items-center gap-3 px-3 py-2 rounded transition-colors"
   const activeLink = "bg-gray-800 text-white"
   const inactiveLink = "text-gray-300 hover:bg-gray-800"
@@ -274,6 +278,6 @@ const Dropdown = ({ title, icon, open, toggle, collapsed, items }) => {
       )}
     </div>
   )
-}
+})
 
-export default Sidebar
+export default memo(Sidebar)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, memo } from "react";
 import axios from "axios";
 import { FiEdit } from "react-icons/fi";
 import { IoIosAddCircle } from "react-icons/io";
@@ -69,7 +69,7 @@ const ManageUsers = () => {
     );
   };
 
-  const toggleStatusOptimistic = async (user) => {
+  const toggleStatusOptimistic = useCallback(async (user) => {
     const id = user._id;
     const prev = user.isActive ? "active" : "inactive";
     const next = prev === "active" ? "inactive" : "active";
@@ -91,12 +91,12 @@ const ManageUsers = () => {
         delete np[id];
         return np;
       });
-      fetchUsers();
+      try { await fetchUsers(); } catch { }
     }
-  };
+  }, [API]);
 
   /* ================= FETCH ================= */
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       dispatch(startLoading());
       const res = await axios.get(API);
@@ -106,34 +106,34 @@ const ManageUsers = () => {
     } finally {
       dispatch(stopLoading());
     }
-  };
+  }, [dispatch]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   /* ================= ACTIONS ================= */
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setSelectedUser(null);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleEdit = (user) => {
+  const handleEdit = useCallback((user) => {
     setSelectedUser(user);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleDelete = (user) => {
+  const handleDelete = useCallback((user) => {
     setDeleteItem(user);
     setShowDelete(true);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     try {
       setDeleteLoading(true);
       await axios.delete(`${API}/${deleteItem._id}`);
       toast.success("User deleted successfully");
-      fetchUsers();
+      await fetchUsers();
     } catch {
       toast.error("Delete failed");
     } finally {
@@ -141,7 +141,7 @@ const ManageUsers = () => {
       setShowDelete(false);
       setDeleteItem(null);
     }
-  };
+  }, [deleteItem, fetchUsers]);
 
   /* ================= UI ================= */
   return (
@@ -274,4 +274,4 @@ const ManageUsers = () => {
   );
 };
 
-export default ManageUsers;
+export default memo(ManageUsers);

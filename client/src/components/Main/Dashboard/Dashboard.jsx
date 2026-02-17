@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import axios from "axios";
 import {
   Chart as ChartJS,
@@ -32,6 +32,17 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [trendType, setTrendType] = useState("sevenDay");
   const [trendOpen, setTrendOpen] = useState(false);
+
+  const trendOptions = useMemo(() => ([
+    { key: "sevenDay", label: "Last 7 Days" },
+    { key: "monthly", label: "Monthly Summary" },
+    { key: "yearly", label: "Yearly Overview" },
+  ]), [])
+
+  const onSelectTrend = useCallback((key) => {
+    setTrendType(key)
+    setTrendOpen(false)
+  }, [])
 useEffect(() => {
   const close = (e) => {
     if (!e.target.closest(".trend-dropdown")) {
@@ -65,7 +76,7 @@ useEffect(() => {
 
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
- const cardData = {
+ const cardData = useMemo(() => ({
     totalEmployees: data?.totalEmployees ?? 0,
     activeEmployees: data?.activeEmployees ?? 0,
     inactiveEmployees: data?.inactiveEmployees ?? 0,
@@ -76,7 +87,7 @@ useEffect(() => {
     monthlyPresent: data?.monthly?.present ?? 0,
     monthlyAbsent: data?.monthly?.absent ?? 0,
     departments: data?.departments ?? [],
-  };
+  }), [data]);
  
 
   return (
@@ -114,20 +125,13 @@ useEffect(() => {
   </button>
 
   {/* Dropdown */}
-  {trendOpen && (
+      {trendOpen && (
     <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden">
 
-      {[
-        { key: "sevenDay", label: "Last 7 Days" },
-        { key: "monthly", label: "Monthly Summary" },
-        { key: "yearly", label: "Yearly Overview" },
-      ].map(opt => (
+      {trendOptions.map(opt => (
         <button
           key={opt.key}
-          onClick={() => {
-            setTrendType(opt.key);
-            setTrendOpen(false);
-          }}
+          onClick={() => onSelectTrend(opt.key)}
           className={`
             w-full px-4 py-2.5 text-left text-sm transition
             hover:bg-gray-100
@@ -169,4 +173,4 @@ useEffect(() => {
   );
 };
 
-export default Dashboard;
+export default memo(Dashboard);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
 import { IoIosAddCircle } from "react-icons/io";
@@ -162,4 +162,4 @@ const SubDepartments = () => {
   );
 };
 
-export default SubDepartments;
+export default memo(SubDepartments);

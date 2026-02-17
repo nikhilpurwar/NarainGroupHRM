@@ -108,23 +108,23 @@ const DailySalary = () => {
   }, [filters, currentPage, pageSize]);
 
   // Handle filter change
-  const handleFilterChange = (e) => {
+  const handleFilterChange = useCallback((e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, []);
 
   // Apply filters
-  const applyFilters = (e) => {
+  const applyFilters = useCallback((e) => {
     e?.preventDefault();
     setCurrentPage(1); // Reset to first page
     fetchDailySalaryData();
-  };
+  }, [fetchDailySalaryData]);
 
   // Clear filters
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     setFilters({
       fromDate: today,
@@ -132,7 +132,7 @@ const DailySalary = () => {
       employeeId: ''
     });
     setCurrentPage(1);
-  };
+  }, []);
 
   // Export to CSV/Excel
   const exportToExcel = () => {
@@ -949,4 +949,4 @@ const DailySalary = () => {
   );
 };
 
-export default DailySalary;
+export default React.memo(DailySalary);

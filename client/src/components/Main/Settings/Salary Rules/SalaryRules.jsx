@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo } from 'react'
 import axios from 'axios'
 import { useHierarchy } from '../../../../context/HierarchyContext'
 import { toast } from 'react-toastify'
@@ -464,4 +464,4 @@ const confirmDelete = async () => {
   )
 }
 
-export default SalaryRules
+export default React.memo(SalaryRules)

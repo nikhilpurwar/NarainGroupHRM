@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { FiEdit } from "react-icons/fi";
 import { MdDeleteOutline } from "react-icons/md";
 import { IoIosAddCircle } from "react-icons/io";
@@ -240,7 +240,7 @@ const confirmDelete = async () => {
     </div>
   );
 };
-export default Holidays;
+export default React.memo(Holidays);
 
   {/* Action
   <td className="px-4 py-3 border-t">

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, memo } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { Eye, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
@@ -632,4 +632,4 @@ const onEdit = (advance) => {
   );
 };
 
-export default ManageAdvance;
+export default React.memo(ManageAdvance);

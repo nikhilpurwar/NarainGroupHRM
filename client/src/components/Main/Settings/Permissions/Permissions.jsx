@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo } from 'react'
 import axios from 'axios'
 import { useDispatch } from 'react-redux'
 import { fetchPermissions as fetchPermissionsThunk } from '../../../../store/permissionsSlice'
@@ -464,7 +464,7 @@ const toggleRole = async (path, role) => {
     )
 }
 
-export default Permissions
+export default React.memo(Permissions)
 
 // Add missing icon component
 // const FiSearch = ({ className }) => (

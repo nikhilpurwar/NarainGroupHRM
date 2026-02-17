@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, memo } from "react"
 import axios from "axios"
 import { FiEdit } from "react-icons/fi"
 import { MdDeleteOutline } from "react-icons/md"
@@ -184,4 +184,4 @@ const WorkingHours = () => {
   )
 }
 
-export default WorkingHours
+export default React.memo(WorkingHours)

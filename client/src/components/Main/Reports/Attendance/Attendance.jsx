@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, memo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
@@ -11,6 +11,7 @@ import ManualAttendanceModal from "../../Attendance/components/ManualAttendanceM
 import PunchRecordsModal from "../../Attendance/components/PunchRecordsModal";
 import { ensureEmployees } from "../../../../store/employeesSlice";
 import { ensureTodayAttendance } from "../../../../store/attendanceSlice";
+import useAttendance from '../../../../hooks/useAttendance'
 import { toast } from "react-toastify";
 import { FaUserCheck } from "react-icons/fa";
 import { IoMdLogOut } from "react-icons/io";
@@ -25,6 +26,8 @@ const ReportsAttendance = () => {
   const [searchParams] = useSearchParams();
   const queryEmployeeId = searchParams.get("employeeId");
   const dispatch = useDispatch();
+  // ensure attendance is loaded into redux via react-query
+  useAttendance()
   const employees = useSelector((s) => s.employees.data);
   const attendanceMap = useSelector((s) => s.attendance.map || {});
   const navigate = useNavigate();
@@ -75,6 +78,8 @@ const ReportsAttendance = () => {
     };
 
     const init = async () => {
+        // ensure today's attendance is loaded into redux via react-query
+        useAttendance();
       await loadEmployees();
       try {
         await dispatch(ensureTodayAttendance());
@@ -509,7 +514,7 @@ useEffect(() => {
   );
 };
 
-export default ReportsAttendance;
+export default React.memo(ReportsAttendance);
 
 // <div className="relative bg-gray-900 rounded-t-xl p-4 flex items-center justify-between gap-4">
 //       <input

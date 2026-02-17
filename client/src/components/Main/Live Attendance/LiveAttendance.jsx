@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { IoIosAddCircle } from "react-icons/io";
@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { ensureEmployees } from '../../../store/employeesSlice';
 import { ensureTodayAttendance, updateAttendanceEntry } from '../../../store/attendanceSlice';
 import { startLoading, stopLoading } from "../../../store/loadingSlice"; // global loader
+import useAttendance from '../../../hooks/useAttendance'
 import SkeletonRows from "../../SkeletonRows"; // skeleton rows
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
@@ -21,6 +22,9 @@ const LiveAttendance = () => {
 
   const globalLoading = useSelector(s => s.loading.global); // global loader
   const [error, setError] = useState(null);
+
+  // ensure attendance is populated in redux cache
+  useAttendance()
 
   /* ================= FETCH EMPLOYEES & ATTENDANCE ================= */
   useEffect(() => {
@@ -64,7 +68,7 @@ const LiveAttendance = () => {
   }, [API_URL, dispatch]);
 
   /* ================= HELPERS ================= */
-  const getLastActivityTime = (att) => {
+  const getLastActivityTime = useCallback((att) => {
     if (!att) return 0;
     if (Array.isArray(att.punchLogs) && att.punchLogs.length > 0) {
       return new Date(att.punchLogs[att.punchLogs.length - 1].punchTime).getTime();
@@ -72,9 +76,9 @@ const LiveAttendance = () => {
     if (att.updatedAt) return new Date(att.updatedAt).getTime();
     if (att.date) return new Date(att.date).getTime();
     return 0;
-  };
+  }, []);
 
-  const getFirstInLastOut = (att) => {
+  const getFirstInLastOut = useCallback((att) => {
     if (!att?.punchLogs?.length) return { firstIn: "—", lastOut: "—" };
     const ins = att.punchLogs.filter(p => p.punchType === "IN");
     const outs = att.punchLogs.filter(p => p.punchType === "OUT");
@@ -82,23 +86,25 @@ const LiveAttendance = () => {
       firstIn: ins.length ? new Date(ins[0].punchTime).toLocaleTimeString() : "—",
       lastOut: outs.length ? new Date(outs[outs.length - 1].punchTime).toLocaleTimeString() : "—"
     };
-  };
+  }, []);
 
-  const sortedEmployees = [...employees].sort((a, b) => {
-    const keyA = a._id || a.id;
-    const keyB = b._id || b.id;
-    return getLastActivityTime(attendanceMap[keyB]) - getLastActivityTime(attendanceMap[keyA]);
-  });
+  const sortedEmployees = useMemo(() => {
+    return [...employees].sort((a, b) => {
+      const keyA = a._id || a.id;
+      const keyB = b._id || b.id;
+      return getLastActivityTime(attendanceMap[keyB]) - getLastActivityTime(attendanceMap[keyA]);
+    });
+  }, [employees, attendanceMap, getLastActivityTime]);
 
-  const presentEmployees = sortedEmployees.filter(emp => {
+  const presentEmployees = useMemo(() => sortedEmployees.filter(emp => {
     const att = attendanceMap[emp._id || emp.id];
     return att && att.status !== 'absent';
-  });
+  }), [sortedEmployees, attendanceMap]);
 
-  const absentEmployees = sortedEmployees.filter(emp => {
+  const absentEmployees = useMemo(() => sortedEmployees.filter(emp => {
     const att = attendanceMap[emp._id || emp.id];
     return !att || att.status === 'absent';
-  });
+  }), [sortedEmployees, attendanceMap]);
 
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
@@ -142,7 +148,7 @@ const LiveAttendance = () => {
                   <tr
                     key={key}
                     title="Click to view profile"
-                    onClick={() => navigate(`/profile/${item._id}`)}
+                    onClick={useCallback(() => navigate(`/profile/${item._id}`), [navigate, item._id])}
                     className="border-b hover:bg-green-50 transition cursor-pointer"
                   >
                     <td className="px-4 py-3">{index + 1}</td>
@@ -252,4 +258,4 @@ const LiveAttendance = () => {
   );
 };
 
-export default LiveAttendance;
+export default memo(LiveAttendance);
