@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
+import { checkMonthlyExists, fetchMonthlySalary } from '../../../../../services/ApiService';
 import { toast } from 'react-toastify';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
@@ -7,17 +7,20 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100';
 export const useSalaryData = (filters, currentPage, pageSize) => {
   const [salaryData, setSalaryData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [dataExists, setDataExists] = useState(false);
+  // tri-state: null = unknown/checking, true = exists, false = does not exist
+  const [dataExists, setDataExists] = useState(null);
   const [checkedMonth, setCheckedMonth] = useState(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const [summary, setSummary] = useState(null);
 
   // Check if salary data exists for the selected month
   const checkDataExists = useCallback(async () => {
+    // mark as checking
+    setDataExists(null);
     try {
       const params = { month: filters.month, year: filters.year };
       const monthKey = `${filters.year}-${filters.month}`;
-      const checkResponse = await axios.get(`${API_URL}/api/salary/monthly/exists`, { params });
+      const checkResponse = await checkMonthlyExists(params);
 
       if (checkResponse.data?.success) {
         const exists = checkResponse.data.data?.exists || false;
@@ -40,7 +43,8 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
 
   // Fetch salary data
   const fetchSalaryData = useCallback(async () => {
-    if (!dataExists) {
+    // Only fetch when we are sure data exists
+    if (dataExists !== true) {
       setSalaryData([]);
       setTotalRecords(0);
       setSummary(null);
@@ -58,7 +62,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
         pageSize
       };
 
-      const response = await axios.get(`${API_URL}/api/salary/monthly`, { params });
+      const response = await fetchMonthlySalary(params);
 
       if (response.data?.success) {
         const data = response.data.data || {};
@@ -102,7 +106,7 @@ export const useSalaryData = (filters, currentPage, pageSize) => {
             id: it.id || it._id || it.empId,
             empId: it.empId || '',
             empName: it.empName || '',
-            // avatar: it.avatar || it.avtar || 'NP',
+            avatar: it.avatar || it.avtar || '',
             empType,
             headDepartment: it.headDepartment || it.department || '',
             subDepartment: it.subDepartment || it.group || '',

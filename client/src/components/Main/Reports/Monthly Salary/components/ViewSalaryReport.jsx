@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { toast } from 'react-toastify';
 
-const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, onDownloadPDF }) => {
+const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, onDownloadPDF, pendingPayIds = [] }) => {
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -20,6 +20,8 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
   const handlePay = () => {
     onPay(employee, note);
   };
+
+  const isPaying = pendingPayIds.includes(employee.empId || employee.id);
 
   const handleDownloadPDF = () => {
     onDownloadPDF(employee);
@@ -235,16 +237,16 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
             </button>
             <button
               onClick={handlePay}
-              disabled={employee.status === 'Paid'}
+              disabled={employee.status === 'Paid' || isPaying}
               className={`flex items-center gap-2 px-6 py-2.5 font-medium rounded-lg transition ${
-                employee.status === 'Paid'
+                employee.status === 'Paid' || isPaying
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
               }`}
-              title={employee.status === 'Paid' ? 'Already Paid' : 'Mark as Paid'}
+              title={employee.status === 'Paid' ? 'Already Paid' : (isPaying ? 'Processing' : 'Mark as Paid')}
             >
               <BanknoteArrowUp size={18} />
-              {employee.status === 'Paid' ? 'Paid' : 'Mark as Paid'}
+              {employee.status === 'Paid' ? 'Paid' : (isPaying ? 'Processing...' : 'Mark as Paid')}
             </button>
           </div>
         </div>

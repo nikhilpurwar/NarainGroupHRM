@@ -655,7 +655,7 @@ export async function computeSalaryForEmployee(employee, fromDate, toDate) {
     id: employee._id,
     empId: employee.empId,
     empName: employee.name,
-    // avatar: employee.avatar || employee.avtar || '',
+    avatar: employee.avatar || employee.avtar || '',
     empType,
     headDepartment: employee.headDepartment,
     subDepartment: employee.subDepartment,

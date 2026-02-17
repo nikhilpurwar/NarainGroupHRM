@@ -1,7 +1,7 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { IndianRupee } from 'lucide-react';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { payMonthly, recalculateMonthly } from '../../../../services/ApiService';
 import {
   useSalaryFilters,
   useSalaryData,
@@ -113,18 +113,19 @@ const MonthlySalary = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const { salaryData, setSalaryData, loading, dataExists, checkedMonth, totalRecords, summary, checkDataExists, fetchSalaryData } = useSalaryData(filters, currentPage, pageSize);
   const totalPages = Math.ceil(totalRecords / pageSize) || 0;
-  const goToPage = (page) => {
+  const goToPage = useCallback((page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
-  };
-  const goPrev = () => goToPage(currentPage - 1);
-  const goNext = () => goToPage(currentPage + 1);
+  }, [totalPages]);
+  const goPrev = useCallback(() => goToPage(currentPage - 1), [goToPage, currentPage]);
+  const goNext = useCallback(() => goToPage(currentPage + 1), [goToPage, currentPage]);
   const resetPage = useCallback(() => setCurrentPage(1), []);
   const { isModalOpen, selectedEmployee, openModal, closeModal, updateSelectedEmployee } = useSalaryModal();
   const { exportToExcel, printReport } = useSalaryExport(getSelectedMonthYearLabel);
   const { downloadEmployeePDF } = useSalaryPDF(getSelectedMonthYearLabel);
   const { handleLoanDeductChange, cleanup } = useLoanRecalculation(setSalaryData, filters.month);
+  const [pendingPayIds, setPendingPayIds] = useState([]);
 
   // Re-fetch data when pagination or page size changes
   useEffect(() => {
@@ -149,7 +150,7 @@ const MonthlySalary = () => {
   }, [cleanup]);
 
   // Apply filters
-  const handleApplyFilters = (e) => {
+  const handleApplyFilters = useCallback((e) => {
     e?.preventDefault();
     resetPage();
     checkDataExists().then(exists => {
@@ -160,7 +161,7 @@ const MonthlySalary = () => {
         toast.info('No salary data available for the selected month');
       }
     });
-  };
+  }, [resetPage, checkDataExists, fetchSalaryData, setSalaryData]);
 
   // Clear filters
   const handleClearFilters = () => {
@@ -170,7 +171,7 @@ const MonthlySalary = () => {
   };
 
   // Handle Pay - Mark salary as paid
-  const handlePay = async (employee, note) => {
+  const handlePay = useCallback(async (employee, note) => {
     if (!filters.month || !filters.year) {
       toast.error('Please select month and year before marking salary as paid');
       return;
@@ -178,14 +179,17 @@ const MonthlySalary = () => {
 
     const empId = employee.empId || employee.id;
 
+    if (pendingPayIds.includes(empId)) return; // already processing
+
     try {
+      setPendingPayIds(prev => [...prev, empId]);
       const payload = {
         month: `${filters.year}-${filters.month}`,
         note: note || '',
         status: 'Paid'
       };
 
-      const response = await axios.patch(`${API_URL}/api/salary/monthly/${empId}/pay`, payload);
+      const response = await payMonthly(empId, payload);
 
       if (!response.data?.success) {
         throw new Error(response.data?.message || 'Failed to update salary status');
@@ -207,11 +211,13 @@ const MonthlySalary = () => {
     } catch (error) {
       console.error('Error marking salary as paid:', error);
       toast.error(error.response?.data?.message || 'Failed to update payment status');
+    } finally {
+      setPendingPayIds(prev => prev.filter(id => id !== empId));
     }
-  };
+  }, [filters.month, filters.year, setSalaryData, updateSelectedEmployee, pendingPayIds]);
 
   // Trigger backend monthly salary calculation and refresh data
-  const handleRecalculate = async () => {
+  const handleRecalculate = useCallback(async () => {
     if (!filters.month || !filters.year) {
       toast.error('Please select month and year before recalculating');
       return;
@@ -219,7 +225,7 @@ const MonthlySalary = () => {
     setRecalculating(true);
     try {
       const payload = { month: `${filters.year}-${filters.month}` };
-      const res = await axios.post(`${API_URL}/api/salary/monthly/calculate`, payload);
+      const res = await recalculateMonthly(payload);
       if (!res.data?.success) {
         throw new Error(res.data?.message || 'Failed to recalculate salary');
       }
@@ -238,21 +244,21 @@ const MonthlySalary = () => {
     } finally {
       setRecalculating(false);
     }
-  };
+  }, [filters.month, filters.year, checkDataExists, fetchSalaryData, setSalaryData]);
 
   // Handle export
-  const handleExportExcel = () => {
+  const handleExportExcel = useCallback(() => {
     exportToExcel(salaryData, filters);
-  };
+  }, [exportToExcel, salaryData, filters]);
 
-  const handlePrintReport = () => {
+  const handlePrintReport = useCallback(() => {
     printReport(salaryData, filters, totalRecords);
-  };
+  }, [printReport, salaryData, filters, totalRecords]);
 
   // Handle download employee PDF
-  const handleDownloadEmployeePDF = (employee) => {
+  const handleDownloadEmployeePDF = useCallback((employee) => {
     downloadEmployeePDF(employee);
-  };
+  }, [downloadEmployeePDF]);
 
   return (
     <div className="container-fluid px-4 py-6">
@@ -299,6 +305,7 @@ const MonthlySalary = () => {
         onDownloadPDF={handleDownloadEmployeePDF}
         onLoanDeductChange={handleLoanDeductChange}
         onRecalculate={handleRecalculate}
+        pendingPayIds={pendingPayIds}
       />
 
       {/* Pagination */}
@@ -326,6 +333,7 @@ const MonthlySalary = () => {
         monthYear={getSelectedMonthYearLabel()}
         onPay={handlePay}
         onDownloadPDF={handleDownloadEmployeePDF}
+        pendingPayIds={pendingPayIds}
       />
     </div>
   );

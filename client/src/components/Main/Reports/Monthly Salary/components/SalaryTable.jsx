@@ -15,18 +15,32 @@ const SalaryTable = memo(({
   onDownloadPDF,
   onLoanDeductChange,
   onRecalculate,
-  isRecalculating
+  isRecalculating,
+  pendingPayIds = []
 }) => {
 
-  if (loading) {
+  // Show loader while fetching rows OR while checking whether data exists
+  if (loading || dataExists === null) {
     return (
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-4 py-4 border-b bg-gray-50">
           <h2 className="text-lg font-semibold">Monthly Salary Report - {monthYear}</h2>
         </div>
-        <div className="py-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading salary report...</p>
+        <div className="py-6 px-4">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="h-6 bg-gray-200 rounded col-span-1"></div>
+              <div className="h-6 bg-gray-200 rounded col-span-1"></div>
+              <div className="h-6 bg-gray-200 rounded col-span-1"></div>
+              <div className="h-6 bg-gray-200 rounded col-span-1"></div>
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="h-3 bg-gray-200 rounded w-full"></div>
+              <div className="h-3 bg-gray-200 rounded w-full"></div>
+              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -134,6 +148,7 @@ const SalaryTable = memo(({
                   onPay={onPay}
                   onDownloadPDF={onDownloadPDF}
                   onLoanDeductChange={onLoanDeductChange}
+                  isPaying={pendingPayIds.includes(item.empId || item.id)}
                 />
               ))
             ) : (
