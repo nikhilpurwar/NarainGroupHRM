@@ -22,6 +22,12 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  // Get joining date in YYYY-MM-DD format
+  const minAllowedDate = selectedEmployee?.createdAt
+    ? new Date(selectedEmployee.createdAt)
+      .toISOString()
+      .split("T")[0]
+    : "";
 
   // Reset modal fields on open/close
   useEffect(() => {
@@ -80,6 +86,10 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
     if (!inHour) { setError('Please enter Punch-In hour'); return }
     if (!inMinute) { setError('Please enter Punch-In minute'); return }
     if (!inMeridiem) { setError('Please select Punch-In AM/PM'); return }
+    if (minAllowedDate && date < minAllowedDate) {
+      setError("Attendance cannot be created before employee joining date")
+      return
+    }
 
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
     let outTime = ''
@@ -214,9 +224,15 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
               type="date"
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={date}
+              min={minAllowedDate || undefined}
               max={todayIso}
               onChange={(e) => {
                 const newDate = e.target.value
+                //              if (minAllowedDate && newDate < minAllowedDate) {
+                //   setError("Cannot mark attendance before employee joining date")
+                //   return
+                // }
+
                 setDate(newDate)
                 if (newDate === todayIso) {
                   setOutHour(''); setOutMinute('00'); setOutMeridiem('PM')
