@@ -4,6 +4,9 @@ import { IoCloseSharp } from "react-icons/io5"
 import { MdOutlineRemoveRedEye } from "react-icons/md"
 import { IoMdEyeOff } from "react-icons/io"
 import { toast } from "react-toastify"
+import { useGlobalLoading } from "../../../../../hooks/useGlobalLoading"
+import { useDispatch } from "react-redux"
+import { startLoading, stopLoading } from "../../../../../store/loadingSlice"
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/users`
@@ -17,7 +20,9 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
     password: "",
   })
 
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading] = useState(false)
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
   const [employees, setEmployees] = useState([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -91,8 +96,8 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      setLoading(true)
-
+      // setLoading(true)
+      dispatch(startLoading())
       if (isEdit) {
         await axios.put(`${API}/${user._id || user.id}`, form)
         toast.success("User updated")
@@ -106,7 +111,8 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
     } catch {
       toast.error("Operation failed")
     } finally {
-      setLoading(false)
+      // setLoading(false)
+      dispatch(stopLoading())
     }
   }
 
@@ -162,7 +168,7 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
 
           <div>
             <label className="block text-sm font-medium">Employee ID/Email
-                <span className="text-red-500">*</span>
+              <span className="text-red-500">*</span>
             </label>
             <input
               type=""
@@ -174,27 +180,27 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
             />
           </div>
 
-            <div>
-              <label className="block text-sm font-medium">Password
-                  <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full border px-3 py-2 rounded pr-10"
-                />
-                <span
-                  className="absolute right-3 top-2.5 cursor-pointer text-gray-500"
-                  onClick={() => setShowPassword(prev => !prev)}
-                >
-                  {showPassword ? <IoMdEyeOff size={20} /> : <MdOutlineRemoveRedEye size={20} />}
-                </span>
-              </div>
+          <div>
+            <label className="block text-sm font-medium">Password
+              <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className="w-full border px-3 py-2 rounded pr-10"
+              />
+              <span
+                className="absolute right-3 top-2.5 cursor-pointer text-gray-500"
+                onClick={() => setShowPassword(prev => !prev)}
+              >
+                {showPassword ? <IoMdEyeOff size={20} /> : <MdOutlineRemoveRedEye size={20} />}
+              </span>
             </div>
+          </div>
 
           <button
             disabled={loading}
@@ -208,4 +214,4 @@ const AddEditUsers = ({ isOpen, onClose, isEdit, user, refreshList }) => {
   )
 }
 
-export default AddEditUsers
+export default React.memo(AddEditUsers)

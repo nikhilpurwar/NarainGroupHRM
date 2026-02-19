@@ -79,7 +79,7 @@ const ReportsAttendance = () => {
 
     const init = async () => {
         // ensure today's attendance is loaded into redux via react-query
-        useAttendance();
+        // useAttendance();
       await loadEmployees();
       try {
         await dispatch(ensureTodayAttendance());
@@ -145,11 +145,18 @@ const ReportsAttendance = () => {
       } else {
         setReport(data);
       }
-    } catch (err) {
-      console.error("fetchReport error", err);
-      setReport(null);
-      toast.error(err?.response?.data?.message || "Failed to load report");
-    } finally {
+    }  catch (err) {
+  console.error("fetchReport failed:", err.response || err);
+
+  toast.error(
+    err?.response?.data?.message ||
+    err?.message ||
+    "Failed to load report"
+  );
+
+  setReport(null);
+}
+finally {
       fetchInProgressRef.current = false;
       setLoading(false);
       setInitializing(false); // 
@@ -338,14 +345,21 @@ useEffect(() => {
 
       {/* Dropdown list only visible when search focused and employees fetched */}
      {/* Dropdown list */}
-  {searchFocused && employees && employees.length > 0 && (
-
+  {searchFocused && (
   <div
     className="absolute z-50 left-0 right-0 mt-1
       bg-white rounded-xl shadow-xl border border-gray-200
       max-h-64 overflow-auto"
   >
-    {filteredEmployees.length ? (
+    {/* Loading */}
+    {empsLoading && (
+      <div className="py-6 text-center text-sm text-gray-400">
+        Loading employees...
+      </div>
+    )}
+
+    {/* Employee List */}
+    {!empsLoading && filteredEmployees.length > 0 && (
       filteredEmployees.map((emp) => (
         <div
           key={emp._id}
@@ -383,18 +397,26 @@ useEffect(() => {
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-800 truncate">{emp.name}</p>
-            <p className="text-xs text-gray-500 truncate">{emp.empId} • {emp.mobile}</p>
+            <p className="font-medium text-gray-800 truncate">
+              {emp.name}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {emp.empId} • {emp.mobile}
+            </p>
           </div>
         </div>
       ))
-    ) : (
-      <div className="py-8 text-center text-sm text-gray-400">
+    )}
+
+    {/* Empty State */}
+    {!empsLoading && filteredEmployees.length === 0 && (
+      <div className="py-6 text-center text-sm text-gray-400">
         No matches found
       </div>
     )}
   </div>
 )}
+
 
     </div>
 

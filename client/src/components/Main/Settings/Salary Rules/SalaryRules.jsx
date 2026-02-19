@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo } from 'react'
+import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useHierarchy } from '../../../../context/HierarchyContext'
 import { toast } from 'react-toastify'
@@ -30,6 +30,9 @@ import { TbCalendarStats, TbDoorExit } from 'react-icons/tb'
 import AddEditRules from './component/AddEditRules'
 import RulesFilterBar from './component/RulesFilterBar'
 import ConfirmDelete from '../DeleteConfirmation'
+import { useGlobalLoading } from '../../../../hooks/useGlobalLoading'
+import { useDispatch } from 'react-redux'
+import { startLoading, stopLoading } from '../../../../store/loadingSlice'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5100'
 
@@ -67,7 +70,9 @@ const SalaryRules = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(defaultRule)
-  const [loading, setLoading] = useState(true)
+  // const [loading, setLoading] = useState(true)
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
   const [filteredRules, setFilteredRules] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
@@ -75,12 +80,14 @@ const SalaryRules = () => {
     allowOT: null,
   })
   const [showDelete, setShowDelete] = useState(false)
-const [deleteItem, setDeleteItem] = useState(null)
-const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteItem, setDeleteItem] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const fetchRules = async () => {
     try {
-      setLoading(true)
+      // setLoading(true)
+      dispatch(startLoading())
+
       const res = await axios.get(`${API_URL}/api/salary/rules`)
       if (res.data.success) {
         setRules(res.data.data || [])
@@ -89,7 +96,8 @@ const [deleteLoading, setDeleteLoading] = useState(false)
     } catch {
       toast.error('Failed to load salary rules')
     } finally {
-      setLoading(false)
+      // setLoading(false)
+      dispatch(stopLoading())
     }
   }
 
@@ -151,7 +159,8 @@ const [deleteLoading, setDeleteLoading] = useState(false)
     }
 
     try {
-      setLoading(true)
+      // setLoading(true)
+      dispatch(startLoading())
       const req = editing
         ? axios.put(`${API_URL}/api/salary/rules/${editing}`, form)
         : axios.post(`${API_URL}/api/salary/rules`, form)
@@ -165,29 +174,30 @@ const [deleteLoading, setDeleteLoading] = useState(false)
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save rule')
     } finally {
-      setLoading(false)
+      // setLoading(false)
+      dispatch(stopLoading())
     }
   }
 
-const handleDelete = (rule) => {
-  setDeleteItem(rule)
-  setShowDelete(true)
-}
-
-const confirmDelete = async () => {
-  try {
-    setDeleteLoading(true)
-    await axios.delete(`${API_URL}/api/salary/rules/${deleteItem._id}`)
-    toast.success("Rule deleted successfully")
-    fetchRules()
-  } catch {
-    toast.error("Failed to delete rule")
-  } finally {
-    setDeleteLoading(false)
-    setShowDelete(false)
-    setDeleteItem(null)
+  const handleDelete = (rule) => {
+    setDeleteItem(rule)
+    setShowDelete(true)
   }
-}
+
+  const confirmDelete = async () => {
+    try {
+      setDeleteLoading(true)
+      await axios.delete(`${API_URL}/api/salary/rules/${deleteItem._id}`)
+      toast.success("Rule deleted successfully")
+      fetchRules()
+    } catch {
+      toast.error("Failed to delete rule")
+    } finally {
+      setDeleteLoading(false)
+      setShowDelete(false)
+      setDeleteItem(null)
+    }
+  }
   const getStatusIcon = (value) =>
     value ?
       <FiCheckCircle className="text-green-500" size={18} /> :
@@ -436,15 +446,15 @@ const confirmDelete = async () => {
       </div>
 
       <ConfirmDelete
-  isOpen={showDelete}
-  title="Delete Salary Rule"
-  message="This salary rule will be permanently removed."
-  itemName={deleteItem?.name}
-  value={`SubDept: ${deleteItem?.subDepartment.name} • ${deleteItem?.shiftHours}Hours`}
-  loading={deleteLoading}
-  onCancel={() => setShowDelete(false)}
-  onConfirm={confirmDelete}
-/>
+        isOpen={showDelete}
+        title="Delete Salary Rule"
+        message="This salary rule will be permanently removed."
+        itemName={deleteItem?.name}
+        value={`SubDept: ${deleteItem?.subDepartment.name} • ${deleteItem?.shiftHours}Hours`}
+        loading={deleteLoading}
+        onCancel={() => setShowDelete(false)}
+        onConfirm={confirmDelete}
+      />
 
 
       {/* Modal */}
