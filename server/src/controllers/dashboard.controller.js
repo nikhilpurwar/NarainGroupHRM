@@ -158,7 +158,11 @@ export const dashboardSummary = async (req, res) => {
 const start7Days = new Date(today);
 start7Days.setDate(today.getDate() - 6);
 
-const startYear = new Date(today.getFullYear(), 0, 1);
+const startYear = new Date();
+startYear.setFullYear(today.getFullYear() - 5);
+startYear.setMonth(0);
+startYear.setDate(1);
+startYear.setHours(0,0,0,0);
 
 const trendData = await Attendance.aggregate([
   {

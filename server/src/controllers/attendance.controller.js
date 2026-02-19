@@ -227,17 +227,19 @@ export const attendanceReport = async (req, res) => {
     
     if (employeeId) {
       employeeData = await fetchEmployeeData({ _id: employeeId });
-      if (!employeeData) {
-        return res.status(404).json({ success: false, message: 'Employee not found' });
-      }
+      // if (!employeeData) {
+      //   return res.status(404).json({ success: false, message: 'Employee not found' });
+      // }
     } else if (search) {
       employeeData = await fetchEmployeeData({ name: { $regex: search, $options: 'i' } });
-      if (!employeeData) {
+    }
+      
+    if (!employeeData) {
         return res.json({ success: true, data: null });
       }
-    } else {
-      return res.status(400).json({ success: false, message: 'Employee ID or search required' });
-    }
+    //  else {
+    //   return res.status(400).json({ success: false, message: 'Employee ID or search required' });
+    // }
 
     // Fetch and process attendance
     const { docs: attendances } = await attendanceService.getMonthlyAttendances(

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { IoChevronDown, IoCloseSharp } from 'react-icons/io5'
 import { Loader } from 'lucide-react'
+import { toast } from 'react-toastify'
 
-const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
+const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, onSubmit }) => {
   const todayIso = new Date().toLocaleDateString('en-CA')
 
   const [employeeId, setEmployeeId] = useState("")
@@ -63,13 +64,11 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     return `${hhStr}:${mmStr}:00 ${mer}`
   }
 
-  const filteredEmployees = (employees || []).filter(emp => {
-    if (!searchFocused) return true
-    return (
-      emp.name?.toLowerCase().includes(search.toLowerCase()) ||
-      emp.empId?.toLowerCase().includes(search.toLowerCase())
-    )
-  })
+  const filteredEmployees = (employees || []).filter(emp =>
+  emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+  emp.empId?.toLowerCase().includes(search.toLowerCase())
+)
+
 
   const handleSubmit = async (e) => {
   e.preventDefault()
@@ -102,13 +101,13 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
     // toast.success("Attendance submitted successfully!")
 
     // Close modal only after success
-    onClose()
+   // onClose()
 
   } catch (err) {
-    setError(err.message || "Failed to submit attendance")
+    //setError(err.message || "Failed to submit attendance")
 
     // Optional: show error toast
-    // toast.error(err.message || "Failed to submit attendance")
+    toast.error(err.message || "Failed to submit attendance")
   } finally {
     setSubmitting(false)
   }
@@ -138,13 +137,23 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
             <label className="block text-sm font-medium mb-1">Select Employee <span className="text-red-500">*</span></label>
             <div
               className="relative"
-              onClick={() => { setSearchFocused(true); if (!searchFocused) setSearch('') }}
+//              onClick={() => {
+//   setSearchFocused(true)
+//   setSearch('')
+// }}
+
             >
               <input
                 type="text"
                 placeholder="Select or Search by name or emp id..."
-                value={searchFocused ? search : selectedEmployee ? `${selectedEmployee.name} (${selectedEmployee.empId})` : ""}
-                onChange={(e) => setSearch(e.target.value)}
+             value={
+  searchFocused
+    ? search
+    : selectedEmployee
+    ? `${selectedEmployee.name} (${selectedEmployee.empId})`
+    : ''
+}
+  onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => { setSearchFocused(true); if (!searchFocused) setSearch('') }}
                 className="w-full border rounded-lg px-3 py-2 pr-10 text-sm"
               />
@@ -154,26 +163,48 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
               />
             </div>
 
-            {searchFocused && (
-              <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto">
-                {filteredEmployees.length ? (
-                  filteredEmployees.map(emp => (
-                    <div
-                      key={emp._id}
-                      onClick={() => { setEmployeeId(emp._id); setSelectedEmployee(emp); setSearchFocused(false) }}
-                      className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
-                    >
-                      <div className='flex col-span-2 gap-5'>
-                        <div className="font-medium">{emp.name}</div>
-                        <div className="text-xs py-1 text-gray-500">{emp.empId}</div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-400">No employee found</div>
-                )}
-              </div>
-            )}
+        {searchFocused && (
+  <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto">
+
+    {/* Loading */}
+    {employeesLoading && (
+      <div className="px-3 py-3 text-sm text-gray-400">
+        Loading employees...
+      </div>
+    )}
+
+    {/* Employees list */}
+    {!employeesLoading && filteredEmployees.length > 0 && (
+      filteredEmployees.map(emp => (
+        <div
+          key={emp._id}
+          onClick={() => {
+            setEmployeeId(emp._id)
+            setSelectedEmployee(emp)
+            setSearchFocused(false)
+          }}
+          className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
+        >
+          <div className="flex gap-5">
+            <div className="font-medium">{emp.name}</div>
+            <div className="text-xs text-gray-500">{emp.empId}</div>
+          </div>
+        </div>
+      ))
+    )}
+
+    {/* Empty only when finished loading */}
+    {!employeesLoading && filteredEmployees.length === 0 && (
+      <div className="px-3 py-3 text-sm text-gray-400">
+        No employee found
+      </div>
+    )}
+
+  </div>
+)}
+
+
+
           </div>
 
           {/* Date */}
@@ -240,10 +271,21 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, onSubmit }) => {
           {/* Footer */}
           <div className="mt-16 flex justify-end gap-3">
             <button type="button" onClick={onClose} disabled={submitting} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">Cancel</button>
-            <button type="submit" disabled={submitting} className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2">
-              {submitting && <Loader size={16} className="animate-spin" />}
-              {submitting ? 'Submitting...' : 'Submit'}
-            </button>
+          <button
+    type="submit" // use "button" to prevent default form submit if inside <form>
+    // onClick={handleSubmit} // <-- hook up your submit handler here
+    disabled={submitting}
+    className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+  >
+    {submitting ? (
+  <>
+    <Loader size={16} className="animate-spin" />
+    Submitting...
+  </>
+) : (
+  'Submit'
+)}
+  </button>
           </div>
         </form>
       </div>

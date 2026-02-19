@@ -321,6 +321,7 @@ const Attendance = () => {
       )
 
       toast.success(res.data?.message || 'Attendance marked successfully')
+      setManualModalOpen(false)
 
 
       // Refresh employees and today's attendance so UI updates instantly
@@ -670,6 +671,7 @@ const Attendance = () => {
         onClose={() => setManualModalOpen(false)}
         employees={employees}
         onSubmit={handleManualAttendanceSubmit}
+        employeesLoading={empsLoading}
       />
     </div>
   )
