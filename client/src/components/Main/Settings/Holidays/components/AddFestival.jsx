@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { IoCloseSharp } from "react-icons/io5";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { useGlobalLoading } from "../../../../../hooks/useGlobalLoading";
+import { useDispatch } from "react-redux";
+import { startLoading, stopLoading } from "../../../../../store/loadingSlice";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/holidays`
@@ -14,7 +17,9 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
   });
 
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
 
   // Load data in edit mode
   useEffect(() => {
@@ -45,7 +50,8 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
     if (!validate()) return;
 
     try {
-      setLoading(true);
+      // setLoading(true);
+      dispatch(startLoading())
 
       if (isEdit) {
         // ---------- UPDATE HOLIDAY ----------
@@ -63,7 +69,8 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
       console.error("Error saving festival:", error);
       toast.error("Something went wrong. Check console.");
     } finally {
-      setLoading(false);
+      // setLoading(false);
+      dispatch(stopLoading())
     }
   };
 
@@ -91,13 +98,12 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
             <label className="block text-sm font-medium mb-1">Festival Name  <span className="text-red-500">*</span></label>
             <input
               type="text"
-              className={`w-full px-3 py-2 border rounded ${
-                errors.name ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded ${errors.name ? "border-red-500" : "border-gray-300"
+                }`}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Diwali, Holi"
-              
+
             />
             {errors.name && (
               <p className="text-red-500 text-xs">{errors.name}</p>
@@ -109,12 +115,11 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
             <label className="block text-sm font-medium mb-1">Festival Date  <span className="text-red-500">*</span></label>
             <input
               type="date"
-              className={`w-full px-3 py-2 border rounded ${
-                errors.date ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded ${errors.date ? "border-red-500" : "border-gray-300"
+                }`}
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              
+
             />
             {errors.date && (
               <p className="text-red-500 text-xs">{errors.date}</p>
@@ -143,8 +148,8 @@ const AddFestival = ({ isOpen, onClose, isEdit, festival, refreshList }) => {
             {loading
               ? "Saving..."
               : isEdit
-              ? "Update Festival"
-              : "Add Festival"}
+                ? "Update Festival"
+                : "Add Festival"}
           </button>
 
         </form>

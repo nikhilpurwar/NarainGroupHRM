@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { IoCloseSharp } from "react-icons/io5";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useGlobalLoading } from "../../../../../hooks/useGlobalLoading";
+import { useDispatch } from "react-redux";
+import { startLoading, stopLoading } from "../../../../../store/loadingSlice";
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5100'
 const API = `${API_URL}/api/charges`;
@@ -21,7 +24,10 @@ const AddEditCharges = ({
   });
 
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  const loading = useGlobalLoading()
+  const dispatch = useDispatch()
+
 
   /* ================= LOAD DATA (EDIT MODE) ================= */
   useEffect(() => {
@@ -59,7 +65,8 @@ const AddEditCharges = ({
     if (!validate()) return;
 
     try {
-      setLoading(true);
+      // setLoading(true);
+      dispatch(startLoading())
 
       if (isEdit) {
         await axios.put(`${API}/${charge._id}`, formData);
@@ -75,7 +82,8 @@ const AddEditCharges = ({
       console.error(error);
       toast.error("Something went wrong");
     } finally {
-      setLoading(false);
+      // setLoading(false);
+      dispatch(stopLoading())
     }
   };
 
@@ -110,9 +118,8 @@ const AddEditCharges = ({
               onChange={(e) =>
                 setFormData({ ...formData, deduction: e.target.value })
               }
-              className={`w-full px-3 py-2 border rounded ${
-                errors.deduction ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded ${errors.deduction ? "border-red-500" : "border-gray-300"
+                }`}
               placeholder="e.g. PF, TDS, Insurance"
             />
             {errors.deduction && (
@@ -123,7 +130,7 @@ const AddEditCharges = ({
           {/* Value Type */}
           <div>
             <label className="block text-sm font-medium mb-1">
-              
+
               Value Type  <span className="text-red-500">*</span>
             </label>
             <select
@@ -149,9 +156,8 @@ const AddEditCharges = ({
               onChange={(e) =>
                 setFormData({ ...formData, value: e.target.value })
               }
-              className={`w-full px-3 py-2 border rounded ${
-                errors.value ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded ${errors.value ? "border-red-500" : "border-gray-300"
+                }`}
             />
             {errors.value && (
               <p className="text-red-500 text-xs">{errors.value}</p>
@@ -184,8 +190,8 @@ const AddEditCharges = ({
             {loading
               ? "Saving..."
               : isEdit
-              ? "Update Charges"
-              : "Add Charges"}
+                ? "Update Charges"
+                : "Add Charges"}
           </button>
         </form>
       </div>
