@@ -35,8 +35,8 @@ const Attendance = () => {
   const [report, setReport] = useState(null)
   const [empsLoading, setEmpsLoading] = useState(false)
   const loading = useGlobalLoading()
-    const dispatch = useDispatch()
-    const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
   const employees = useSelector(s => s.employees.data || [])
   const attendanceMap = useSelector(s => s.attendance.map || {})
   const [viewMode, setViewMode] = useState("list")
@@ -71,7 +71,7 @@ const Attendance = () => {
         const res = await axios.get(`${API_URL}/api/holidays`)
         setHolidays(res.data?.data || [])
       } catch (err) {
-        
+
         console.error('Failed to load holidays', err)
       }
     }
@@ -79,7 +79,7 @@ const Attendance = () => {
     // initial load (wrapped to allow awaiting dispatch)
     const init = async () => {
       await loadEmployees()
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
       await loadHolidays()
     }
 
@@ -123,7 +123,7 @@ const Attendance = () => {
       }
 
       // Refresh today's attendance data for live updates
-      try { dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { dispatch(ensureTodayAttendance()) } catch (e) { }
     });
 
     socket.on("disconnect", () => {
@@ -158,7 +158,7 @@ const Attendance = () => {
       toast.error("Failed to load report")
     } finally {
       fetchInProgressRef.current = false
-     dispatch(stopLoading())
+      dispatch(stopLoading())
     }
   }
 
@@ -211,7 +211,7 @@ const Attendance = () => {
           tzOffsetMinutes: new Date().getTimezoneOffset()
         })
       ))
-      
+
       results.forEach((res, idx) => {
         const emp = inEmployees[idx]
         const returnedAtt = res.data?.attendance
@@ -219,10 +219,10 @@ const Attendance = () => {
           dispatch(updateAttendanceEntry({ employeeId: emp._id, attendance: returnedAtt }))
         }
       })
-      
+
       toast.success(`Punched out ${inEmployees.length} employee(s)`)
-      try { await dispatch(ensureEmployees()) } catch (e) {}
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureEmployees()) } catch (e) { }
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
     } catch (err) {
       toast.error('Failed to punch out all employees')
     } finally {
@@ -274,8 +274,8 @@ const Attendance = () => {
       // Update employee list using response type
       const punchType = res.data?.type
       // Refresh cached employees and today's attendance so UI updates instantly
-      try { await dispatch(ensureEmployees()) } catch (e) {}
-      try { await dispatch(ensureTodayAttendance()) } catch (e) {}
+      try { await dispatch(ensureEmployees()) } catch (e) { }
+      try { await dispatch(ensureTodayAttendance()) } catch (e) { }
 
       // Refresh employees list so badges/counts update across UI
       try { loadEmployeesRef.current && await loadEmployeesRef.current() } catch (e) { }
@@ -340,11 +340,11 @@ const Attendance = () => {
           // prefer employee id from returned attendance if present
           const empKey = returnedAtt.employee && (returnedAtt.employee._id || returnedAtt.employee) ? String(returnedAtt.employee._id || returnedAtt.employee) : String(employeeId)
           dispatch(updateAttendanceEntry({ employeeId: empKey, attendance: returnedAtt }))
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // force refresh today's attendance cache to ensure map is populated
-      try { await dispatch(fetchTodayAttendance()) } catch (e) {}
+      try { await dispatch(fetchTodayAttendance()) } catch (e) { }
       if (report?.employee?._id === employeeId && returnedAtt) {
         try {
           const attDateIso = returnedAtt.date
@@ -435,7 +435,7 @@ const Attendance = () => {
   return (
     <div className="w-full min-h-screen flex flex-col">
 
-  {/* Back Button
+      {/* Back Button
   {!isMobile && viewMode === "report" && (
     <div className="p-6 pb-0">
       <button
@@ -497,7 +497,7 @@ const Attendance = () => {
             </button>
           )
         })() : (
-          <div className="flex items-center gap-3">            
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setManualModalOpen(true)}
               title="Add Past Attendance"
@@ -514,7 +514,7 @@ const Attendance = () => {
               className="flex items-center gap-2 text-center text-lg p-2 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50"
             >
               {/* Punch Out All */}
-              <IoMdLogOut size={30} className="hover:scale-130 transition duration-300"/>
+              <IoMdLogOut size={30} className="hover:scale-130 transition duration-300" />
             </button>
           </div>
         )}

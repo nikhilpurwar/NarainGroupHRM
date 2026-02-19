@@ -65,53 +65,53 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
   }
 
   const filteredEmployees = (employees || []).filter(emp =>
-  emp.name?.toLowerCase().includes(search.toLowerCase()) ||
-  emp.empId?.toLowerCase().includes(search.toLowerCase())
-)
+    emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+    emp.empId?.toLowerCase().includes(search.toLowerCase())
+  )
 
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
-  setError('')
+    e.preventDefault()
+    setError('')
 
-  // Validation
-  if (!employeeId) { setError('Please select an employee'); return }
-  if (!date) { setError('Please select a date'); return }
-  if (!inHour) { setError('Please enter Punch-In hour'); return }
-  if (!inMinute) { setError('Please enter Punch-In minute'); return }
-  if (!inMeridiem) { setError('Please select Punch-In AM/PM'); return }
+    // Validation
+    if (!employeeId) { setError('Please select an employee'); return }
+    if (!date) { setError('Please select a date'); return }
+    if (!inHour) { setError('Please enter Punch-In hour'); return }
+    if (!inMinute) { setError('Please enter Punch-In minute'); return }
+    if (!inMeridiem) { setError('Please select Punch-In AM/PM'); return }
 
-  const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
-  let outTime = ''
-  if (!isTodaySelected) {
-    if (!outHour || !outMinute || !outMeridiem) { 
-      setError('Please complete Punch-Out time for past date'); 
-      return 
+    const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
+    let outTime = ''
+    if (!isTodaySelected) {
+      if (!outHour || !outMinute || !outMeridiem) {
+        setError('Please complete Punch-Out time for past date');
+        return
+      }
+      outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
     }
-    outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
+
+    setSubmitting(true)
+
+    try {
+      // Submit attendance
+      await onSubmit({ employeeId, date, inTime, outTime })
+
+      // Show success toast (you can use any toast library, e.g., react-hot-toast)
+      // toast.success("Attendance submitted successfully!")
+
+      // Close modal only after success
+      // onClose()
+
+    } catch (err) {
+      //setError(err.message || "Failed to submit attendance")
+
+      // Optional: show error toast
+      toast.error(err.message || "Failed to submit attendance")
+    } finally {
+      setSubmitting(false)
+    }
   }
-
-  setSubmitting(true)
-
-  try {
-    // Submit attendance
-    await onSubmit({ employeeId, date, inTime, outTime })
-
-    // Show success toast (you can use any toast library, e.g., react-hot-toast)
-    // toast.success("Attendance submitted successfully!")
-
-    // Close modal only after success
-   // onClose()
-
-  } catch (err) {
-    //setError(err.message || "Failed to submit attendance")
-
-    // Optional: show error toast
-    toast.error(err.message || "Failed to submit attendance")
-  } finally {
-    setSubmitting(false)
-  }
-}
 
 
 
@@ -137,23 +137,23 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
             <label className="block text-sm font-medium mb-1">Select Employee <span className="text-red-500">*</span></label>
             <div
               className="relative"
-//              onClick={() => {
-//   setSearchFocused(true)
-//   setSearch('')
-// }}
+            //              onClick={() => {
+            //   setSearchFocused(true)
+            //   setSearch('')
+            // }}
 
             >
               <input
                 type="text"
                 placeholder="Select or Search by name or emp id..."
-             value={
-  searchFocused
-    ? search
-    : selectedEmployee
-    ? `${selectedEmployee.name} (${selectedEmployee.empId})`
-    : ''
-}
-  onChange={(e) => setSearch(e.target.value)}
+                value={
+                  searchFocused
+                    ? search
+                    : selectedEmployee
+                      ? `${selectedEmployee.name} (${selectedEmployee.empId})`
+                      : ''
+                }
+                onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => { setSearchFocused(true); if (!searchFocused) setSearch('') }}
                 className="w-full border rounded-lg px-3 py-2 pr-10 text-sm"
               />
@@ -163,45 +163,45 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
               />
             </div>
 
-        {searchFocused && (
-  <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto">
+            {searchFocused && (
+              <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-auto">
 
-    {/* Loading */}
-    {employeesLoading && (
-      <div className="px-3 py-3 text-sm text-gray-400">
-        Loading employees...
-      </div>
-    )}
+                {/* Loading */}
+                {employeesLoading && (
+                  <div className="px-3 py-3 text-sm text-gray-400">
+                    Loading employees...
+                  </div>
+                )}
 
-    {/* Employees list */}
-    {!employeesLoading && filteredEmployees.length > 0 && (
-      filteredEmployees.map(emp => (
-        <div
-          key={emp._id}
-          onClick={() => {
-            setEmployeeId(emp._id)
-            setSelectedEmployee(emp)
-            setSearchFocused(false)
-          }}
-          className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
-        >
-          <div className="flex gap-5">
-            <div className="font-medium">{emp.name}</div>
-            <div className="text-xs text-gray-500">{emp.empId}</div>
-          </div>
-        </div>
-      ))
-    )}
+                {/* Employees list */}
+                {!employeesLoading && filteredEmployees.length > 0 && (
+                  filteredEmployees.map(emp => (
+                    <div
+                      key={emp._id}
+                      onClick={() => {
+                        setEmployeeId(emp._id)
+                        setSelectedEmployee(emp)
+                        setSearchFocused(false)
+                      }}
+                      className="px-3 py-3 hover:bg-gray-100 cursor-pointer text-sm"
+                    >
+                      <div className="flex gap-5">
+                        <div className="font-medium">{emp.name}</div>
+                        <div className="text-xs text-gray-500">{emp.empId}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
 
-    {/* Empty only when finished loading */}
-    {!employeesLoading && filteredEmployees.length === 0 && (
-      <div className="px-3 py-3 text-sm text-gray-400">
-        No employee found
-      </div>
-    )}
+                {/* Empty only when finished loading */}
+                {!employeesLoading && filteredEmployees.length === 0 && (
+                  <div className="px-3 py-3 text-sm text-gray-400">
+                    No employee found
+                  </div>
+                )}
 
-  </div>
-)}
+              </div>
+            )}
 
 
 
@@ -237,7 +237,7 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
                 </select>
                 <span className="text-gray-600">:</span>
                 <select value={inMinute} onChange={(e) => setInMinute(e.target.value)} className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+                  {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 <select value={inMeridiem} onChange={(e) => setInMeridiem(e.target.value)} className="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="AM">AM</option>
@@ -256,7 +256,7 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
                 </select>
                 <span className="text-gray-600">:</span>
                 <select value={outMinute} onChange={(e) => setOutMinute(e.target.value)} disabled={isTodaySelected} className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
-                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+                  {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 <select value={outMeridiem} onChange={(e) => setOutMeridiem(e.target.value)} disabled={isTodaySelected} className={`${isTodaySelected ? 'bg-gray-100 border-gray-400 cursor-not-allowed' : ''} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
                   <option value="AM">AM</option>
@@ -271,21 +271,21 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
           {/* Footer */}
           <div className="mt-16 flex justify-end gap-3">
             <button type="button" onClick={onClose} disabled={submitting} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium">Cancel</button>
-          <button
-    type="submit" // use "button" to prevent default form submit if inside <form>
-    // onClick={handleSubmit} // <-- hook up your submit handler here
-    disabled={submitting}
-    className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
-  >
-    {submitting ? (
-  <>
-    <Loader size={16} className="animate-spin" />
-    Submitting...
-  </>
-) : (
-  'Submit'
-)}
-  </button>
+            <button
+              type="submit" // use "button" to prevent default form submit if inside <form>
+              // onClick={handleSubmit} // <-- hook up your submit handler here
+              disabled={submitting}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit'
+              )}
+            </button>
           </div>
         </form>
       </div>
