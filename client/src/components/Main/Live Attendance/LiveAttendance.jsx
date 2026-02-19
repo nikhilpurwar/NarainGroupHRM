@@ -88,6 +88,11 @@ const LiveAttendance = () => {
     };
   }, []);
 
+  const handleProfileNavigate = useCallback((id) => {
+    if (!id) return
+    navigate(`/profile/${id}`)
+  }, [navigate])
+
   const sortedEmployees = useMemo(() => {
     return [...employees].sort((a, b) => {
       const keyA = a._id || a.id;
@@ -148,7 +153,7 @@ const LiveAttendance = () => {
                   <tr
                     key={key}
                     title="Click to view profile"
-                    onClick={useCallback(() => navigate(`/profile/${item._id}`), [navigate, item._id])}
+                    onClick={() => handleProfileNavigate(item._id)}
                     className="border-b hover:bg-green-50 transition cursor-pointer"
                   >
                     <td className="px-4 py-3">{index + 1}</td>

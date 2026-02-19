@@ -455,91 +455,63 @@ export function parseDateTime(dateIso, timeStr, tzOffsetMinutes = null) {
 }
 
 // Check if employee has open IN that crosses attendance-day boundary to next day
-export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Attendance) {
+export async function handleContinuousINAcross8AM(employeeId, attendanceIso, AttendanceModel) {
   try {
-    // Get attendance for today (computed by configured boundary hour)
-    const todayAtt = await Attendance.findOne({
-      employee: employeeId,
-      date: {
-        $gte: new Date(`${attendanceIso}T00:00:00Z`),
-        $lte: new Date(`${attendanceIso}T23:59:59Z`)
-      }
-    });
+    // Find the most recent attendance record which is still open (last punch = IN)
+    const openAtt = await findIncompleteAttendance(employeeId);
+    if (!openAtt || !Array.isArray(openAtt.punchLogs) || openAtt.punchLogs.length === 0) return null;
 
-    if (!todayAtt || !Array.isArray(todayAtt.punchLogs) || todayAtt.punchLogs.length === 0) {
-      return null;
-    }
+    const lastPunch = openAtt.punchLogs[openAtt.punchLogs.length - 1];
+    if (!lastPunch || (lastPunch.punchType || '').toUpperCase() !== 'IN') return null;
 
-    // Check if last punch is IN
-    const lastPunch = todayAtt.punchLogs[todayAtt.punchLogs.length - 1];
-    if (!lastPunch || lastPunch.punchType !== 'IN') {
-      return null;
-    }
-
-    // Get last IN time
     const lastInTime = new Date(lastPunch.punchTime);
-    const lastInHour = lastInTime.getHours();
+    const boundaryHour = await getBoundaryHour();
 
-    // If IN was before configured boundary hour (assigned to previous day), check if it should span to today
-    const boundaryHour = await getBoundaryHour()
-    if (lastInHour < boundaryHour && attendanceIso !== lastInTime.toISOString().slice(0, 10)) {
-      // IN was yesterday before boundary hour, and we're now computing today
-      // This means employee was IN from yesterday before the boundary hour and is still IN today
-      // Mark today as Present automatically
-      const nextDayIso = attendanceIso;
-      const nextDayDateObj = new Date(`${nextDayIso}T00:00:00Z`);
-      const nextDayOfWeek = nextDayDateObj.getDay();
-      // determine weekend for this employee based on SalaryRule.workingDaysPerWeek
-      let nextDayIsWeekend = (nextDayOfWeek === 0 || nextDayOfWeek === 6)
-      try {
-        if (employeeId) {
-          const emp = await Employee.findById(employeeId).lean()
-          const subDeptId = emp?.subDepartment?._id || emp?.subDepartment || null
-          if (subDeptId) {
-            const rule = await SalaryRule.findOne({ subDepartment: subDeptId }).lean()
-            const workingDaysPerWeek = rule?.workingDaysPerWeek || 6
-            if (workingDaysPerWeek === 6) nextDayIsWeekend = nextDayOfWeek === 0
-            if (workingDaysPerWeek === 5) nextDayIsWeekend = nextDayOfWeek === 0 || nextDayOfWeek === 6
-          }
-        }
-      } catch (err) {
-        nextDayIsWeekend = (nextDayOfWeek === 0 || nextDayOfWeek === 6)
-      }
+    // boundary timestamp for the current attendanceIso (e.g., today at boundaryHour)
+    const boundaryIso = `${attendanceIso}T${String(boundaryHour).padStart(2,'0')}:00:00Z`;
+    const boundaryTs = new Date(boundaryIso);
 
-      let nextDayAtt = await Attendance.findOne({
-        employee: employeeId,
-        date: {
-          $gte: new Date(`${nextDayIso}T00:00:00Z`),
-          $lte: new Date(`${nextDayIso}T23:59:59Z`)
-        }
+    // If the open attendance belongs to a previous attendance day and the last IN was before the boundary,
+    // then auto-punch OUT at the boundary timestamp to close the previous attendance.
+    const openAttIso = openAtt.date ? new Date(openAtt.date).toISOString().slice(0, 10) : null;
+    if (openAttIso && openAttIso !== attendanceIso && lastInTime.getTime() < boundaryTs.getTime()) {
+      // Push an OUT at boundary (mark as auto-generated)
+      openAtt.punchLogs.push({ punchType: 'OUT', punchTime: boundaryTs, auto: true });
+
+      // Set outTime for display (HH:MM:SS)
+      openAtt.outTime = `${String(boundaryHour).padStart(2,'0')}:00:00`;
+
+      // Recompute totals using configured shift hours
+      const shiftCfg = await getShiftConfig();
+      const shiftHours = (shiftCfg && typeof shiftCfg.shiftHours === 'number') ? shiftCfg.shiftHours : 8;
+
+      const computed = computeTotalsFromPunchLogs(openAtt.punchLogs, shiftHours, { countOpenAsNow: false, now: boundaryTs, dayMeta: { isWeekend: !!openAtt.isWeekend, isHoliday: !!openAtt.isHoliday } });
+
+      Object.assign(openAtt, {
+        totalHours: computed.totalHours,
+        regularHours: computed.regularHours,
+        overtimeHours: computed.overtimeHours,
+        totalMinutes: computed.totalMinutes,
+        totalHoursDisplay: computed.totalHoursDisplay,
+        regularHoursDisplay: computed.regularHoursDisplay,
+        overtimeHoursDisplay: computed.overtimeHoursDisplay,
+        dayOtHours: computed.dayOtHours,
+        nightOtHours: computed.nightOtHours,
+        sundayOtHours: computed.sundayOtHours,
+        festivalOtHours: computed.festivalOtHours,
+        status: 'present',
+        note: (openAtt.note || '') + ` | Auto-OUT at boundary ${String(boundaryHour).padStart(2,'0')}:00`
       });
 
-      if (!nextDayAtt) {
-        // Create new attendance for next day with IN at configured boundary hour
-        nextDayAtt = await Attendance.create({
-          employee: employeeId,
-          date: nextDayDateObj,
-          status: 'present',
-          inTime: `${String(boundaryHour).padStart(2,'0')}:00:00`,
-          outTime: null,
-          totalHours: 0,
-          regularHours: 0,
-          overtimeHours: 0,
-          nightOtHours: 0,
-          sundayOtHours: 0,
-          festivalOtHours: 0,
-          breakMinutes: 0,
-          isWeekend: nextDayIsWeekend,
-          isHoliday: false,
-          punchLogs: [{ 
-            punchType: 'IN', 
-            punchTime: new Date(`${nextDayIso}T${String(boundaryHour).padStart(2,'0')}:00:00Z`)
-          }],
-          note: `Continuous IN from previous day (auto-marked at ${String(boundaryHour).padStart(2,'0')}:00 boundary)`
-        });
-      }
+      await openAtt.save();
 
-      return { marked: true, nextDayAttendance: nextDayAtt };
+      // Ensure there is a fresh attendance for the current day if needed (but do not auto-create IN there)
+      const todayExists = await AttendanceModel.findOne({
+        employee: employeeId,
+        date: { $gte: new Date(`${attendanceIso}T00:00:00Z`), $lte: new Date(`${attendanceIso}T23:59:59Z`) }
+      });
+
+      return { marked: true, closedAttendance: openAtt, todayExists: !!todayExists };
     }
 
     return null;

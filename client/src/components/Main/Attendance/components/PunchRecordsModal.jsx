@@ -70,6 +70,12 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
           <div>
             <p className="text-xs text-gray-600">Overtime Hours</p>
             <p className="text-lg font-semibold text-orange-600">{attendance.overtimeHoursDisplay || formatHours(attendance.overtimeHours)}</p>
+            <div className="text-[11px] text-gray-600 mt-1">
+              <div>Day: {formatHours(attendance.dayOtHours)}</div>
+              <div>Night: {formatHours(attendance.nightOtHours)}</div>
+              <div>Sunday: {formatHours(attendance.sundayOtHours)}</div>
+              <div>Festival: {formatHours(attendance.festivalOtHours)}</div>
+            </div>
           </div>
         </div>
 
@@ -114,7 +120,14 @@ const PunchRecordsModal = ({ isOpen, onClose, attendance, date, employeeName, sh
                             {log.punchType}
                           </span>
                         </td>
-                        <td className="border px-3 py-2">{timeStr}</td>
+                        <td className="border px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <span>{timeStr}</span>
+                            {log.auto ? (
+                              <span className="text-[10px] px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">Auto</span>
+                            ) : null}
+                          </div>
+                        </td>
                         <td className="border px-3 py-2 text-gray-600">{duration}</td>
                       </tr>
                     )

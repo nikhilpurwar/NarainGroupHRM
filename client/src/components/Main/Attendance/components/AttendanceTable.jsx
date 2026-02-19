@@ -249,11 +249,19 @@ const InOutCell = ({ isoDate, row, fallback, attendanceMap }) => {
       if (lastOut?.punchTime) {
         const dt = new Date(lastOut.punchTime);
         if (!isNaN(dt.getTime())) {
-          return dt.toLocaleTimeString('en-IN', { 
+          const timeStr = dt.toLocaleTimeString('en-IN', { 
             hour: '2-digit', 
             minute: '2-digit', 
             second: '2-digit' 
           });
+          return (
+            <div className="flex items-center justify-center gap-2">
+              <span>{timeStr}</span>
+              {lastOut.auto ? (
+                <span className="text-[10px] px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">Auto</span>
+              ) : null}
+            </div>
+          );
         }
       }
     }
