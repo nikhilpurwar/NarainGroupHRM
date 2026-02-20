@@ -42,7 +42,7 @@ const EmployeeAttendance = ({ employees = [], loading }) => {
 
         {loading ? (
           <tbody>
-            {[...Array(5)].map((_, index) => (
+            {[...Array(2)].map((_, index) => (
               <tr key={index}>
                 {[...Array(5)].map((_, i) => (
                   <td key={i} className="px-4 py-3">

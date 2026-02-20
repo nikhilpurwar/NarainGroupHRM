@@ -18,7 +18,8 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
   const [employees, setEmployees] = useState([])
   const [search, setSearch] = useState("")
   const [showDropdown, setShowDropdown] = useState(false)
-  
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+const [searchFocused, setSearchFocused] = useState(false)
 
   const [form, setForm] = useState({
     employee: "",
@@ -37,7 +38,7 @@ const AddEditAdvance = ({ data, onClose, onSuccess }) => {
 }
 
   const dropdownRef = useRef(null)
-const inputRef = useRef(null)
+
 
 
   const [errors, setErrors] = useState({})
@@ -55,11 +56,10 @@ const inputRef = useRef(null)
         start_from: data.start_from || "",
         attachment: null,
       })
-       setSearch(
-      data.employee
-        ? `${data.employee.name} | ${data.employee.empId}`
-        : ""
-    );
+if (data.employee) {
+      setSelectedEmployee(data.employee)   // ✅ ADD THIS
+      setSearch(`${data.employee.name} | ${data.employee.empId}`)
+    }
     }
   }, [data])
 
@@ -160,6 +160,7 @@ useEffect(() => {
       dropdownRef.current &&
       !dropdownRef.current.contains(e.target)
     ) {
+      setSearchFocused(false)
       setShowDropdown(false)
     }
   }
@@ -208,12 +209,22 @@ const filteredEmployees = useMemo(() => {
               <span className="text-red-500">*</span>
             </label>
 <input
-  ref={inputRef}
   type="text"
   placeholder="Select or search by name or emp id..."
-  value={search}
-  disabled={isEdit}
-  onClick={toggleDropdown}
+  value={
+    searchFocused
+      ? search
+      : selectedEmployee
+        ? `${selectedEmployee.name} | ${selectedEmployee.empId}`
+        : ""
+  }
+  disabled={false}
+  onFocus={() => {
+    if (isEdit) return
+    setSearchFocused(true)
+    setSearch("") // clear search when opening
+    setShowDropdown(true)
+  }}
   onChange={(e) => {
     setSearch(e.target.value)
     setShowDropdown(true)
@@ -225,7 +236,7 @@ const filteredEmployees = useMemo(() => {
 
 
   {/* DROPDOWN */}
-  {showDropdown && !isEdit && (
+  {showDropdown && (
     <div
       className="absolute z-50 left-0 right-0 mt-1
                  bg-white border rounded-lg
@@ -236,9 +247,10 @@ const filteredEmployees = useMemo(() => {
           <div
             key={emp._id}
             onClick={() => {
-              setForm((f) => ({ ...f, employee: emp._id }))
-              setSearch(`${emp.name} | ${emp.empId}`)
-              setShowDropdown(false)
+             setForm((f) => ({ ...f, employee: emp._id }))
+setSelectedEmployee(emp)
+setSearchFocused(false)
+setShowDropdown(false)
             }}
             className="px-4 py-3 cursor-pointer
                        hover:bg-indigo-50 transition"
