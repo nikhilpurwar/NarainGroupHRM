@@ -94,10 +94,10 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
     let outTime = ''
     if (!isTodaySelected) {
-      if (!outHour || !outMinute || !outMeridiem) {
-        setError('Please complete Punch-Out time for past date');
-        return
-      }
+      // if (!outHour || !outMinute || !outMeridiem) {
+      //   setError('Please complete Punch-Out time for past date');
+      //   return
+      // }
       outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
     }
 

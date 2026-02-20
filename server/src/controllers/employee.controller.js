@@ -756,12 +756,16 @@ export const validateFaceCache = async (req, res) => {
 
 const processPunchIn = async (emp, now, currentTimeString, attendanceIso, existingAttendance, method = 'manual toggle') => {
   if (existingAttendance) {
+    // Auto-close any previous open INs before appending this IN
+    try {
+      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+    } catch (e) { console.warn('handleContinuous pre-IN close failed', e); }
+
     existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
     existingAttendance.inTime = currentTimeString;
     await updateAttendanceTotals(existingAttendance, emp);
     await existingAttendance.save();
     attendanceService.recordPunch(emp._id.toString(), 'IN');
-    await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
     return { type: 'in', message: 'Punch IN appended', attendance: existingAttendance };
   }
 
@@ -775,6 +779,11 @@ const processPunchIn = async (emp, now, currentTimeString, attendanceIso, existi
     }).lean();
     isHoliday = !!holiday;
   } catch (e) {}
+
+  // Ensure previous open INs are closed before creating today's IN
+  try {
+    await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+  } catch (e) { console.warn('handleContinuous pre-create close failed', e); }
 
   const newAtt = await Attendance.create({
     employee: emp._id,
@@ -984,6 +993,11 @@ export const addAttendance = async (req, res) => {
 
           return res.status(200).json({ success: true, type: 'out', message: 'Punch OUT successful', attendance: attendanceDoc, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
         } else {
+          // Auto-close any previous open INs before appending this IN
+          try {
+            await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+          } catch (e) { console.warn('handleContinuous pre-IN close failed', e); }
+
           // Append IN to existing attendance
           attendanceDoc.punchLogs = attendanceDoc.punchLogs || [];
           attendanceDoc.punchLogs.push({ punchType: 'IN', punchTime: now });
@@ -1327,6 +1341,14 @@ export const addAttendance = async (req, res) => {
         if (intervalsOverlap(existingIntervalStart, existingIntervalEnd, newIntervalStart, newIntervalEnd)) {
           return res.status(400).json({ success: false, message: 'Selected time overlaps existing attendance for this date' });
         }
+      }
+
+      // If an IN is being added, auto-close any previous open INs (use the IN timestamp to resolve attendanceIso)
+      if (inPunch) {
+        try {
+          const iso = await attendanceService.getAttendanceIsoForTimestamp(new Date(inPunch));
+          await attendanceService.handleContinuousINAcross8AM(emp._id, iso, Attendance);
+        } catch (e) { console.warn('handleContinuous pre-manual-IN close failed', e); }
       }
 
       // Append new punches to existing record and recompute totals
@@ -1866,6 +1888,12 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
     }
     // If existingAttendance provided, append IN punch
     if (existingAttendance) {
+      // Auto-close any previous open INs before appending this IN (use attendanceIso if provided)
+      try {
+        const iso = attendanceIso || (await attendanceService.getAttendanceIsoForTimestamp(new Date()));
+        await attendanceService.handleContinuousINAcross8AM(emp._id, iso, Attendance);
+      } catch (e) { console.warn('handleContinuous pre-barcode-IN close failed', e); }
+
       existingAttendance.punchLogs = existingAttendance.punchLogs || [];
       existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
       existingAttendance.inTime = currentTimeString;

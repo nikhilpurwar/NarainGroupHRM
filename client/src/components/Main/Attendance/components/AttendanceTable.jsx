@@ -11,31 +11,31 @@ const STATUS_CONFIG = {
 };
 
 const ROW_COLORS = {
-  'Status': (status, hasHoliday) => 
+  'Status': (status, hasHoliday) =>
     hasHoliday ? 'bg-purple-100 text-purple-900 font-semibold' :
-    status === 'present' ? 'bg-green-100 text-green-900 font-semibold' :
-    status === 'absent' ? 'bg-red-100 text-red-900 font-semibold' :
-    status === 'halfday' ? 'bg-yellow-100 text-yellow-900 font-semibold' :
-    status === 'leave' ? 'bg-blue-100 text-blue-900 font-semibold' :
-    status === 'festival' ? 'bg-purple-100 text-purple-900 font-semibold' :
-    'bg-gray-100 text-gray-500',
+      status === 'present' ? 'bg-green-100 text-green-900 font-semibold' :
+        status === 'absent' ? 'bg-red-100 text-red-900 font-semibold' :
+          status === 'halfday' ? 'bg-yellow-100 text-yellow-900 font-semibold' :
+            status === 'leave' ? 'bg-blue-100 text-blue-900 font-semibold' :
+              status === 'festival' ? 'bg-purple-100 text-purple-900 font-semibold' :
+                'bg-gray-100 text-gray-500',
 
-  'In': (status) => 
+  'In': (status) =>
     status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400',
 
-  'Out': (status) => 
+  'Out': (status) =>
     status ? 'bg-blue-50 text-blue-900 cursor-pointer hover:bg-blue-100' : 'bg-gray-50 text-gray-400',
 
-  'Regular Hours': (status) => 
+  'Regular Hours': (status) =>
     status ? 'bg-green-50 text-green-900 font-semibold' : 'bg-gray-50 text-gray-400',
 
-  'Worked Hours': (status) => 
+  'Worked Hours': (status) =>
     status ? 'bg-blue-50 text-blue-900 font-semibold' : 'bg-gray-50 text-gray-400',
 
-  'OT (Hours)': (status) => 
+  'OT (Hours)': (status) =>
     status ? 'bg-orange-50 text-orange-900 font-semibold' : 'bg-gray-50 text-gray-400',
 
-  'Total Worked Hours': (status) => 
+  'Total Worked Hours': (status) =>
     status ? 'bg-purple-50 text-purple-900 font-bold' : 'bg-gray-50 text-gray-400',
 };
 
@@ -109,20 +109,27 @@ const useAttendanceData = (attendanceRaw) => {
 
 // Sub-components
 const Legend = ({ isMobile }) => (
-  <div className={`${isMobile ? 'p-3 bg-gray-50 border-t flex flex-wrap gap-3 text-xs justify-center' : 'sticky left-0 p-4 bg-gray-50 flex flex-wrap gap-4 text-xs'}`}>
-    {LEGEND_ITEMS.map((item, idx) => (
-      <div key={idx} className="flex items-center gap-1 sm:gap-2">
-        <span className={`w-3 h-3 ${item.color} rounded flex-shrink-0`}></span>
-        <span>{item.label}</span>
-      </div>
-    ))}
+  <div className={`${isMobile ? 'p-3 bg-gray-50 border-t flex flex-wrap gap-3 text-xs justify-center' : 'sticky left-0 p-4 bg-gray-50 flex justify-between text-sm'}`}>
+    <div className='flex justify-between flex-wrap gap-4 text-xs'>
+      {LEGEND_ITEMS.map((item, idx) => (
+        <div key={idx} className="flex items-center gap-1 sm:gap-2">
+          <span className={`w-3 h-3 ${item.color} rounded flex-shrink-0`}></span>
+          <span>{item.label}</span>
+        </div>
+      ))}
+    </div>
+
+    {/* <div className="flex justify-center gap-1 sm:gap-2">
+      <input type="checkbox" />
+      <span className=""> Enable/Disable Auto Punch Out at 8AM</span>
+    </div> */}
   </div>
 );
 
 const StatusBadge = ({ status, isoDate, holidayName, isMobile }) => {
   if (holidayName && status) {
     const config = STATUS_CONFIG[status] || { label: status, bg: 'bg-gray-500', full: status };
-    
+
     if (isMobile) {
       return (
         <div className="flex flex-col items-center">
@@ -133,7 +140,7 @@ const StatusBadge = ({ status, isoDate, holidayName, isMobile }) => {
         </div>
       );
     }
-    
+
     return (
       <div className="flex items-center gap-2 justify-center">
         <span className={`${config.bg} text-white px-2 py-1 rounded text-xs font-bold`}>
@@ -228,31 +235,31 @@ const InOutCell = ({ isoDate, row, fallback, attendanceMap }) => {
 
   // Try punchLogs first for accurate timezone display
   const logs = Array.isArray(rec.punchLogs) ? rec.punchLogs : [];
-  
+
   if (logs.length > 0) {
     if (row === 'In') {
       const firstIn = logs.find(l => (l.punchType || '').toUpperCase() === 'IN');
       if (firstIn?.punchTime) {
         const dt = new Date(firstIn.punchTime);
         if (!isNaN(dt.getTime())) {
-          return dt.toLocaleTimeString('en-IN', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
+          return dt.toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
           });
         }
       }
     }
-    
+
     if (row === 'Out') {
       const lastOut = [...logs].reverse().find(l => (l.punchType || '').toUpperCase() === 'OUT');
       if (lastOut?.punchTime) {
         const dt = new Date(lastOut.punchTime);
         if (!isNaN(dt.getTime())) {
-          const timeStr = dt.toLocaleTimeString('en-IN', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
+          const timeStr = dt.toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
           });
           return (
             <div className="flex items-center justify-center gap-2">
@@ -271,22 +278,22 @@ const InOutCell = ({ isoDate, row, fallback, attendanceMap }) => {
   if (row === 'In' && rec.inTime) {
     const dt = new Date(rec.inTime);
     if (!isNaN(dt.getTime())) {
-      return dt.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
+      return dt.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       });
     }
     return rec.inTime;
   }
-  
+
   if (row === 'Out' && rec.outTime) {
     const dt = new Date(rec.outTime);
     if (!isNaN(dt.getTime())) {
-      return dt.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
+      return dt.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       });
     }
     return rec.outTime;
@@ -296,26 +303,26 @@ const InOutCell = ({ isoDate, row, fallback, attendanceMap }) => {
 };
 
 // Main Component
-const AttendanceTable = ({ 
-  days, 
-  data, 
-  isMobile, 
-  attendanceRaw, 
-  onCellClick, 
-  holidays = [] 
+const AttendanceTable = ({
+  days,
+  data,
+  isMobile,
+  attendanceRaw,
+  onCellClick,
+  holidays = []
 }) => {
   const holidayMap = useHolidayMap(holidays);
   const attendanceMap = useAttendanceData(attendanceRaw);
-  
+
   const getCellColor = useCallback((cell, row, isoDate) => {
     const hasHoliday = holidayMap.has(isoDate);
     const colorFn = ROW_COLORS[row] || (() => cell ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-400');
     return colorFn(cell, hasHoliday);
   }, [holidayMap]);
 
-  const getDisplayDays = useMemo(() => 
+  const getDisplayDays = useMemo(() =>
     isMobile ? days.slice(0, 7) : days
-  , [days, isMobile]);
+    , [days, isMobile]);
 
   const renderCell = useCallback((row, cell, index) => {
     const isoDate = days[index]?.iso;
@@ -323,19 +330,19 @@ const AttendanceTable = ({
     const isClickable = (row === 'In' || row === 'Out') && cell;
 
     let content;
-    
+
     switch (row) {
       case 'Status':
         content = (
-          <StatusBadge 
-            status={cell} 
-            isoDate={isoDate} 
-            holidayName={holidayName} 
-            isMobile={isMobile} 
+          <StatusBadge
+            status={cell}
+            isoDate={isoDate}
+            holidayName={holidayName}
+            isMobile={isMobile}
           />
         );
         break;
-        
+
       case 'OT (Hours)':
         content = <OtCell isoDate={isoDate} attendanceMap={attendanceMap} fallback={cell} />;
         break;
@@ -353,19 +360,19 @@ const AttendanceTable = ({
         content = display;
         break;
       }
-        
+
       case 'In':
       case 'Out':
         content = (
-          <InOutCell 
-            isoDate={isoDate} 
-            row={row} 
-            fallback={cell} 
-            attendanceMap={attendanceMap} 
+          <InOutCell
+            isoDate={isoDate}
+            row={row}
+            fallback={cell}
+            attendanceMap={attendanceMap}
           />
         );
         break;
-        
+
       default:
         content = cell || '--';
     }
@@ -408,7 +415,7 @@ const AttendanceTable = ({
                   })}
                 </tr>
               </thead>
-              
+
               <tbody>
                 {Object.keys(data).map((row, rowIdx) => (
                   <tr key={row} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -426,7 +433,7 @@ const AttendanceTable = ({
         <div className="px-4 py-2 border-t text-center text-xs text-gray-500">
           Showing 7 days • Scroll horizontally →
         </div>
-        
+
         <Legend isMobile={true} />
       </div>
     );
@@ -448,7 +455,7 @@ const AttendanceTable = ({
             ))}
           </tr>
         </thead>
-        
+
         <tbody>
           {Object.keys(data).map((row, rowIdx) => (
             <tr key={row} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'}>
@@ -460,7 +467,7 @@ const AttendanceTable = ({
           ))}
         </tbody>
       </table>
-      
+
       <Legend isMobile={false} />
     </div>
   );

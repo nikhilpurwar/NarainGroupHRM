@@ -49,10 +49,14 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
         <div className="p-6 overflow-y-auto max-h-[70vh] main-scroll">
           {/* Employee Info Section */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-5 mb-6 border border-blue-200">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-4 ">
+              <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-2xl font-bold text-white">
-                  {employee.empName?.charAt(0) || 'E'}
+                  {employee.avatar ? (
+                    <img src={employee.avatar} alt="Avatar" className="w-20 h-20 rounded-full" />
+                  ) : (
+                    employee.empName?.charAt(0) || 'E'
+                  )}
                 </span>
               </div>
               <div className="flex-1">
@@ -238,11 +242,10 @@ const ViewSalaryReport = memo(({ isOpen, onClose, employee, monthYear, onPay, on
             <button
               onClick={handlePay}
               disabled={employee.status === 'Paid' || isPaying}
-              className={`flex items-center gap-2 px-6 py-2.5 font-medium rounded-lg transition ${
-                employee.status === 'Paid' || isPaying
+              className={`flex items-center gap-2 px-6 py-2.5 font-medium rounded-lg transition ${employee.status === 'Paid' || isPaying
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
-              }`}
+                }`}
               title={employee.status === 'Paid' ? 'Already Paid' : (isPaying ? 'Processing' : 'Mark as Paid')}
             >
               <BanknoteArrowUp size={18} />

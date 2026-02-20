@@ -337,6 +337,19 @@ export const todaysAttendance = async (req, res) => {
   try {
     const now = req.query.now ? new Date(req.query.now) : new Date();
     const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
+    // Auto-close any open INs from previous attendance-days at boundary hour
+    try {
+      const dayStart = new Date(`${attendanceIso}T00:00:00Z`);
+      const openPrevEmployees = await Attendance.find({
+        date: { $lt: dayStart },
+        $expr: { $eq: [ { $arrayElemAt: ["$punchLogs.punchType", -1] }, "IN" ] }
+      }).distinct('employee');
+      if (openPrevEmployees && openPrevEmployees.length) {
+        await Promise.allSettled(openPrevEmployees.map(empId => attendanceService.handleContinuousINAcross8AM(empId.toString(), attendanceIso, Attendance)));
+      }
+    } catch (e) {
+      console.error('Error auto-closing previous open INs', e);
+    }
     const start = new Date(`${attendanceIso}T00:00:00Z`);
     const end = new Date(`${attendanceIso}T23:59:59Z`);
 
@@ -380,6 +393,11 @@ const handlePunch = {
           existingAttendance.isHoliday = !!_h;
         }
       } catch (e) {}
+
+      // Ensure any previous open INs (from earlier attendance-days) are closed at the boundary before adding this IN
+      try {
+        await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+      } catch (e) { console.warn('handleContinuous pre-IN close failed', e); }
 
       existingAttendance.punchLogs.push({ punchType: 'IN', punchTime: now });
       existingAttendance.inTime = currentTimeString;
@@ -426,6 +444,11 @@ const handlePunch = {
       const _h = await Holiday.findOne({ date: { $gte: _start, $lte: _end } }).lean();
       newIsHoliday = !!_h;
     } catch (e) {}
+
+    // Ensure previous open INs are closed before creating today's IN
+    try {
+      await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
+    } catch (e) { console.warn('handleContinuous pre-create close failed', e); }
 
     const newAttendance = await Attendance.create({
       employee: emp._id,

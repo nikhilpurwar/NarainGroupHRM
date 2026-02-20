@@ -457,66 +457,68 @@ export function parseDateTime(dateIso, timeStr, tzOffsetMinutes = null) {
 // Check if employee has open IN that crosses attendance-day boundary to next day
 export async function handleContinuousINAcross8AM(employeeId, attendanceIso, AttendanceModel) {
   try {
-    // Find the most recent attendance record which is still open (last punch = IN)
-    const openAtt = await findIncompleteAttendance(employeeId);
-    if (!openAtt || !Array.isArray(openAtt.punchLogs) || openAtt.punchLogs.length === 0) return null;
+    // Determine start of the attendance day for the incoming punch
+    const dayStart = attendanceIso ? new Date(`${attendanceIso}T00:00:00Z`) : null;
 
-    const lastPunch = openAtt.punchLogs[openAtt.punchLogs.length - 1];
-    if (!lastPunch || (lastPunch.punchType || '').toUpperCase() !== 'IN') return null;
+    // Find the most recent attendance record for this employee that still ends with an IN and is before the current attendance day
+    const prev = await AttendanceModel.findOne({
+      employee: employeeId,
+      date: { $lt: dayStart },
+      $expr: { $eq: [ { $arrayElemAt: ["$punchLogs.punchType", -1] }, "IN" ] }
+    }).sort({ date: -1 }).exec();
 
-    const lastInTime = new Date(lastPunch.punchTime);
+    if (!prev) return null;
+
+    // Ensure last log is indeed IN
+    const lastLog = Array.isArray(prev.punchLogs) ? prev.punchLogs[prev.punchLogs.length - 1] : null;
+    if (!lastLog || String(lastLog.punchType).toUpperCase() !== 'IN') return null;
+
+    // Compute the boundary timestamp (next day's boundary hour) for that attendance record
     const boundaryHour = await getBoundaryHour();
+    const boundaryTs = new Date(prev.date);
+    boundaryTs.setDate(boundaryTs.getDate() + 1);
+    boundaryTs.setHours(boundaryHour, 0, 0, 0);
 
-    // boundary timestamp for the current attendanceIso (e.g., today at boundaryHour)
-    const boundaryIso = `${attendanceIso}T${String(boundaryHour).padStart(2,'0')}:00:00Z`;
-    const boundaryTs = new Date(boundaryIso);
+    // Append an OUT punch marked as auto
+    prev.punchLogs.push({ punchType: 'OUT', punchTime: boundaryTs.toISOString(), auto: true });
 
-    // If the open attendance belongs to a previous attendance day and the last IN was before the boundary,
-    // then auto-punch OUT at the boundary timestamp to close the previous attendance.
-    const openAttIso = openAtt.date ? new Date(openAtt.date).toISOString().slice(0, 10) : null;
-    if (openAttIso && openAttIso !== attendanceIso && lastInTime.getTime() < boundaryTs.getTime()) {
-      // Push an OUT at boundary (mark as auto-generated)
-      openAtt.punchLogs.push({ punchType: 'OUT', punchTime: boundaryTs, auto: true });
+    // Recompute totals using shift config and employee shift if available
+    const shiftCfg = await getShiftConfig();
+    let shiftHours = 8;
+    try {
+      const emp = await Employee.findById(employeeId).lean();
+      if (emp?.shift) {
+        const match = String(emp.shift).match(/(\d+(?:\.\d+)?)/);
+        if (match) shiftHours = Math.max(Number(match[1]) || shiftHours, shiftHours);
+      }
+    } catch (e) {
+      // fallback to default
+    }
+    shiftHours = shiftCfg.shiftHours > 0 ? shiftCfg.shiftHours : shiftHours;
 
-      // Set outTime for display (HH:MM:SS)
-      openAtt.outTime = `${String(boundaryHour).padStart(2,'0')}:00:00`;
+    const computed = computeTotalsFromPunchLogs(prev.punchLogs, shiftHours, { countOpenAsNow: false, now: boundaryTs, dayMeta: { isWeekend: prev.isWeekend, isHoliday: prev.isHoliday } });
 
-      // Recompute totals using configured shift hours
-      const shiftCfg = await getShiftConfig();
-      const shiftHours = (shiftCfg && typeof shiftCfg.shiftHours === 'number') ? shiftCfg.shiftHours : 8;
+    // Persist computed totals back to attendance doc
+    prev.totalHours = computed.totalHours;
+    prev.regularHours = computed.regularHours;
+    prev.overtimeHours = computed.overtimeHours;
+    prev.totalMinutes = computed.totalMinutes;
+    prev.totalHoursDisplay = computed.totalHoursDisplay;
+    prev.regularHoursDisplay = computed.regularHoursDisplay;
+    prev.overtimeHoursDisplay = computed.overtimeHoursDisplay;
+    prev.dayOtHours = computed.dayOtHours;
+    prev.nightOtHours = computed.nightOtHours;
+    prev.sundayOtHours = computed.sundayOtHours;
+    prev.festivalOtHours = computed.festivalOtHours;
 
-      const computed = computeTotalsFromPunchLogs(openAtt.punchLogs, shiftHours, { countOpenAsNow: false, now: boundaryTs, dayMeta: { isWeekend: !!openAtt.isWeekend, isHoliday: !!openAtt.isHoliday } });
-
-      Object.assign(openAtt, {
-        totalHours: computed.totalHours,
-        regularHours: computed.regularHours,
-        overtimeHours: computed.overtimeHours,
-        totalMinutes: computed.totalMinutes,
-        totalHoursDisplay: computed.totalHoursDisplay,
-        regularHoursDisplay: computed.regularHoursDisplay,
-        overtimeHoursDisplay: computed.overtimeHoursDisplay,
-        dayOtHours: computed.dayOtHours,
-        nightOtHours: computed.nightOtHours,
-        sundayOtHours: computed.sundayOtHours,
-        festivalOtHours: computed.festivalOtHours,
-        status: 'present',
-        note: (openAtt.note || '') + ` | Auto-OUT at boundary ${String(boundaryHour).padStart(2,'0')}:00`
-      });
-
-      await openAtt.save();
-
-      // Ensure there is a fresh attendance for the current day if needed (but do not auto-create IN there)
-      const todayExists = await AttendanceModel.findOne({
-        employee: employeeId,
-        date: { $gte: new Date(`${attendanceIso}T00:00:00Z`), $lte: new Date(`${attendanceIso}T23:59:59Z`) }
-      });
-
-      return { marked: true, closedAttendance: openAtt, todayExists: !!todayExists };
+    if (computed.lastOutTime) {
+      prev.outTime = new Date(computed.lastOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    return null;
+    await prev.save();
+    return prev;
   } catch (err) {
-    console.error('Error handling continuous IN:', err);
+    console.warn('handleContinuousINAcross8AM error', err);
     return null;
   }
 }

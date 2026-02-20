@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
 
 export const useSalaryPDF = (getSelectedMonthYearLabel) => {
@@ -8,6 +8,16 @@ export const useSalaryPDF = (getSelectedMonthYearLabel) => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
       const monthYear = getSelectedMonthYearLabel();
+
+      const fmt = (val, decimals = 0) => {
+        const n = Number(val || 0)
+        const fixed = n.toFixed(decimals)
+        const [intPart, decPart] = fixed.split('.')
+        const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+        return (decPart ? `${withCommas}.${decPart}` : withCommas)
+      }
+
+      const fmtCurrency = (val, decimals = 0) => `₹${fmt(val, decimals)}`
 
       // Header with company info
       doc.setFillColor(37, 99, 235);
@@ -42,80 +52,83 @@ export const useSalaryPDF = (getSelectedMonthYearLabel) => {
       yPos += 10;
 
       // Salary Details Table
-      doc.autoTable({
+      const tbl1 = autoTable(doc, {
         startY: yPos,
         head: [['Description', 'Value']],
         body: [
-          ['Monthly Salary', `₹${employee.salary?.toLocaleString() || '0'}`],
-          ['Salary Per Day', `₹${employee.salaryPerDay?.toLocaleString() || '0'}`],
-          ['Salary Per Hour', `₹${employee.salaryPerHour?.toLocaleString() || '0'}`],
-          ['Present Days', employee.presentDays || '0'],
+          ['Monthly Salary', fmtCurrency(employee.salary)],
+          ['Salary Per Day', fmtCurrency(employee.salaryPerDay, 2)],
+          ['Salary Per Hour', fmtCurrency(employee.salaryPerHour, 2)],
+          ['Present Days', String(employee.presentDays || 0)],
         ],
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235] },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
+        columnStyles: { 1: { halign: 'right' } },
       });
 
-      yPos = doc.lastAutoTable.finalY + 10;
+      yPos = (tbl1 && tbl1.finalY) ? tbl1.finalY + 10 : (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 10 : yPos + 10);
 
       // Hours & Pay Table
-      doc.autoTable({
+      const tbl2 = autoTable(doc, {
         startY: yPos,
         head: [['Description', 'Hours/Amount']],
         body: [
-          ['Basic Hours', `${employee.basicHours || '0'} hrs`],
-          ['Basic Pay', `₹${employee.basicPay?.toLocaleString() || '0'}`],
-          ['OT Hours', `${employee.otHours || '0'} hrs`],
-          ['OT Pay', `₹${employee.otPay?.toLocaleString() || '0'}`],
-          ['Total Hours', `${employee.totalHours || '0'} hrs`],
+          ['Basic Hours', `${String(employee.basicHours || 0)} hrs`],
+          ['Basic Pay', fmtCurrency(employee.basicPay)],
+          ['OT Hours', `${String(employee.otHours || 0)} hrs`],
+          ['OT Pay', fmtCurrency(employee.otPay)],
+          ['Total Hours', `${String(employee.totalHours || 0)} hrs`],
         ],
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235] },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
+        columnStyles: { 1: { halign: 'right' } },
       });
 
-      yPos = doc.lastAutoTable.finalY + 5;
+      yPos = (tbl2 && tbl2.finalY) ? tbl2.finalY + 5 : (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 5 : yPos + 5);
 
       // Total Pay (Highlighted)
       doc.setFillColor(220, 252, 231);
       doc.rect(14, yPos, 182, 10, 'F');
       doc.setFont(undefined, 'bold');
       doc.text('Total Pay (Gross):', 20, yPos + 7);
-      doc.text(`₹${employee.totalPay?.toLocaleString() || '0'}`, 190, yPos + 7, { align: 'right' });
+      doc.text(fmtCurrency(employee.totalPay || 0), 190, yPos + 7, { align: 'right' });
       doc.setFont(undefined, 'normal');
       yPos += 15;
 
       // Deductions Table
-      doc.autoTable({
+      const tbl3 = autoTable(doc, {
         startY: yPos,
         head: [['Deduction Type', 'Amount']],
         body: [
-          ['TDS', `₹${employee.tds?.toLocaleString() || '0'}`],
-          ['Professional Tax', `₹${employee.pTax?.toLocaleString() || '0'}`],
-          ['LWF', `₹${employee.lwf?.toLocaleString() || '0'}`],
-          ['ESI', `₹${employee.esi?.toLocaleString() || '0'}`],
-          ['Basic PF', `₹${employee.basicPF?.toLocaleString() || '0'}`],
-          ['OT PF', `₹${employee.otPF?.toLocaleString() || '0'}`],
-          ['Insurance', `₹${employee.insurance?.toLocaleString() || '0'}`],
-          ['Advance', `₹${employee.advance?.toLocaleString() || '0'}`],
-          ['Loan Deduct', `₹${employee.loanDeduct?.toLocaleString() || '0'}`],
+          ['TDS', fmtCurrency(employee.tds)],
+          ['Professional Tax', fmtCurrency(employee.pTax)],
+          ['LWF', fmtCurrency(employee.lwf)],
+          ['ESI', fmtCurrency(employee.esi)],
+          ['Basic PF', fmtCurrency(employee.basicPF)],
+          ['OT PF', fmtCurrency(employee.otPF)],
+          ['Insurance', fmtCurrency(employee.insurance)],
+          ['Advance', fmtCurrency(employee.advance)],
+          ['Loan Deduct', fmtCurrency(employee.loanDeduct)],
         ],
         theme: 'striped',
         headStyles: { fillColor: [220, 38, 38] },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
+        columnStyles: { 1: { halign: 'right' } },
       });
 
-      yPos = doc.lastAutoTable.finalY + 5;
+      yPos = (tbl3 && tbl3.finalY) ? tbl3.finalY + 5 : (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 5 : yPos + 5);
 
       // Total Deductions (Highlighted)
       doc.setFillColor(254, 252, 232);
       doc.rect(14, yPos, 182, 10, 'F');
       doc.setFont(undefined, 'bold');
       doc.text('Total Deductions:', 20, yPos + 7);
-      doc.text(`₹${employee.totalDeductions?.toLocaleString() || '0'}`, 190, yPos + 7, { align: 'right' });
+      doc.text(fmtCurrency(employee.totalDeductions || 0), 190, yPos + 7, { align: 'right' });
       yPos += 15;
 
       // Net Pay (Highlighted)
@@ -124,7 +137,7 @@ export const useSalaryPDF = (getSelectedMonthYearLabel) => {
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.text('Net Pay (Take Home):', 20, yPos + 8);
-      doc.text(`₹${employee.netPay?.toLocaleString() || '0'}`, 190, yPos + 8, { align: 'right' });
+      doc.text(fmtCurrency(employee.netPay || 0), 190, yPos + 8, { align: 'right' });
 
       // Footer
       doc.setFontSize(8);
