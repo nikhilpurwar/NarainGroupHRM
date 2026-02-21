@@ -288,15 +288,18 @@ const EmployeeTable = ({
   };
 
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!employeeToDelete) return;
 
-    // ✅ ONLY notify parent
-    onDelete(employeeToDelete._id);
-
-
-    // ✅ close modal immediately
-    closeDeleteModal();
+    setDeleting(true);
+    try {
+      await onDelete(employeeToDelete._id);
+      closeDeleteModal();
+    } catch (err) {
+      console.error('Delete failed', err);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   useEffect(() => {

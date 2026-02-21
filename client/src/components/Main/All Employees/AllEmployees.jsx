@@ -38,6 +38,7 @@ const AllEmployees = () => {
     mutationFn: async (id) => axios.delete(`${API_BASE}/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
+      dispatch(fetchEmployees())
       toast.success('Employee deleted')
     },
     onError: (err) => {
@@ -46,14 +47,15 @@ const AllEmployees = () => {
     }
   })
 
-  const handleDelete = useCallback((id) => {
-    deleteMutation.mutate(id)
+  const handleDelete = useCallback(async (id) => {
+    await deleteMutation.mutateAsync(id)
   }, [deleteMutation])
 
   const toggleMutation = useMutation({
     mutationFn: async ({ empId, next }) => axios.put(`${API_BASE}/${empId}`, { status: next }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
+      dispatch(fetchEmployees())
       toast.success(`Employee ${vars.next}`)
     },
     onError: (err) => {
