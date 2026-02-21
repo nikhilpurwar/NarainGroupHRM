@@ -83,13 +83,9 @@ const ManualAttendanceModal = ({ isOpen, onClose, employees, employeesLoading, o
     // Validation
     if (!employeeId) { setError('Please select an employee'); return }
     if (!date) { setError('Please select a date'); return }
-   const punchInComplete = inHour && inMinute && inMeridiem;
-const punchOutComplete = outHour && outMinute && outMeridiem;
-
-if (!punchInComplete && !punchOutComplete) {
-  setError('Please enter either Punch-In or Punch-Out details completely');
-  return;
-}
+    if (!inHour) { setError('Please enter Punch-In hour'); return }
+    if (!inMinute) { setError('Please enter Punch-In minute'); return }
+    if (!inMeridiem) { setError('Please select Punch-In AM/PM'); return }
     if (minAllowedDate && date < minAllowedDate) {
       setError("Attendance cannot be created before employee joining date")
       return
@@ -98,10 +94,10 @@ if (!punchInComplete && !punchOutComplete) {
     const inTime = buildAmPmTime(inHour, inMinute, inMeridiem)
     let outTime = ''
     if (!isTodaySelected) {
-      // if (!outHour || !outMinute || !outMeridiem) {
-      //   setError('Please complete Punch-Out time for past date');
-      //   return
-      // }
+      if (!outHour || !outMinute || !outMeridiem) {
+        setError('Please complete Punch-Out time for past date');
+        return
+      }
       outTime = buildAmPmTime(outHour, outMinute, outMeridiem)
     }
 
