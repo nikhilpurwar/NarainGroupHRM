@@ -473,14 +473,10 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
     const lastLog = Array.isArray(prev.punchLogs) ? prev.punchLogs[prev.punchLogs.length - 1] : null;
     if (!lastLog || String(lastLog.punchType).toUpperCase() !== 'IN') return null;
 
-    // Compute the boundary timestamp (next day's boundary hour) for that attendance record
-    const boundaryHour = await getBoundaryHour();
-    const boundaryTs = new Date(prev.date);
-    boundaryTs.setDate(boundaryTs.getDate() + 1);
-    boundaryTs.setHours(boundaryHour, 0, 0, 0);
-
-    // Append an OUT punch marked as auto
-    prev.punchLogs.push({ punchType: 'OUT', punchTime: boundaryTs.toISOString(), auto: true });
+    // Close the previous IN at the current time (moment of the incoming punch)
+    const now = new Date();
+    // Append an OUT punch marked as auto (closed-on-next-punch)
+    prev.punchLogs.push({ punchType: 'OUT', punchTime: now.toISOString(), auto: true });
 
     // Recompute totals using shift config and employee shift if available
     const shiftCfg = await getShiftConfig();
@@ -496,7 +492,7 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
     }
     shiftHours = shiftCfg.shiftHours > 0 ? shiftCfg.shiftHours : shiftHours;
 
-    const computed = computeTotalsFromPunchLogs(prev.punchLogs, shiftHours, { countOpenAsNow: false, now: boundaryTs, dayMeta: { isWeekend: prev.isWeekend, isHoliday: prev.isHoliday } });
+    const computed = computeTotalsFromPunchLogs(prev.punchLogs, shiftHours, { countOpenAsNow: false, now, dayMeta: { isWeekend: prev.isWeekend, isHoliday: prev.isHoliday } });
 
     // Persist computed totals back to attendance doc
     prev.totalHours = computed.totalHours;
@@ -516,7 +512,7 @@ export async function handleContinuousINAcross8AM(employeeId, attendanceIso, Att
     }
 
     await prev.save();
-    return prev;
+    return { closed: true, attendance: prev };
   } catch (err) {
     console.warn('handleContinuousINAcross8AM error', err);
     return null;

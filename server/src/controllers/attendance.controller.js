@@ -337,19 +337,11 @@ export const todaysAttendance = async (req, res) => {
   try {
     const now = req.query.now ? new Date(req.query.now) : new Date();
     const attendanceIso = await attendanceService.getAttendanceIsoForTimestamp(now);
-    // Auto-close any open INs from previous attendance-days at boundary hour
-    try {
-      const dayStart = new Date(`${attendanceIso}T00:00:00Z`);
-      const openPrevEmployees = await Attendance.find({
-        date: { $lt: dayStart },
-        $expr: { $eq: [ { $arrayElemAt: ["$punchLogs.punchType", -1] }, "IN" ] }
-      }).distinct('employee');
-      if (openPrevEmployees && openPrevEmployees.length) {
-        await Promise.allSettled(openPrevEmployees.map(empId => attendanceService.handleContinuousINAcross8AM(empId.toString(), attendanceIso, Attendance)));
-      }
-    } catch (e) {
-      console.error('Error auto-closing previous open INs', e);
-    }
+    // NOTE: Previously this endpoint attempted to auto-close previous open INs
+    // when fetching today's attendance. That caused manual-only INs to be
+    // closed as soon as a client requested today's data. Auto-closing should
+    // only occur on actual punch events (or a scheduled worker). Therefore,
+    // we no longer perform batch auto-closing here.
     const start = new Date(`${attendanceIso}T00:00:00Z`);
     const end = new Date(`${attendanceIso}T23:59:59Z`);
 
@@ -406,9 +398,6 @@ const handlePunch = {
       
       attendanceService.recordPunch(emp._id.toString(), 'IN');
       await updateMonthlySummaryForEmployee(emp._id);
-      
-      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
-      
       const summary = await getCurrentMonthSummary(emp._id);
       emitAttendanceUpdate(emp, existingAttendance, 'in', summary);
       
@@ -447,7 +436,11 @@ const handlePunch = {
 
     // Ensure previous open INs are closed before creating today's IN
     try {
-      await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
+      const closeRes = await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
+      if (closeRes && closeRes.closed) {
+        try { attendanceService.recordPunch(emp._id.toString(), 'OUT'); } catch (e) {}
+        return { type: 'out', message: 'Previous open IN closed (on next punch)', attendance: closeRes.attendance };
+      }
     } catch (e) { console.warn('handleContinuous pre-create close failed', e); }
 
     const newAttendance = await Attendance.create({
@@ -473,8 +466,6 @@ const handlePunch = {
 
     attendanceService.recordPunch(emp._id.toString(), 'IN');
     await updateMonthlySummaryForEmployee(emp._id);
-    await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
-    
     const summary = await getCurrentMonthSummary(emp._id);
     emitAttendanceUpdate(emp, newAttendance, 'in', summary);
     

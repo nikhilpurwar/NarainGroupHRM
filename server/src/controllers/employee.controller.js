@@ -782,7 +782,12 @@ const processPunchIn = async (emp, now, currentTimeString, attendanceIso, existi
 
   // Ensure previous open INs are closed before creating today's IN
   try {
-    await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+    const closeRes = await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+    if (closeRes && closeRes.closed && !existingAttendance) {
+      // A previous open IN was closed; record an OUT punch and do not create a new IN for today
+      try { attendanceService.recordPunch(emp._id.toString(), 'OUT'); } catch (e) {}
+      return { type: 'out', message: 'Previous open IN closed (on next punch)', attendance: closeRes.attendance };
+    }
   } catch (e) { console.warn('handleContinuous pre-create close failed', e); }
 
   const newAtt = await Attendance.create({
@@ -804,7 +809,6 @@ const processPunchIn = async (emp, now, currentTimeString, attendanceIso, existi
   });
 
   attendanceService.recordPunch(emp._id.toString(), 'IN');
-  await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
   return { type: 'in', message: 'Punch IN successful', attendance: newAtt };
 };
 
@@ -1057,9 +1061,6 @@ export const addAttendance = async (req, res) => {
           // Record punch in debounce cache
           attendanceService.recordPunch(emp._id.toString(), 'IN');
 
-          // Check for continuous IN across configured boundary (e.g., 7AM)
-          await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
-
           await emp.populate('headDepartment');
           await emp.populate('subDepartment');
           await emp.populate('designation');
@@ -1099,6 +1100,18 @@ export const addAttendance = async (req, res) => {
         newAttIsHoliday = !!_h;
       } catch (e) {}
 
+      // Before creating new attendance, attempt to close previous open INs
+      try {
+        const closeRes = await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+        if (closeRes && closeRes.closed) {
+          try { attendanceService.recordPunch(emp._id.toString(), 'OUT'); } catch (e) {}
+          await emp.populate('headDepartment');
+          await emp.populate('subDepartment');
+          await emp.populate('designation');
+          return res.status(200).json({ success: true, type: 'out', message: 'Previous open IN closed (on next punch)', attendance: closeRes.attendance, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
+        }
+      } catch (e) { console.warn('handleContinuous pre-create close failed', e); }
+
       const newAtt = await Attendance.create({
         employee: emp._id,
         date: dateObj,
@@ -1130,8 +1143,7 @@ export const addAttendance = async (req, res) => {
         console.error('Salary recalculation failed:', err)
       );
 
-      // Check for continuous IN across configured boundary (e.g., 7AM)
-      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
+      // No post-create auto-close here (closing is handled on next live punch)
 
       await emp.populate('headDepartment');
       await emp.populate('subDepartment');
@@ -1172,12 +1184,9 @@ export const addAttendance = async (req, res) => {
       }
     });
 
-    // If manual marking (no inTime provided), capture current time as inTime
-    let capturedInTime = inTime;
-    if (!capturedInTime) {
-      const now = new Date();
-      capturedInTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
+    // For manual marking, do NOT default missing inTime to now.
+    // Allow creating records with only IN, only OUT, or both.
+    let capturedInTime = inTime || null;
 
     // Check for weekend
     const isWeekend = await isWeekendForEmployee(emp, new Date(date));
@@ -1343,13 +1352,8 @@ export const addAttendance = async (req, res) => {
         }
       }
 
-      // If an IN is being added, auto-close any previous open INs (use the IN timestamp to resolve attendanceIso)
-      if (inPunch) {
-        try {
-          const iso = await attendanceService.getAttendanceIsoForTimestamp(new Date(inPunch));
-          await attendanceService.handleContinuousINAcross8AM(emp._id, iso, Attendance);
-        } catch (e) { console.warn('handleContinuous pre-manual-IN close failed', e); }
-      }
+      // For manual attendance edits/appends we intentionally do NOT auto-close previous open INs here.
+      // Auto-closing should only happen on live punches (barcode/face/toggle) or scheduled runs.
 
       // Append new punches to existing record and recompute totals
       existingAttendance.punchLogs = existingAttendance.punchLogs || [];
@@ -1934,9 +1938,6 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
       
       // Record punch in debounce cache
       attendanceService.recordPunch(emp._id.toString(), 'IN');
-      
-      // Check for continuous IN across configured boundary (e.g., 7AM)
-      await attendanceService.handleContinuousINAcross8AM(emp._id, attendanceIso, Attendance);
 
       await emp.populate('headDepartment');
       await emp.populate('subDepartment');
@@ -1999,6 +2000,15 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
       newAttendanceIsHoliday = !!_h;
     } catch (e) {}
 
+    // Before creating a new attendance for today, attempt to close any previous open INs.
+    try {
+      const closeRes = await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
+      if (closeRes && closeRes.closed) {
+        try { attendanceService.recordPunch(emp._id.toString(), 'OUT'); } catch (e) {}
+        return res.status(200).json({ success: true, type: 'out', message: 'Previous open IN closed (on next punch)', attendance: closeRes.attendance, employee_id: emp._id, time: currentTimeString, employee_name: emp.name });
+      }
+    } catch (e) { console.warn('handleContinuous pre-barcode-create close failed', e); }
+
     const newAttendanceDoc = await Attendance.create({
       employee: emp._id,
       date: dateObj,
@@ -2022,9 +2032,6 @@ async function handlePunchInBarcode(emp, now, currentTimeString, res, attendance
     
     // Record punch in debounce cache
     attendanceService.recordPunch(emp._id.toString(), 'IN');
-    
-    // Check for continuous IN across configured boundary (e.g., 7AM)
-    await attendanceService.handleContinuousINAcross8AM(emp._id, dateIso, Attendance);
 
     // Re-populate employee relations for response
     await emp.populate('headDepartment');

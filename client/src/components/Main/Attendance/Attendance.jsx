@@ -175,18 +175,34 @@ const Attendance = () => {
 
   /* ---------------- Punch State ---------------- */
   const getTodayPunchState = emp => {
-    const todayAttendance = emp?.attendance?.find(a =>
-      a.date?.startsWith(todayIso)
-    )
+    // Prefer the most recent known punch across the employee's attendance records
+    // (so a previous-day IN remains visible as IN until a live punch closes it).
+    try {
+      const attList = Array.isArray(emp?.attendance) ? emp.attendance : [];
+      if (attList.length) {
+        // Find the single most-recent punch log across all attendance records
+        let latestPunch = null;
+        for (const a of attList) {
+          if (!a || !Array.isArray(a.punchLogs) || a.punchLogs.length === 0) continue;
+          for (const p of a.punchLogs) {
+            if (!p || !p.punchTime) continue;
+            const t = new Date(p.punchTime);
+            if (!latestPunch || t > latestPunch.time) {
+              latestPunch = { time: t, type: (p.punchType || '').toUpperCase() };
+            }
+          }
+        }
+        if (latestPunch) return latestPunch.type === 'IN' ? 'IN' : 'OUT';
+      }
 
-    if (!todayAttendance || !todayAttendance.punchLogs?.length) {
-      return "NOT_MARKED"
+      // Fallback: check today's attendance if present
+      const todayAttendance = emp?.attendance?.find(a => a.date?.startsWith(todayIso));
+      if (!todayAttendance || !todayAttendance.punchLogs?.length) return 'NOT_MARKED';
+      const lastPunchToday = todayAttendance.punchLogs.at(-1)?.punchType?.toUpperCase();
+      return lastPunchToday === 'IN' ? 'IN' : 'OUT';
+    } catch (e) {
+      return 'NOT_MARKED';
     }
-
-    const lastPunch =
-      todayAttendance.punchLogs.at(-1)?.punchType?.toUpperCase()
-
-    return lastPunch === "IN" ? "IN" : "OUT"
   }
 
   /* ---------------- Punch Out All Employees ---------------- */
